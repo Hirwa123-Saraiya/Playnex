@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/context/AuthContext';
@@ -8,12 +8,22 @@ import { Lock, Mail, Loader2, ArrowRight } from 'lucide-react';
 
 export default function LoginPage() {
   const router = useRouter();
-  const { login } = useAuth();
+  const { user, isLoading, login } = useAuth();
 
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
+
+  useEffect(() => {
+    if (!isLoading && user) {
+      if (user.systemRole === 'SUPER_ADMIN') {
+        router.push('/super-admin/dashboard');
+      } else {
+        router.push('/');
+      }
+    }
+  }, [user, isLoading, router]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -21,9 +31,13 @@ export default function LoginPage() {
     setSubmitting(true);
 
     try {
-      const ok = await login(email, password);
-      if (ok) {
-        router.push('/');
+      const loggedInUser = await login(email, password);
+      if (loggedInUser) {
+        if (loggedInUser.systemRole === 'SUPER_ADMIN') {
+          router.push('/super-admin/dashboard');
+        } else {
+          router.push('/');
+        }
       } else {
         setError('Invalid email or password credentials');
       }

@@ -10,8 +10,12 @@ export default function Home() {
   const { user, isLoading } = useAuth();
 
   useEffect(() => {
-    if (!isLoading && !user) {
-      router.push('/login');
+    if (!isLoading) {
+      if (!user) {
+        router.push('/login');
+      } else if (user.systemRole === 'SUPER_ADMIN') {
+        router.push('/super-admin/dashboard');
+      }
     }
   }, [user, isLoading, router]);
 
@@ -23,9 +27,14 @@ export default function Home() {
     );
   }
 
-  if (!user) {
-    return null;
+  if (!user || user.systemRole === 'SUPER_ADMIN') {
+    return (
+      <main className="min-h-screen bg-slate-950 flex items-center justify-center text-slate-400 text-xs">
+        Redirecting to dashboard...
+      </main>
+    );
   }
 
+  // With club login (CLUB_OWNER, STAFF, MEMBER), the club dashboard opens
   return <ClubLayout />;
 }

@@ -7,8 +7,8 @@ import { authService, RegisterPayload } from '../services/auth.service';
 interface AuthContextType {
   user: AuthUser | null;
   isLoading: boolean;
-  login: (email: string, password: string) => Promise<boolean>;
-  register: (payload: RegisterPayload) => Promise<boolean>;
+  login: (email: string, password: string) => Promise<AuthUser | null>;
+  register: (payload: RegisterPayload) => Promise<AuthUser | null>;
   logout: () => Promise<void>;
   hasPermission: (permission: string) => boolean;
   isSuperAdmin: boolean;
@@ -52,29 +52,29 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       });
   }, []);
 
-  const login = async (email: string, password: string): Promise<boolean> => {
+  const login = async (email: string, password: string): Promise<AuthUser | null> => {
     setIsLoading(true);
     try {
       const res = await authService.login(email, password);
       if (res.success && res.data?.user) {
         setUser(res.data.user);
-        return true;
+        return res.data.user;
       }
-      return false;
+      return null;
     } finally {
       setIsLoading(false);
     }
   };
 
-  const register = async (payload: RegisterPayload): Promise<boolean> => {
+  const register = async (payload: RegisterPayload): Promise<AuthUser | null> => {
     setIsLoading(true);
     try {
       const res = await authService.register(payload);
       if (res.success && res.data?.user) {
         setUser(res.data.user);
-        return true;
+        return res.data.user;
       }
-      return false;
+      return null;
     } finally {
       setIsLoading(false);
     }
