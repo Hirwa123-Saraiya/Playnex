@@ -61,24 +61,39 @@ export default function LoginPage() {
 
     const tm = (targetUser.targetModule || '').toLowerCase();
     const rn = (targetUser.roleName || '').toLowerCase();
+    const email = (targetUser.email || '').toLowerCase();
 
-    if (tm.includes('pro shop') || tm.includes('inventory') || rn.includes('pro shop') || rn.includes('inventory')) {
-      return '/club/pro-shop';
+    // 1. Pro Shop & Inventory Workstation (Standalone)
+    if (tm.includes('pro shop') || tm.includes('inventory') || rn.includes('pro shop') || rn.includes('inventory') || email.includes('shop')) {
+      return '/pro-shop';
     }
-    if (tm.includes('restaurant') || tm.includes('bar') || tm.includes('kitchen') || rn.includes('restaurant') || rn.includes('bar') || rn.includes('kitchen')) {
-      return '/club/restaurant';
+    // 2. Bar & Kitchen / F&B Workstation (Standalone)
+    if (tm.includes('restaurant') || tm.includes('bar') || tm.includes('kitchen') || rn.includes('restaurant') || rn.includes('bar') || rn.includes('kitchen') || email.includes('bar')) {
+      return '/bar-kitchen';
     }
-    if (tm.includes('walk-in') || tm.includes('front desk') || tm.includes('reception') || rn.includes('front desk') || rn.includes('reception')) {
-      return '/club/walk-in';
+    // 3. Front Desk Command Center (Standalone)
+    if (tm.includes('front desk') || tm.includes('walk-in') || tm.includes('reception') || rn.includes('front desk') || rn.includes('reception') || email.includes('frontdesk')) {
+      return '/front-desk';
     }
-    if (tm.includes('finance') || tm.includes('account') || tm.includes('tax') || rn.includes('finance') || rn.includes('account') || rn.includes('auditor')) {
-      return '/club/finance';
+    // 4. Finance & Accounting ERP (Standalone)
+    if (tm.includes('finance') || tm.includes('account') || tm.includes('tax') || rn.includes('finance') || rn.includes('account') || rn.includes('auditor') || email.includes('accountant')) {
+      return '/finance';
     }
-    if (tm.includes('booking') || tm.includes('coach') || rn.includes('coach')) {
-      return '/club/bookings';
+    // 5. Sports Academy Coaching Workstation (Standalone)
+    if (tm.includes('coach') || rn.includes('coach') || email.includes('coach')) {
+      return '/coach';
     }
-    if (tm.includes('report') || rn.includes('report')) {
-      return '/club/reports';
+    // 6. HR & Personnel Workstation (Standalone)
+    if (tm.includes('hr') || rn.includes('hr') || tm.includes('human') || email.includes('hr.') || email.includes('hr@')) {
+      return '/hr';
+    }
+    // 7. Facility & Grounds Workstation (Standalone)
+    if (tm.includes('grounds') || tm.includes('facility') || rn.includes('grounds') || email.includes('grounds')) {
+      return '/facility-ops';
+    }
+
+    if (targetUser.systemRole === 'CLUB_OWNER') {
+      return '/club/dashboard';
     }
 
     return '/club/dashboard';

@@ -1,5 +1,8 @@
 'use client';
 
-import FrontDeskPage from '../admin/front-desk/page';
+import React from 'react';
+import { FrontDeskLayout } from '@/layouts/FrontDeskLayout';
 
-export default FrontDeskPage;
+export default function FrontDeskWorkstationPage() {
+  return <FrontDeskLayout />;
+}

@@ -42,6 +42,28 @@ export const ClubLayout: React.FC<ClubLayoutProps> = ({ children }) => {
   useEffect(() => {
     if (!isLoading && !user) {
       router.push('/login');
+    } else if (!isLoading && user && user.systemRole === 'STAFF') {
+      const tm = (user.targetModule || '').toLowerCase();
+      const rn = (user.roleName || '').toLowerCase();
+      const em = (user.email || '').toLowerCase();
+
+      if (tm.includes('pro shop') || tm.includes('inventory') || rn.includes('pro shop') || rn.includes('inventory') || em.includes('shop')) {
+        router.push('/pro-shop');
+      } else if (tm.includes('restaurant') || tm.includes('bar') || tm.includes('kitchen') || rn.includes('restaurant') || rn.includes('bar') || rn.includes('kitchen') || em.includes('bar')) {
+        router.push('/bar-kitchen');
+      } else if (tm.includes('front desk') || tm.includes('walk-in') || tm.includes('reception') || rn.includes('front desk') || rn.includes('reception') || em.includes('frontdesk')) {
+        router.push('/front-desk');
+      } else if (tm.includes('finance') || tm.includes('account') || tm.includes('tax') || rn.includes('finance') || rn.includes('account') || rn.includes('auditor') || em.includes('accountant')) {
+        router.push('/finance');
+      } else if (tm.includes('coach') || rn.includes('coach') || em.includes('coach')) {
+        router.push('/coach');
+      } else if (tm.includes('hr') || rn.includes('hr') || em.includes('hr')) {
+        router.push('/hr');
+      } else if (tm.includes('grounds') || tm.includes('facility') || rn.includes('grounds') || em.includes('grounds')) {
+        router.push('/facility-ops');
+      } else {
+        router.push('/front-desk');
+      }
     }
   }, [user, isLoading, router]);
 
@@ -53,7 +75,7 @@ export const ClubLayout: React.FC<ClubLayoutProps> = ({ children }) => {
     );
   }
 
-  if (!user) {
+  if (!user || user.systemRole === 'STAFF') {
     return null;
   }
 
