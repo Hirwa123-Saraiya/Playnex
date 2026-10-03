@@ -179,7 +179,7 @@ export const UserAuthModal: React.FC<UserAuthModalProps> = ({
     <div className="fixed inset-0 z-50 bg-slate-950/70 backdrop-blur-xs flex items-center justify-center p-4 overflow-y-auto animate-in fade-in duration-200">
       <div className="relative w-full max-w-md bg-white rounded-3xl shadow-2xl border border-slate-100 overflow-hidden my-8 animate-in zoom-in-95 duration-200">
         {/* Top Header Graphic */}
-        <div className="bg-gradient-to-r from-blue-600 via-indigo-600 to-blue-700 p-6 text-white relative">
+        <div className="bg-navy p-6 text-white relative">
           <button
             onClick={onClose}
             className="absolute top-4 right-4 p-1.5 rounded-full bg-white/10 hover:bg-white/20 text-white transition-colors"
@@ -189,7 +189,7 @@ export const UserAuthModal: React.FC<UserAuthModalProps> = ({
           </button>
 
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-white text-blue-600 font-black text-xl flex items-center justify-center shadow-md shadow-black/10">
+            <div className="w-10 h-10 rounded-xl bg-blue text-white font-black text-xl flex items-center justify-center shadow-md">
               P
             </div>
             <div>
@@ -206,27 +206,25 @@ export const UserAuthModal: React.FC<UserAuthModalProps> = ({
           </div>
 
           {/* Tab Selector */}
-          <div className="grid grid-cols-2 p-1 bg-black/20 rounded-xl mt-5 text-xs font-bold">
+          <div className="grid grid-cols-2 rounded-xl border border-line bg-page p-1 text-xs font-bold">
             <button
               type="button"
-              onClick={() => {
-                setTab('signin');
-                setErrorMessage('');
-              }}
-              className={`py-2 rounded-lg transition-all text-center ${
-                tab === 'signin' ? 'bg-white text-blue-700 shadow-sm' : 'text-blue-100 hover:text-white'
+              onClick={() => { setTab('signin'); setErrorMessage(''); }}
+              className={`py-2.5 rounded-lg transition-all text-center ${
+                tab === 'signin'
+                  ? 'bg-blue text-white shadow-sm'
+                  : 'text-muted hover:text-navy'
               }`}
             >
               Sign In
             </button>
             <button
               type="button"
-              onClick={() => {
-                setTab('signup');
-                setErrorMessage('');
-              }}
-              className={`py-2 rounded-lg transition-all text-center ${
-                tab === 'signup' ? 'bg-white text-blue-700 shadow-sm' : 'text-blue-100 hover:text-white'
+              onClick={() => { setTab('signup'); setErrorMessage(''); }}
+              className={`py-2.5 rounded-lg transition-all text-center ${
+                tab === 'signup'
+                  ? 'bg-blue text-white shadow-sm'
+                  : 'text-muted hover:text-navy'
               }`}
             >
               Create Account

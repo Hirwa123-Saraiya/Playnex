@@ -25,7 +25,7 @@ export const UserEvents: React.FC = () => {
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-8">
       {/* Header */}
       <div className="space-y-3">
-        <div className="flex items-center gap-2 text-xs font-bold text-purple-600 uppercase tracking-wider">
+        <div className="flex items-center gap-2 text-xs font-bold text-blue-600 uppercase tracking-wider">
           <Trophy className="w-4 h-4" />
           <span>Tournaments & Activities</span>
         </div>
@@ -57,8 +57,8 @@ export const UserEvents: React.FC = () => {
               onClick={() => setSelectedCategory(cat)}
               className={`text-xs px-3.5 py-1.5 rounded-full border transition-all shrink-0 ${
                 selectedCategory === cat
-                  ? 'bg-purple-600 text-white border-purple-600 font-bold shadow-xs'
-                  : 'bg-white text-slate-700 border-slate-200 hover:bg-slate-50'
+                  ? 'bg-blue-600 text-white border-blue-600 font-bold shadow-xs'
+                  : 'bg-white text-slate-700 border-slate-200 hover:bg-blue-50 hover:text-blue-700'
               }`}
             >
               {cat}
