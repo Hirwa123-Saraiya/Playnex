@@ -15,18 +15,22 @@ import {
   TimeSlot,
   BookingStatus,
 } from '../types/user.types';
+// import {
+//   initialUserProfile,
+//   mockClubs,
+//   mockFacilities,
+//   mockBookings,
+//   mockMembershipPlans,
+//   mockUserMemberships,
+//   mockEvents,
+//   mockFamilyMembers,
+//   mockPaymentTransactions,
+//   mockNotifications,
+//   mockReviews,
+//   mockTimeSlots,
+// } from '../mock/userMockData';
 import {
   initialUserProfile,
-  mockClubs,
-  mockFacilities,
-  mockBookings,
-  mockMembershipPlans,
-  mockUserMemberships,
-  mockEvents,
-  mockFamilyMembers,
-  mockPaymentTransactions,
-  mockNotifications,
-  mockReviews,
   mockTimeSlots,
 } from '../mock/userMockData';
 import { userClubsService } from '../services/userClubs.service';
@@ -765,7 +769,40 @@ export const useUserStore = create<UserStoreState>((set, get) => ({
     });
   },
 
-  addReview: (reviewData) => {
+  // addReview: (reviewData) => {
+  //   const { isGuest, openGuestModal } = get();
+  //   if (isGuest) {
+  //     openGuestModal(() => {
+  //       get().addReview(reviewData);
+  //     });
+  //     return;
+  //   }
+  //   const { currentUser } = get();
+  //   const newRev: ReviewItem = {
+  //     id: `rev-${Date.now()}`,
+  //     userId: currentUser.id,
+  //     userName: currentUser.name,
+  //     userAvatar: currentUser.avatarUrl,
+  //     date: 'Today',
+  //     ...reviewData,
+  //   };
+  //   set((state) => ({
+  //     reviews: [newRev, ...state.reviews],
+  //     notifications: [
+  //       {
+  //         id: `notif-${Date.now()}`,
+  //         title: 'Review Published',
+  //         message: `Thank you! Your feedback for ${reviewData.targetName} helps our sports community.`,
+  //         timestamp: 'Just now',
+  //         type: 'booking',
+  //         isRead: false,
+  //       },
+  //       ...state.notifications,
+  //     ],
+  //   }));
+  // },
+
+    addReview: (reviewData) => {
     const { isGuest, openGuestModal } = get();
     if (isGuest) {
       openGuestModal(() => {
@@ -774,8 +811,11 @@ export const useUserStore = create<UserStoreState>((set, get) => ({
       return;
     }
     const { currentUser } = get();
+
+    /* Optimistic local insert so the UI updates instantly */
+    const tempId = `rev-${Date.now()}`;
     const newRev: ReviewItem = {
-      id: `rev-${Date.now()}`,
+      id: tempId,
       userId: currentUser.id,
       userName: currentUser.name,
       userAvatar: currentUser.avatarUrl,
@@ -796,6 +836,33 @@ export const useUserStore = create<UserStoreState>((set, get) => ({
         ...state.notifications,
       ],
     }));
+
+    /* Persist to backend */
+    userProfileService
+      .submitReview({
+        clubId: reviewData.targetId,
+        userName: currentUser.name,
+        rating: reviewData.rating,
+        comment: reviewData.comment,
+        userId: currentUser.id,
+      })
+      .then((res) => {
+        /* If backend returned a real record with an id, swap the temp id */
+        if (res?.success && res.data?.id) {
+          set((state) => ({
+            reviews: state.reviews.map((r) =>
+              r.id === tempId ? { ...r, id: res.data.id } : r
+            ),
+          }));
+        }
+      })
+      .catch((err) => {
+        console.warn('Review submit failed:', err);
+        /* Optionally: remove optimistic entry on failure */
+        set((state) => ({
+          reviews: state.reviews.filter((r) => r.id !== tempId),
+        }));
+      });
   },
 
   toggleNotificationPanel: () => {
@@ -816,7 +883,8 @@ export const useUserStore = create<UserStoreState>((set, get) => ({
 
   fetchLiveData: async () => {
     try {
-      const [clubsRes, facsRes, evtsRes, plansRes, bksRes, memsRes, famRes] = await Promise.allSettled([
+
+        const [clubsRes, facsRes, evtsRes, plansRes, bksRes, memsRes, famRes, reviewsRes] = await Promise.allSettled([
         userClubsService.getClubs(),
         userClubsService.getFacilities(),
         userEventsService.getEvents(),
@@ -824,7 +892,17 @@ export const useUserStore = create<UserStoreState>((set, get) => ({
         userBookingsService.getMyBookings(get().currentUser.id),
         userMembershipsService.getMyMemberships(get().currentUser.id),
         userProfileService.getFamilyMembers(get().currentUser.id),
+        userProfileService.getReviews({ userId: get().currentUser.id }),
       ]);
+      // const [clubsRes, facsRes, evtsRes, plansRes, bksRes, memsRes, famRes] = await Promise.allSettled([
+      //   userClubsService.getClubs(),
+      //   userClubsService.getFacilities(),
+      //   userEventsService.getEvents(),
+      //   userMembershipsService.getMembershipPlans(),
+      //   userBookingsService.getMyBookings(get().currentUser.id),
+      //   userMembershipsService.getMyMemberships(get().currentUser.id),
+      //   userProfileService.getFamilyMembers(get().currentUser.id),
+      // ]);
 
       set((state) => {
         const updates: Partial<UserStoreState> = {};
@@ -993,6 +1071,36 @@ export const useUserStore = create<UserStoreState>((set, get) => ({
             sportsInterests: ['Tennis'],
           }));
           updates.familyMembers = liveFam;
+        }
+
+        //new
+                if (
+          reviewsRes.status === 'fulfilled' &&
+          reviewsRes.value.success &&
+          Array.isArray(reviewsRes.value.data)
+        ) {
+          const liveReviews = reviewsRes.value.data.map((r: any) => ({
+            id: r.id,
+            userId: r.userId || state.currentUser.id,
+            userName: r.userName || state.currentUser.name,
+            userAvatar:
+              r.userAvatar ||
+              'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&w=150&q=80',
+            date: r.createdAt
+              ? new Date(r.createdAt).toLocaleDateString('en-GB', {
+                  day: 'numeric',
+                  month: 'short',
+                  year: 'numeric',
+                })
+              : 'Recently',
+            targetType: 'club' as const,
+            targetId: r.clubId,
+            targetName: r.clubName || 'Club',
+            rating: Number(r.rating) || 5,
+            comment: r.comment || '',
+            images: [],
+          }));
+          updates.reviews = liveReviews;
         }
 
         if (!state.selectedClubId && updates.clubs && updates.clubs.length > 0) {
