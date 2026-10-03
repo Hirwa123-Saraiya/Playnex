@@ -3,12 +3,21 @@
 import React, { useState, useRef, useEffect } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import Sidebar from "@/components/super-admin/Sidebar";
+import Sidebar from '@/components/super-admin/Sidebar';
 import { useAuth } from '@/context/AuthContext';
 import {
-  Search, Bell, MessageSquare, ChevronDown, MapPin, CalendarDays,
-  LogOut, Building2,
-} from "lucide-react";
+  Search,
+  Bell,
+  MessageSquare,
+  ChevronDown,
+  MapPin,
+  CalendarDays,
+  LogOut,
+  Settings,
+  BarChart3,
+  Users,
+  Shield,
+} from 'lucide-react';
 
 export default function SuperAdminLayout({
   children,
@@ -38,103 +47,136 @@ export default function SuperAdminLayout({
   const displayName = user?.name || 'Super Admin';
   const initial = displayName.charAt(0).toUpperCase();
 
+  const currentDateFormatted = new Date().toLocaleDateString('en-GB', {
+    weekday: 'short',
+    day: 'numeric',
+    month: 'short',
+    year: 'numeric',
+  });
+
   return (
-    <div className="flex min-h-screen flex-col bg-page text-text md:flex-row">
+    <div className="flex min-h-screen flex-col bg-[#F7FAFC] text-[#1E293B] md:flex-row font-sans">
       <Sidebar />
 
       <div className="flex min-w-0 flex-1 flex-col">
-        {/* Top bar */}
-        <header className="flex flex-wrap items-center gap-2 border-b border-line bg-white px-4 py-3 md:gap-3 md:px-8">
-          {/* Search */}
+        {/* Top Navbar */}
+        <header className="sticky top-0 z-30 flex h-16 w-full items-center justify-between border-b border-[#D9E6F5] bg-white/95 backdrop-blur-md px-4 md:px-8 transition-all">
+          {/* Global Search */}
           <div className="relative order-2 w-full min-w-0 md:order-1 md:max-w-md md:flex-1">
             <Search
-              size={16}
-              className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-muted"
+              size={15}
+              className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-[#64748B]"
             />
             <input
-              placeholder="Search clubs, admins, users…"
-              className="h-10 w-full rounded-lg border border-line bg-white pl-9 pr-3 text-sm outline-none placeholder:text-muted focus:border-blue/40 md:pr-14"
+              placeholder="Search clubs, tenant IDs, administrators..."
+              className="h-10 w-full rounded-xl border border-[#D9E6F5] bg-[#F7FAFC] pl-9 pr-12 text-xs sm:text-sm text-[#1E293B] outline-none placeholder:text-[#64748B] focus:border-[#1565D8] focus:bg-white focus:ring-2 focus:ring-[#1565D8]/10 transition-all"
             />
-            <span className="pointer-events-none absolute right-2 top-1/2 hidden -translate-y-1/2 rounded border border-line bg-blueSoft px-1.5 py-0.5 text-[10px] font-medium text-blue md:inline-block">
+            <span className="pointer-events-none absolute right-2.5 top-1/2 hidden -translate-y-1/2 rounded-md border border-[#D9E6F5] bg-white px-1.5 py-0.5 text-[10px] font-semibold text-[#64748B] shadow-xs md:inline-block">
               ⌘K
             </span>
           </div>
 
-          {/* Right cluster */}
-          <div className="order-1 ml-auto flex items-center gap-2 md:order-3 md:ml-0">
-            <div className="hidden h-10 items-center gap-2 rounded-lg border border-line bg-white px-3 text-sm text-muted hover:text-navy lg:flex">
-              <CalendarDays size={15} />
-              <span>
-                {new Date().toLocaleDateString('en-GB', {
-                  weekday: 'short',
-                  day: 'numeric',
-                  month: 'short',
-                  year: 'numeric',
-                })}
-              </span>
+          {/* Right Controls */}
+          <div className="order-1 ml-auto flex items-center gap-2 sm:gap-2.5 md:order-3 md:ml-0">
+            {/* Live Date Pill */}
+            <div className="hidden lg:flex h-9 items-center gap-2 rounded-xl border border-[#D9E6F5] bg-[#F7FAFC] px-3 text-xs font-semibold text-[#1E293B]">
+              <CalendarDays size={14} className="text-[#1565D8]" />
+              <span>{currentDateFormatted}</span>
             </div>
 
-            <button className="hidden h-10 items-center gap-2 rounded-lg border border-line bg-white px-3 text-sm md:flex">
-              <MapPin size={15} className="text-muted" />
-              <span className="font-medium text-navy">All clubs</span>
-              <ChevronDown size={14} className="text-muted" />
-            </button>
+            {/* Platform Scope Badge */}
+            <div className="hidden md:flex h-9 items-center gap-1.5 rounded-xl border border-[#D9E6F5] bg-[#EAF3FF] px-3 text-xs font-bold text-[#1565D8]">
+              <MapPin size={13} className="text-[#1565D8]" />
+              <span>All Clubs</span>
+            </div>
 
+            {/* Notification Bell */}
             <button
               aria-label="Notifications"
-              className="relative grid h-10 w-10 place-items-center rounded-lg border border-line bg-white text-muted hover:text-navy"
+              className="relative grid h-9 w-9 place-items-center rounded-xl border border-[#D9E6F5] bg-white text-[#64748B] hover:bg-[#EAF3FF] hover:text-[#1565D8] transition-colors"
             >
-              <Bell size={16} />
-              <span className="absolute right-2 top-2 h-2 w-2 rounded-full bg-red-500" />
-            </button>
-            <button
-              aria-label="Messages"
-              className="grid h-10 w-10 place-items-center rounded-lg border border-line bg-white text-muted hover:text-navy"
-            >
-              <MessageSquare size={16} />
+              <Bell size={15} />
+              <span className="absolute top-1.5 right-1.5 h-2 w-2 rounded-full bg-rose-500 ring-2 ring-white" />
             </button>
 
-            {/* Profile */}
+            {/* Message Center */}
+            <button
+              aria-label="Messages"
+              className="grid h-9 w-9 place-items-center rounded-xl border border-[#D9E6F5] bg-white text-[#64748B] hover:bg-[#EAF3FF] hover:text-[#1565D8] transition-colors"
+            >
+              <MessageSquare size={15} />
+            </button>
+
+            {/* Profile Dropdown */}
             <div className="relative" ref={profileRef}>
               <button
                 onClick={() => setProfileOpen(!profileOpen)}
-                className="flex h-10 items-center gap-2 rounded-lg border border-line bg-white pl-1 pr-3 hover:bg-blueSoft transition-colors"
+                className="flex h-10 items-center gap-2.5 rounded-xl border border-[#D9E6F5] bg-white pl-1.5 pr-2.5 hover:bg-[#F7FAFC] transition-colors shadow-xs"
               >
-                <span className="grid h-8 w-8 place-items-center rounded-md bg-blue text-sm font-semibold text-white">
+                <span className="grid h-7 w-7 place-items-center rounded-lg bg-[#1565D8] text-xs font-extrabold text-white shadow-xs">
                   {initial}
                 </span>
                 <span className="hidden text-left leading-tight md:block">
-                  <span className="block text-xs font-semibold text-navy">{displayName}</span>
-                  <span className="block text-[10px] text-muted">Super admin</span>
+                  <span className="block text-xs font-bold text-[#0B1F4D]">{displayName}</span>
+                  <span className="block text-[10px] font-semibold text-[#64748B]">Super Admin</span>
                 </span>
-                <ChevronDown size={14} className={`text-muted transition-transform ${profileOpen ? 'rotate-180' : ''}`} />
+                <ChevronDown
+                  size={13}
+                  className={`text-[#64748B] transition-transform duration-150 ${
+                    profileOpen ? 'rotate-180' : ''
+                  }`}
+                />
               </button>
 
               {profileOpen && (
-                <div className="absolute right-0 mt-2 w-60 rounded-xl border border-line bg-white p-2 shadow-popover z-50">
-                  <div className="border-b border-line px-3 py-2">
-                    <p className="text-xs font-bold text-navy">{displayName}</p>
-                    <p className="text-[11px] text-muted truncate">{user?.email || 'superadmin@playnex.com'}</p>
-                    <span className="mt-1 inline-block rounded bg-blueSoft px-1.5 py-0.5 text-[10px] font-semibold text-blue">
-                      Platform Super Admin
+                <div className="absolute right-0 mt-2 w-64 rounded-2xl border border-[#D9E6F5] bg-white p-2 shadow-2xl z-50 animate-in fade-in zoom-in-95 duration-100">
+                  {/* Dropdown Header */}
+                  <div className="border-b border-[#D9E6F5]/80 px-3 py-2.5">
+                    <p className="text-xs font-bold text-[#0B1F4D]">{displayName}</p>
+                    <p className="text-[11px] text-[#64748B] truncate mt-0.5">
+                      {user?.email || 'superadmin@playnex.com'}
+                    </p>
+                    <span className="mt-1.5 inline-flex items-center gap-1 rounded-md bg-[#EAF3FF] px-2 py-0.5 text-[10px] font-bold text-[#1565D8]">
+                      <Shield size={10} />
+                      Platform Super Administrator
                     </span>
                   </div>
 
-                  <div className="py-1">
+                  {/* Super Admin Navigation Links (Strictly no client/club dashboard link) */}
+                  <div className="py-1.5 space-y-0.5">
                     <Link
-                      href="/"
+                      href="/super-admin/settings"
                       onClick={() => setProfileOpen(false)}
-                      className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-xs font-medium text-text hover:bg-blueSoft transition-colors"
+                      className="flex w-full items-center gap-2.5 rounded-xl px-3 py-2 text-xs font-semibold text-[#1E293B] hover:bg-[#EAF3FF] hover:text-[#1565D8] transition-colors"
                     >
-                      <Building2 size={14} className="text-blue" />
-                      <span>Switch to Club Dashboard</span>
+                      <Settings size={14} className="text-[#64748B]" />
+                      <span>Platform Settings</span>
+                    </Link>
+
+                    <Link
+                      href="/super-admin/reports"
+                      onClick={() => setProfileOpen(false)}
+                      className="flex w-full items-center gap-2.5 rounded-xl px-3 py-2 text-xs font-semibold text-[#1E293B] hover:bg-[#EAF3FF] hover:text-[#1565D8] transition-colors"
+                    >
+                      <BarChart3 size={14} className="text-[#64748B]" />
+                      <span>Reports & Analytics</span>
+                    </Link>
+
+                    <Link
+                      href="/super-admin/admins"
+                      onClick={() => setProfileOpen(false)}
+                      className="flex w-full items-center gap-2.5 rounded-xl px-3 py-2 text-xs font-semibold text-[#1E293B] hover:bg-[#EAF3FF] hover:text-[#1565D8] transition-colors"
+                    >
+                      <Users size={14} className="text-[#64748B]" />
+                      <span>Club Administrators</span>
                     </Link>
                   </div>
 
-                  <div className="border-t border-line pt-1">
+                  {/* Sign Out */}
+                  <div className="border-t border-[#D9E6F5]/80 pt-1.5">
                     <button
                       onClick={handleLogout}
-                      className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-xs font-medium text-red-600 hover:bg-red-50 transition-colors"
+                      className="flex w-full items-center gap-2.5 rounded-xl px-3 py-2 text-xs font-bold text-rose-600 hover:bg-rose-50 transition-colors"
                     >
                       <LogOut size={14} />
                       <span>Sign Out</span>
@@ -146,7 +188,8 @@ export default function SuperAdminLayout({
           </div>
         </header>
 
-        <main className="mx-auto w-full min-w-0 max-w-[1400px] flex-1 p-4 sm:p-5 md:p-8">
+        {/* Page Content */}
+        <main className="flex-1 p-4 sm:p-6 lg:p-8 max-w-[1600px] w-full mx-auto">
           {children}
         </main>
       </div>
