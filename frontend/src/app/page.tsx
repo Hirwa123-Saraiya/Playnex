@@ -17,6 +17,7 @@ import {
   Sparkles,
   User,
   Building2,
+  Landmark,
 } from 'lucide-react';
 import { MobileNav } from '@/components/landing/MobileNav';
 import PWAInstallButton from '@/components/layout/PWAInstallButton';
@@ -319,6 +320,14 @@ export default function LandingPage() {
 
       {/* Quick Portal Switcher Banner */}
       <div className="fixed bottom-4 right-4 z-50 bg-slate-950/90 backdrop-blur-md border border-slate-700/80 rounded-2xl p-1.5 shadow-2xl flex items-center gap-1">
+        <Link
+          href="/finance"
+          className="px-3 py-1.5 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 text-slate-300 hover:text-white hover:bg-slate-800"
+        >
+          <Landmark className="w-3.5 h-3.5 text-emerald-400" />
+          <span>Finance ERP</span>
+        </Link>
+
         <Link
           href="/bar-kitchen"
           className="px-3 py-1.5 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 text-slate-300 hover:text-white hover:bg-slate-800"
