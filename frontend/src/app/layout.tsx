@@ -20,7 +20,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="en" className={inter.className}>
+    <html lang="en">
       <body className="min-h-screen bg-sand text-text antialiased">
         <AuthProvider>
           <ClubProvider>

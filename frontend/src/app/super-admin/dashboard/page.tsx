@@ -49,7 +49,6 @@ export default function SuperAdminDashboard() {
     [query, status]
   );
 
-  /* Chart totals for the legend panel */
   const categoryTotals = useMemo(() => {
     const totals: Record<string, number> = {};
     for (const row of revenueStacked) {
@@ -75,16 +74,16 @@ export default function SuperAdminDashboard() {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-5 md:space-y-6">
       {/* Welcome header */}
       <div className="flex flex-wrap items-end justify-between gap-3">
-        <div>
-          <h1 className="text-2xl font-bold tracking-tight md:text-3xl">
+        <div className="min-w-0">
+          <h1 className="text-xl font-bold tracking-tight sm:text-2xl md:text-3xl">
             Welcome, Super Admin!
           </h1>
-          <div className="mt-1 flex items-center gap-2 text-sm text-muted">
+          <div className="mt-1 flex flex-wrap items-center gap-2 text-xs text-muted sm:text-sm">
             <span>Here&apos;s what&apos;s happening across all Playnex clubs today.</span>
-            <span className="hidden items-center gap-1 rounded-full bg-lime/40 px-2 py-0.5 text-[11px] font-semibold text-moss md:inline-flex">
+            <span className="hidden items-center gap-1 rounded-full bg-lime/40 px-2 py-0.5 text-[11px] font-semibold text-moss sm:inline-flex">
               <Sparkles size={12} /> Live multi-tenant sync
             </span>
           </div>
@@ -94,24 +93,26 @@ export default function SuperAdminDashboard() {
         </button>
       </div>
 
-      {/* KPI cards */}
-      <section className="grid grid-cols-2 gap-4 md:grid-cols-3 lg:grid-cols-6">
+      {/* KPI cards — 2 / 3 / 6 */}
+      <section className="grid grid-cols-2 gap-3 sm:gap-4 md:grid-cols-3 lg:grid-cols-6">
         {superAdminKpis.map((k, i) => {
           const Icon = KPI_ICONS[i % KPI_ICONS.length];
           const positive = k.direction === "up";
           return (
             <div
               key={k.label}
-              className="rounded-xl border border-line bg-card p-4 shadow-sm"
+              className="rounded-xl border border-line bg-card p-3 shadow-sm sm:p-4"
             >
-              <div className="flex items-center gap-2 text-[11px] font-semibold uppercase tracking-wide text-muted">
-                <span className="grid h-7 w-7 place-items-center rounded-md bg-lime/30 text-moss">
+              <div className="flex items-center gap-2 text-[10px] font-semibold uppercase tracking-wide text-muted sm:text-[11px]">
+                <span className="grid h-7 w-7 shrink-0 place-items-center rounded-md bg-lime/30 text-moss">
                   <Icon size={14} />
                 </span>
                 <span className="truncate">{k.label}</span>
               </div>
-              <div className="mt-3 text-2xl font-bold leading-none">{k.value}</div>
-              <div className="mt-3 flex items-center gap-1 text-[11px]">
+              <div className="mt-2 text-xl font-bold leading-none sm:mt-3 sm:text-2xl">
+                {k.value}
+              </div>
+              <div className="mt-2 flex items-center gap-1 text-[10px] sm:mt-3 sm:text-[11px]">
                 <span
                   className={`inline-flex items-center gap-0.5 font-semibold ${
                     positive ? "text-positive" : "text-negative"
@@ -128,10 +129,10 @@ export default function SuperAdminDashboard() {
       </section>
 
       {/* Chart + occupancy */}
-      <div className="grid gap-6 lg:grid-cols-3">
+      <div className="grid gap-4 md:gap-6 lg:grid-cols-3">
         {/* Revenue chart */}
-        <section className="rounded-xl border border-line bg-card p-5 lg:col-span-2">
-          <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+        <section className="rounded-xl border border-line bg-card p-4 md:p-5 lg:col-span-2">
+          <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
             <div>
               <h2 className="text-base font-bold">Revenue Overview</h2>
               <p className="text-xs text-muted">
@@ -139,7 +140,7 @@ export default function SuperAdminDashboard() {
               </p>
             </div>
             <div className="flex items-center gap-2">
-              <span className="rounded-full bg-lime/30 px-2 py-0.5 text-[11px] font-semibold text-moss">
+              <span className="hidden rounded-full bg-lime/30 px-2 py-0.5 text-[11px] font-semibold text-moss sm:inline-block">
                 +15% Growth
               </span>
               <button className="flex items-center gap-1 rounded-lg border border-line px-3 py-1.5 text-xs text-muted hover:text-text">
@@ -150,17 +151,17 @@ export default function SuperAdminDashboard() {
 
           <div className="grid gap-4 md:grid-cols-3">
             {/* Chart */}
-            <div className="h-72 md:col-span-2">
+            <div className="h-64 md:col-span-2 md:h-72">
               <ResponsiveContainer width="100%" height="100%">
                 <BarChart data={revenueStacked} barCategoryGap={18}>
                   <CartesianGrid vertical={false} stroke="#EAECE6" />
-                  <XAxis dataKey="day" tickLine={false} axisLine={false} fontSize={12} />
+                  <XAxis dataKey="day" tickLine={false} axisLine={false} fontSize={11} />
                   <YAxis
                     tickFormatter={(v: number) => `₹${Math.round(v / 1000)}k`}
                     tickLine={false}
                     axisLine={false}
-                    width={48}
-                    fontSize={12}
+                    width={42}
+                    fontSize={11}
                   />
                   <Tooltip
                     cursor={{ fill: "rgba(23,64,43,0.06)" }}
@@ -185,17 +186,19 @@ export default function SuperAdminDashboard() {
             </div>
 
             {/* Legend panel */}
-            <div className="rounded-lg border border-line bg-sand/60 p-4">
+            <div className="rounded-lg border border-line bg-sand/60 p-3 md:p-4">
               <div className="text-[11px] font-semibold uppercase tracking-wide text-muted">
                 Revenue breakdown
               </div>
-              <div className="mt-1 text-xl font-bold">{inr(grandTotal)}</div>
-              <ul className="mt-3 space-y-2.5">
+              <div className="mt-1 text-lg font-bold md:text-xl">
+                {inr(grandTotal)}
+              </div>
+              <ul className="mt-3 space-y-2 md:space-y-2.5">
                 {categoryTotals.map((c) => (
                   <li key={c.label} className="text-xs">
                     <div className="flex items-center gap-2">
                       <span
-                        className="h-2 w-2 rounded-full"
+                        className="h-2 w-2 shrink-0 rounded-full"
                         style={{ backgroundColor: revenueCategoryColors[c.label] }}
                       />
                       <span className="flex-1 truncate">{c.label}</span>
@@ -212,7 +215,7 @@ export default function SuperAdminDashboard() {
         </section>
 
         {/* Occupancy */}
-        <section className="rounded-xl border border-line bg-card p-5">
+        <section className="rounded-xl border border-line bg-card p-4 md:p-5">
           <div className="mb-4 flex items-center justify-between">
             <div>
               <h2 className="text-base font-bold">Top Clubs by Bookings</h2>
@@ -241,7 +244,9 @@ export default function SuperAdminDashboard() {
                         style={{ width: `${pct}%` }}
                       />
                     </div>
-                    <span className="w-9 text-right text-xs font-semibold">{pct}%</span>
+                    <span className="w-9 text-right text-xs font-semibold">
+                      {pct}%
+                    </span>
                   </div>
                 </li>
               );
@@ -251,22 +256,22 @@ export default function SuperAdminDashboard() {
       </div>
 
       {/* Clubs table */}
-      <section className="rounded-xl border border-line bg-card p-5">
+      <section className="rounded-xl border border-line bg-card p-4 md:p-5">
         <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
           <h2 className="text-base font-bold">Clubs</h2>
-          <div className="flex flex-wrap gap-2">
+          <div className="flex w-full flex-wrap gap-2 sm:w-auto">
             <input
               value={query}
               onChange={(e) => setQuery(e.target.value)}
               placeholder="Search club, admin or sport"
               aria-label="Search clubs"
-              className="w-64 rounded-lg border border-line bg-white px-3 py-2 text-sm outline-none placeholder:text-muted focus:border-moss/40"
+              className="h-10 w-full min-w-0 flex-1 rounded-lg border border-line bg-white px-3 text-sm outline-none placeholder:text-muted focus:border-moss/40 sm:w-64 sm:flex-none"
             />
             <select
               value={status}
               onChange={(e) => setStatus(e.target.value as "All" | ClubStatus)}
               aria-label="Filter by status"
-              className="rounded-lg border border-line bg-white px-3 py-2 text-sm"
+              className="h-10 rounded-lg border border-line bg-white px-3 text-sm"
             >
               <option>All</option>
               <option>Active</option>
@@ -276,36 +281,38 @@ export default function SuperAdminDashboard() {
           </div>
         </div>
 
-        <div className="overflow-x-auto">
-          <table className="w-full min-w-[820px] text-left text-sm">
+        <div className="-mx-4 overflow-x-auto md:mx-0">
+          <table className="w-full min-w-[720px] text-left text-sm">
             <thead className="border-b border-line text-muted">
               <tr>
-                <th className="py-2 font-medium">Club</th>
-                <th className="py-2 font-medium">Club admin</th>
-                <th className="py-2 text-right font-medium">Members</th>
-                <th className="py-2 text-right font-medium">Bookings today</th>
-                <th className="py-2 text-right font-medium">Revenue (month)</th>
-                <th className="py-2 pl-6 font-medium">Status</th>
-                <th className="py-2 text-right font-medium">Actions</th>
+                <th className="px-4 py-2 font-medium md:px-0">Club</th>
+                <th className="px-4 py-2 font-medium md:px-0">Club admin</th>
+                <th className="px-4 py-2 text-right font-medium md:px-0">Members</th>
+                <th className="px-4 py-2 text-right font-medium md:px-0">Bookings today</th>
+                <th className="px-4 py-2 text-right font-medium md:px-0">Revenue (month)</th>
+                <th className="px-4 py-2 pl-6 font-medium md:pl-6">Status</th>
+                <th className="px-4 py-2 text-right font-medium md:px-0">Actions</th>
               </tr>
             </thead>
             <tbody>
               {filtered.map((c) => (
                 <tr key={c.id} className="border-b border-line last:border-0">
-                  <td className="py-3">
+                  <td className="px-4 py-3 md:px-0">
                     <div className="font-medium">{c.name}</div>
                     <div className="text-xs text-muted">{c.sport}</div>
                   </td>
-                  <td className="py-3">{c.admin}</td>
-                  <td className="py-3 text-right">{c.members}</td>
-                  <td className="py-3 text-right">{c.bookingsToday}</td>
-                  <td className="py-3 text-right">{inr(c.revenue)}</td>
-                  <td className="py-3 pl-6">
-                    <span className={`rounded-full px-2.5 py-0.5 text-xs font-medium ${STATUS_STYLE[c.status]}`}>
+                  <td className="px-4 py-3 md:px-0">{c.admin}</td>
+                  <td className="px-4 py-3 text-right md:px-0">{c.members}</td>
+                  <td className="px-4 py-3 text-right md:px-0">{c.bookingsToday}</td>
+                  <td className="px-4 py-3 text-right md:px-0">{inr(c.revenue)}</td>
+                  <td className="px-4 py-3 pl-6 md:pl-6">
+                    <span
+                      className={`rounded-full px-2.5 py-0.5 text-xs font-medium ${STATUS_STYLE[c.status]}`}
+                    >
                       {c.status}
                     </span>
                   </td>
-                  <td className="py-3 text-right">
+                  <td className="px-4 py-3 text-right md:px-0">
                     <button className="rounded-md border border-moss px-3 py-1 text-xs font-medium text-moss hover:bg-moss hover:text-white">
                       {c.status === "Pending" ? "Review" : "Open"}
                     </button>
