@@ -5,6 +5,7 @@ export type Club = {
   name: string;
   sport: string;
   admin: string;
+  location: string;
   members: number;
   bookingsToday: number;
   revenue: number;
@@ -12,11 +13,11 @@ export type Club = {
 };
 
 export const clubs: Club[] = [
-  { id: "c1", name: "Champions Club",     sport: "Tennis, Cricket",   admin: "Rahul Patel", members: 248, bookingsToday: 32, revenue: 485000, status: "Active" },
-  { id: "c2", name: "Riverside Tennis",   sport: "Tennis",            admin: "Priya Shah",  members: 132, bookingsToday: 18, revenue: 264000, status: "Active" },
-  { id: "c3", name: "Smash Badminton Hub",sport: "Badminton",         admin: "Amit Shah",   members: 96,  bookingsToday: 24, revenue: 171000, status: "Active" },
-  { id: "c4", name: "Turf Arena",         sport: "Football, Cricket", admin: "Karan Mehta", members: 74,  bookingsToday: 9,  revenue: 98000,  status: "Pending" },
-  { id: "c5", name: "Lakeside Padel",     sport: "Padel",             admin: "Neha Patel",  members: 41,  bookingsToday: 0,  revenue: 22000,  status: "Suspended" },
+  { id: "c1", name: "Champions Club",      sport: "Tennis, Cricket",   admin: "Rahul Patel", location: "Ahmedabad, GJ", members: 248, bookingsToday: 32, revenue: 485000, status: "Active" },
+  { id: "c2", name: "Riverside Tennis",    sport: "Tennis",            admin: "Priya Shah",  location: "Surat, GJ",     members: 132, bookingsToday: 18, revenue: 264000, status: "Active" },
+  { id: "c3", name: "Smash Badminton Hub", sport: "Badminton",         admin: "Amit Shah",   location: "Vadodara, GJ",  members: 96,  bookingsToday: 24, revenue: 171000, status: "Active" },
+  { id: "c4", name: "Turf Arena",          sport: "Football, Cricket", admin: "Karan Mehta", location: "Rajkot, GJ",    members: 74,  bookingsToday: 9,  revenue: 98000,  status: "Pending" },
+  { id: "c5", name: "Lakeside Padel",      sport: "Padel",             admin: "Neha Patel",  location: "Ahmedabad, GJ", members: 41,  bookingsToday: 0,  revenue: 22000,  status: "Suspended" },
 ];
 
 /* ---------- KPI strip ---------- */
@@ -148,7 +149,7 @@ export type ClubRevenue = {
   month: number;
   week: number;
   today: number;
-  growth: number; // percent, may be negative
+  growth: number;
 };
 
 export const revenueByClub: ClubRevenue[] = [
