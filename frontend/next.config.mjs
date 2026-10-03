@@ -1,6 +1,7 @@
 import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
+import withPWAInit from "@ducanh2912/next-pwa";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -24,6 +25,15 @@ try {
   // Graceful fallback
 }
 
+// This block has been updated with the buildExcludes fix:
+const withPWA = withPWAInit({
+  dest: "public",
+  disable: process.env.NODE_ENV === "development", 
+  register: true,
+  skipWaiting: true,
+  buildExcludes: [/middleware-manifest\.json$/], 
+});
+
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   reactStrictMode: true,
@@ -33,4 +43,4 @@ const nextConfig = {
   },
 };
 
-export default nextConfig;
+export default withPWA(nextConfig);
