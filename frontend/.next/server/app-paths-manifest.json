@@ -1,15 +1,5 @@
 {
   "/_not-found/page": "app/_not-found/page.js",
-  "/login/page": "app/login/page.js",
-  "/register/page": "app/register/page.js",
   "/page": "app/page.js",
-  "/memberships/page": "app/memberships/page.js",
-  "/super-admin/admins/page": "app/super-admin/admins/page.js",
-  "/super-admin/clubs/page": "app/super-admin/clubs/page.js",
-  "/super-admin/dashboard/page": "app/super-admin/dashboard/page.js",
-  "/super-admin/events/page": "app/super-admin/events/page.js",
-  "/super-admin/reports/page": "app/super-admin/reports/page.js",
-  "/super-admin/revenue/page": "app/super-admin/revenue/page.js",
-  "/super-admin/settings/page": "app/super-admin/settings/page.js",
-  "/super-admin/users/page": "app/super-admin/users/page.js"
+  "/walk-in/page": "app/walk-in/page.js"
 }
