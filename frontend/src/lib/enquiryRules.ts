@@ -87,6 +87,7 @@ export const SOURCE_LABEL: Record<EnquirySource, string> = {
   WalkIn:      "Walk-in",
   Phone:       "Phone call",
   Referral:    "Referral",
+  TrialBooking: "Free Trial Booking",
 };
 
 export const PLAN_LABEL: Record<PlanInterest, string> = {

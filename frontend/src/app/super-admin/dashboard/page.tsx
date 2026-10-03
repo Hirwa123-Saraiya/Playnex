@@ -77,12 +77,12 @@ export default function SuperAdminDashboard() {
     const totalAdmins = stats?.total_admins ?? clubs.length;
 
     return [
-      { label: "Active Clubs", value: String(totalClubs), delta: "+100%", direction: "up" as const, note: "Live in PostgreSQL" },
-      { label: "Total Members", value: totalMembers.toLocaleString("en-IN"), delta: "Live", direction: "up" as const, note: "Across all tenants" },
-      { label: "Today's Bookings", value: String(todayBookings), delta: "Real-time", direction: "up" as const, note: "From bookings table" },
-      { label: "Today's Revenue", value: inr(todayRevenue), delta: "Synced", direction: "up" as const, note: "Live transactions" },
-      { label: "Active Facilities", value: `${activeFac} / ${totalFac}`, delta: "Active", direction: "up" as const, note: "Court & arena slots" },
-      { label: "Club Admins", value: String(totalAdmins), delta: "Active", direction: "up" as const, note: "Tenant club owners" },
+      { label: "Active Clubs", value: String(totalClubs), note: "Registered clubs" },
+      { label: "Total Members", value: totalMembers.toLocaleString("en-IN"), note: "Active members" },
+      { label: "Today's Bookings", value: String(todayBookings), note: "Bookings scheduled" },
+      { label: "Today's Revenue", value: inr(todayRevenue), note: "Revenue collected" },
+      { label: "Active Facilities", value: `${activeFac} / ${totalFac}`, note: "Available courts & arenas" },
+      { label: "Club Admins", value: String(totalAdmins), note: "Club administrators" },
     ];
   }, [stats, clubs]);
 
@@ -97,7 +97,7 @@ export default function SuperAdminDashboard() {
   );
 
   const topClubs = useMemo(() => {
-    return [...clubs].sort((a, b) => (b.members || 0) - (a.members || 0)).slice(0, 5);
+    return [...clubs].sort((a, b) => (Number(b.members) || 0) - (Number(a.members) || 0)).slice(0, 5);
   }, [clubs]);
 
   if (isLoading || !user || user.systemRole !== "SUPER_ADMIN") {
@@ -116,26 +116,16 @@ export default function SuperAdminDashboard() {
           <h1 className="text-xl font-bold tracking-tight text-navy sm:text-2xl md:text-3xl">
             Welcome, Super Admin!
           </h1>
-          <div className="mt-1 flex flex-wrap items-center gap-2 text-xs text-muted sm:text-sm">
-            <span>Here&apos;s what&apos;s happening across all Playnex clubs today.</span>
-            <span className="hidden items-center gap-1 rounded-full bg-blueSoft px-2 py-0.5 text-[11px] font-semibold text-blue sm:inline-flex">
-              <Sparkles size={12} /> Live multi-tenant sync
-            </span>
+          <div className="mt-1 text-xs text-muted sm:text-sm">
+            Overview of clubs, facilities, bookings, and revenue across the platform.
           </div>
         </div>
-        <Link
-          href="/super-admin/clubs/new"
-          className="inline-flex items-center gap-2 rounded-lg bg-blue px-4 py-2.5 text-sm font-semibold text-white hover:bg-blueHover"
-        >
-          Add club
-        </Link>
       </div>
 
       {/* KPI cards */}
       <section className="grid grid-cols-2 gap-3 sm:gap-4 md:grid-cols-3 lg:grid-cols-6">
         {dynamicKpis.map((k, i) => {
           const Icon = KPI_ICONS[i % KPI_ICONS.length];
-          const positive = k.direction === "up";
           return (
             <div
               key={k.label}
@@ -150,16 +140,8 @@ export default function SuperAdminDashboard() {
               <div className="mt-2 text-xl font-bold leading-none text-navy sm:mt-3 sm:text-2xl">
                 {k.value}
               </div>
-              <div className="mt-2 flex items-center gap-1 text-[10px] sm:mt-3 sm:text-[11px]">
-                <span
-                  className={`inline-flex items-center gap-0.5 font-semibold ${
-                    positive ? "text-positive" : "text-negative"
-                  }`}
-                >
-                  <TrendingUp size={12} />
-                  {k.delta}
-                </span>
-                <span className="truncate text-muted">{k.note}</span>
+              <div className="mt-2 text-[10px] sm:mt-3 sm:text-[11px] text-muted truncate">
+                {k.note}
               </div>
             </div>
           );
@@ -173,13 +155,8 @@ export default function SuperAdminDashboard() {
             <div>
               <h2 className="text-base font-bold text-navy">Revenue Overview</h2>
               <p className="text-xs text-muted">
-                Real-time revenue across all registered clubs
+                Platform revenue across all registered clubs
               </p>
-            </div>
-            <div className="flex items-center gap-2">
-              <span className="rounded-full bg-blueSoft px-2 py-0.5 text-[11px] font-semibold text-blue">
-                Live PostgreSQL Sync
-              </span>
             </div>
           </div>
 
@@ -244,7 +221,7 @@ export default function SuperAdminDashboard() {
           <div className="mb-4 flex items-center justify-between">
             <div>
               <h2 className="text-base font-bold text-navy">Top Clubs by Members</h2>
-              <p className="text-xs text-muted">Real-time tenant database</p>
+              <p className="text-xs text-muted">Ranked by registered membership</p>
             </div>
             <Link href="/super-admin/clubs" className="flex items-center gap-1 text-xs font-medium text-blue hover:underline">
               View all <ArrowRight size={12} />
@@ -253,14 +230,15 @@ export default function SuperAdminDashboard() {
 
           <ul className="space-y-4">
             {topClubs.map((club) => {
-              const maxMem = Math.max(...topClubs.map(c => c.members || 1), 10);
-              const pct = Math.min(100, Math.round(((club.members || 1) / maxMem) * 100));
+              const memberCount = Number(club.members) || 0;
+              const maxMem = Math.max(...topClubs.map(c => Number(c.members) || 0), 1);
+              const pct = maxMem > 0 && memberCount > 0 ? Math.min(100, Math.round((memberCount / maxMem) * 100)) : 0;
               return (
                 <li key={club.id}>
                   <div className="mb-1 flex items-center justify-between text-xs">
                     <span className="truncate pr-2 font-medium text-text">{club.name}</span>
                     <span className="text-muted">
-                      {club.members} {club.members === 1 ? 'member' : 'members'}
+                      {memberCount} {memberCount === 1 ? 'member' : 'members'}
                     </span>
                   </div>
                   <div className="flex items-center gap-2">
@@ -279,7 +257,7 @@ export default function SuperAdminDashboard() {
             })}
             {topClubs.length === 0 && (
               <li className="py-6 text-center text-xs text-muted">
-                No clubs found. Create a club to see live metrics.
+                No clubs registered yet.
               </li>
             )}
           </ul>

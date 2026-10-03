@@ -38,13 +38,17 @@ export const ClubHeader: React.FC = () => {
     currentDateFormatted,
     markNotificationRead,
     setActiveModal,
+    activeNav,
+    setActiveNav,
   } = useClub();
 
   const [branchDropdownOpen, setBranchDropdownOpen] = useState(false);
+  const [stationDropdownOpen, setStationDropdownOpen] = useState(false);
   const [profileDropdownOpen, setProfileDropdownOpen] = useState(false);
   const [notificationsDropdownOpen, setNotificationsDropdownOpen] = useState(false);
 
   const branchRef = useRef<HTMLDivElement>(null);
+  const stationRef = useRef<HTMLDivElement>(null);
   const profileRef = useRef<HTMLDivElement>(null);
   const notifRef = useRef<HTMLDivElement>(null);
 
@@ -53,6 +57,9 @@ export const ClubHeader: React.FC = () => {
     function handleClickOutside(event: MouseEvent) {
       if (branchRef.current && !branchRef.current.contains(event.target as Node)) {
         setBranchDropdownOpen(false);
+      }
+      if (stationRef.current && !stationRef.current.contains(event.target as Node)) {
+        setStationDropdownOpen(false);
       }
       if (profileRef.current && !profileRef.current.contains(event.target as Node)) {
         setProfileDropdownOpen(false);
@@ -173,6 +180,87 @@ export const ClubHeader: React.FC = () => {
                     </button>
                   );
                 })}
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* Sub-Account Station Switcher */}
+        <div className="relative" ref={stationRef}>
+          <button
+            onClick={() => setStationDropdownOpen(!stationDropdownOpen)}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-[#EAF3FF] hover:bg-[#dbeaff] border border-[#D9E6F5] text-xs font-bold text-[#1565D8] transition-all shadow-xs"
+            title="Switch Sub-Account Station"
+          >
+            <span>
+              {activeNav === 'Pro Shop & Inventory'
+                ? '🛍️'
+                : activeNav === 'Restaurant & Bar'
+                ? '🍹'
+                : activeNav === 'Walk-in Front Desk'
+                ? '🎾'
+                : activeNav === 'Finance & Payments'
+                ? '💰'
+                : '👑'}
+            </span>
+            <span className="hidden md:inline truncate max-w-[140px]">
+              {activeNav === 'Pro Shop & Inventory'
+                ? 'Pro Shop Sub-Acc'
+                : activeNav === 'Restaurant & Bar'
+                ? 'Bar & Kitchen POS'
+                : activeNav === 'Walk-in Front Desk'
+                ? 'Front Desk Desk'
+                : activeNav === 'Finance & Payments'
+                ? 'Finance Sub-Acc'
+                : 'Club Owner View'}
+            </span>
+            <ChevronDown
+              className={`w-3.5 h-3.5 text-[#1565D8] transition-transform ${
+                stationDropdownOpen ? 'rotate-180' : ''
+              }`}
+            />
+          </button>
+
+          {stationDropdownOpen && (
+            <div className="absolute right-0 mt-2 w-72 bg-white rounded-2xl shadow-xl border border-[#D9E6F5] py-2 z-50 animate-in fade-in zoom-in-95 duration-100">
+              <div className="px-3 py-2 border-b border-slate-100">
+                <p className="text-[11px] font-bold uppercase tracking-wider text-[#64748B]">
+                  Sub-Account Station Switcher
+                </p>
+                <p className="text-xs text-[#0B1F4D] font-semibold truncate mt-0.5">
+                  Launch workstation for this club
+                </p>
+              </div>
+              <div className="py-1">
+                {[
+                  { id: 'Dashboard', name: '👑 Club Owner (All Access)', desc: 'Executive dashboard & club governance' },
+                  { id: 'Pro Shop & Inventory', name: '🛍️ Pro Shop Terminal', desc: 'Central inventory, POS & stringing' },
+                  { id: 'Restaurant & Bar', name: '🍹 Bar & Kitchen POS', desc: 'Table orders, tabs & kitchen tickets' },
+                  { id: 'Walk-in Front Desk', name: '🎾 Front Desk & Reception', desc: 'Walk-in bookings & RFID check-in' },
+                  { id: 'Finance & Payments', name: '💰 Finance & Invoicing', desc: 'Subscriptions, payroll & GST filing' },
+                  { id: 'Staff Management', name: '👥 Manage All Sub-Accounts', desc: 'Onboard & configure personnel' },
+                ].map((station) => (
+                  <button
+                    key={station.id}
+                    onClick={() => {
+                      setActiveNav(station.id);
+                      setStationDropdownOpen(false);
+                    }}
+                    className={`w-full text-left px-3 py-2 flex items-start gap-2.5 transition-colors ${
+                      activeNav === station.id
+                        ? 'bg-[#EAF3FF] text-[#1565D8] font-bold'
+                        : 'hover:bg-slate-50 text-[#1E293B]'
+                    }`}
+                  >
+                    <div className="flex-1 truncate">
+                      <div className="text-xs font-bold truncate">{station.name}</div>
+                      <p className="text-[11px] text-[#64748B] truncate mt-0.5">{station.desc}</p>
+                    </div>
+                    {activeNav === station.id && (
+                      <Check className="w-4 h-4 text-[#1565D8] flex-shrink-0 mt-0.5" />
+                    )}
+                  </button>
+                ))}
               </div>
             </div>
           )}

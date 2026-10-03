@@ -54,6 +54,15 @@ export const ClubDepartments: React.FC = () => {
     },
     {
       id: 'DEP-05',
+      name: 'Pro Shop & Central Gear Inventory',
+      head: 'Vikram Mehta',
+      staffCount: 6,
+      todayRevenue: '₹ 4,37,000 (POS & Online)',
+      activeShift: 'All-Day (8 AM - 9 PM)',
+      facilitiesCovered: 'Rackets, Strings, Balls, Footwear, Racket Stringing Workshop',
+    },
+    {
+      id: 'DEP-06',
       name: 'Finance, Audit & Compliance',
       head: 'Nirav Shah (CA)',
       staffCount: 4,

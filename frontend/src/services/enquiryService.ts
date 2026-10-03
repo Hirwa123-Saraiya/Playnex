@@ -4,24 +4,39 @@ import type {
 } from "@/types/enquiry.types";
 import { MOCK_ENQUIRIES, STAFF } from "@/mock/enquiryMockData";
 
-const API = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000/api/v1";
+const STORAGE_KEY = "playnex_enquiries_v1";
+
+function getEnquiriesStore(): Enquiry[] {
+  if (typeof window === "undefined") return MOCK_ENQUIRIES;
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if (!raw) {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(MOCK_ENQUIRIES));
+      return MOCK_ENQUIRIES;
+    }
+    return JSON.parse(raw);
+  } catch {
+    return MOCK_ENQUIRIES;
+  }
+}
+
+function saveEnquiriesStore(list: Enquiry[]): void {
+  if (typeof window === "undefined") return;
+  try {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(list));
+  } catch (err) {
+    console.error("Failed to save enquiries to storage:", err);
+  }
+}
 
 /* ============================================================
    Public
    ============================================================ */
 
-/** Public: submit an enquiry from the landing page. */
+/** Public: submit an enquiry from the landing page or trial form. */
 export async function submitEnquiry(input: CreateEnquiryInput): Promise<Enquiry> {
-  // const res = await fetch(`${API}/enquiries`, {
-  //   method: "POST",
-  //   headers: { "Content-Type": "application/json" },
-  //   body: JSON.stringify(input),
-  // });
-  // if (!res.ok) throw new Error(await res.text());
-  // return res.json();
-
-  // Mock:
-  return Promise.resolve({
+  const current = getEnquiriesStore();
+  const newEnquiry: Enquiry = {
     id: `e-${Date.now()}`,
     tenantId: "t1",
     source: input.source,
@@ -35,11 +50,15 @@ export async function submitEnquiry(input: CreateEnquiryInput): Promise<Enquiry>
     status: "New",
     assignedToId: null,
     assignedToName: null,
-    followUpAt: null,
+    followUpAt: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(), // 24-hr response SLA
     createdAt: new Date().toISOString(),
     updatedAt: new Date().toISOString(),
     notes: [],
-  });
+  };
+
+  const updatedList = [newEnquiry, ...current];
+  saveEnquiriesStore(updatedList);
+  return Promise.resolve(newEnquiry);
 }
 
 /* ============================================================
@@ -47,21 +66,15 @@ export async function submitEnquiry(input: CreateEnquiryInput): Promise<Enquiry>
    ============================================================ */
 
 export async function fetchEnquiries(): Promise<Enquiry[]> {
-  // const res = await fetch(`${API}/enquiries`, { credentials: "include" });
-  // return res.json();
-  return Promise.resolve(MOCK_ENQUIRIES);
+  return Promise.resolve(getEnquiriesStore());
 }
 
 export async function fetchEnquiry(id: string): Promise<Enquiry | null> {
-  // const res = await fetch(`${API}/enquiries/${id}`, { credentials: "include" });
-  // if (!res.ok) return null;
-  // return res.json();
-  return Promise.resolve(MOCK_ENQUIRIES.find((e) => e.id === id) ?? null);
+  const list = getEnquiriesStore();
+  return Promise.resolve(list.find((e) => e.id === id) ?? null);
 }
 
 export async function fetchStaff(): Promise<StaffMember[]> {
-  // const res = await fetch(`${API}/staff`, { credentials: "include" });
-  // return res.json();
   return Promise.resolve(STAFF.filter((s) => s.active));
 }
 
@@ -69,25 +82,20 @@ export async function updateEnquiry(
   id: string,
   input: UpdateEnquiryInput
 ): Promise<Enquiry> {
-  // const res = await fetch(`${API}/enquiries/${id}`, {
-  //   method: "PATCH",
-  //   headers: { "Content-Type": "application/json" },
-  //   body: JSON.stringify(input),
-  //   credentials: "include",
-  // });
-  // if (!res.ok) throw new Error(await res.text());
-  // return res.json();
+  const list = getEnquiriesStore();
+  const idx = list.findIndex((e) => e.id === id);
+  if (idx === -1) throw new Error("Enquiry not found");
 
-  // Mock: return the modified enquiry object
-  const base = MOCK_ENQUIRIES.find((e) => e.id === id);
-  if (!base) throw new Error("Enquiry not found");
+  const base = list[idx];
   const updated: Enquiry = {
     ...base,
     ...input,
     assignedToName:
       input.assignedToId === null
         ? null
-        : STAFF.find((s) => s.id === input.assignedToId)?.name ?? base.assignedToName,
+        : input.assignedToId
+          ? STAFF.find((s) => s.id === input.assignedToId)?.name ?? base.assignedToName
+          : base.assignedToName,
     updatedAt: new Date().toISOString(),
     notes: input.noteText
       ? [
@@ -95,27 +103,30 @@ export async function updateEnquiry(
           {
             id: `n-${Date.now()}`,
             authorId: "s1",
-            authorName: "You",
+            authorName: "Staff Reception",
             text: input.noteText,
             createdAt: new Date().toISOString(),
           },
         ]
       : base.notes,
   };
+
+  list[idx] = updated;
+  saveEnquiriesStore(list);
   return Promise.resolve(updated);
 }
 
 export async function convertToMember(id: string): Promise<ConversionResult> {
-  // const res = await fetch(`${API}/enquiries/${id}/convert`, {
-  //   method: "POST",
-  //   credentials: "include",
-  // });
-  // if (!res.ok) throw new Error(await res.text());
-  // return res.json();
+  const list = getEnquiriesStore();
+  const idx = list.findIndex((e) => e.id === id);
+  if (idx === -1) throw new Error("Enquiry not found");
 
-  // Mock:
-  const base = MOCK_ENQUIRIES.find((e) => e.id === id);
-  if (!base) throw new Error("Enquiry not found");
+  const base = list[idx];
+  base.status = "Converted";
+  base.updatedAt = new Date().toISOString();
+  list[idx] = base;
+  saveEnquiriesStore(list);
+
   return Promise.resolve({
     memberId: `m-${Date.now()}`,
     memberName: base.name,

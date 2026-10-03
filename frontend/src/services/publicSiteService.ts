@@ -43,25 +43,24 @@ export async function fetchProduct(id: string): Promise<PublicProduct | null> {
   return Promise.resolve(SHOP_PRODUCTS.find((p) => p.id === id) ?? null);
 }
 
+import { submitEnquiry } from "./enquiryService";
+
 export async function submitTrialBooking(
   input: TrialBookingInput
 ): Promise<TrialBookingResult> {
-  // const res = await fetch(`${API}/enquiries`, {
-  //   method: "POST",
-  //   headers: { "Content-Type": "application/json" },
-  //   body: JSON.stringify({
-  //     ...input,
-  //     source: "LandingHero",
-  //     planInterest: "Undecided",
-  //   }),
-  // });
-  // if (!res.ok) throw new Error(await res.text());
-  // const data = await res.json();
-  // return { enquiryId: data.id, message: "Thanks — we'll be in touch." };
-
-  // Mock:
-  return Promise.resolve({
-    enquiryId: `trial-${Date.now()}`,
-    message: "Thanks — we'll get back to you within 24 hours to confirm your trial.",
+  const enquiry = await submitEnquiry({
+    source: "TrialBooking",
+    name: input.name,
+    email: input.email,
+    phone: input.phone,
+    preferredContact: input.preferredContact,
+    sportInterest: input.sport,
+    planInterest: "Undecided",
+    message: `Requested Free Trial for ${input.preferredDate} at ${input.preferredTime}. Note: ${input.message || "None"}`,
   });
+
+  return {
+    enquiryId: enquiry.id,
+    message: "Thanks! We've received your request and our front desk will get back to you within 24 hours.",
+  };
 }

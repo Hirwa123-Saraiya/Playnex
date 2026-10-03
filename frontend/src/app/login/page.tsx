@@ -58,6 +58,12 @@ export default function LoginPage() {
     if (!isLoading && user) {
       if (user.systemRole === 'SUPER_ADMIN') {
         router.push('/super-admin/dashboard');
+      } else if (user.systemRole === 'MEMBER') {
+        router.push('/user');
+      } else if (user.roleName?.toLowerCase().includes('pro shop')) {
+        router.push('/pro-shop-inventory');
+      } else if (user.roleName?.toLowerCase().includes('bar') || user.roleName?.toLowerCase().includes('kitchen')) {
+        router.push('/bar-kitchen');
       } else {
         router.push('/');
       }
@@ -74,6 +80,12 @@ export default function LoginPage() {
       if (loggedInUser) {
         if (loggedInUser.systemRole === 'SUPER_ADMIN') {
           router.push('/super-admin/dashboard');
+        } else if (loggedInUser.systemRole === 'MEMBER') {
+          router.push('/user');
+        } else if (loggedInUser.roleName?.toLowerCase().includes('pro shop')) {
+          router.push('/pro-shop-inventory');
+        } else if (loggedInUser.roleName?.toLowerCase().includes('bar') || loggedInUser.roleName?.toLowerCase().includes('kitchen')) {
+          router.push('/bar-kitchen');
         } else {
           router.push('/');
         }

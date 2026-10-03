@@ -123,11 +123,14 @@ function availabilityForDay(date: string, dayIdx: number): DayAvailability {
     else if (isWeekend) booked = 1 + (seed % 3); // 1–3 booked
     else booked = seed % 2;                     // 0–1 booked
 
+    const isFridaySocial = dayIdx === 5 && hour >= 18 && hour <= 21;
     booked = Math.min(booked, totalCount);
     return {
       time,
       freeCount: totalCount - booked,
       totalCount,
+      isSocialPlay: isFridaySocial,
+      socialPlayTag: isFridaySocial ? "Friday Social Play (Court Sharing)" : undefined,
     };
   });
 

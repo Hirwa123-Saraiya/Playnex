@@ -22,6 +22,9 @@ import { ClubCommunications } from '../views/ClubCommunications';
 import { ClubApprovals } from '../views/ClubApprovals';
 import { ClubRoles } from '../views/ClubRoles';
 import { ClubSettings } from '../views/ClubSettings';
+import { ClubProShop } from '../views/ClubProShop';
+import { ClubEnquiries } from '../views/ClubEnquiries';
+import { ClubWalkIn } from '../views/ClubWalkIn';
 
 interface ClubLayoutProps {
   children?: React.ReactNode;
@@ -36,18 +39,22 @@ export const ClubLayout: React.FC<ClubLayoutProps> = ({ children }) => {
         return <ClubDashboard />;
       case 'Bookings':
         return <ClubBookings />;
+      case 'Walk-in Front Desk':
+        return <ClubWalkIn />;
       case 'Members':
         return <ClubMembers />;
       case 'Facilities':
         return <ClubFacilities />;
-      case 'Departments':
-        return <ClubDepartments />;
+      case 'Pro Shop & Inventory':
+        return <ClubProShop />;
       case 'Restaurant & Bar':
         return <ClubRestaurant />;
       case 'Events & Tournaments':
         return <ClubEvents />;
       case 'Membership Plans':
         return <ClubMembership />;
+      case 'Enquiries & Leads':
+        return <ClubEnquiries />;
       case 'Staff Management':
         return <ClubStaff />;
       case 'Finance & Payments':

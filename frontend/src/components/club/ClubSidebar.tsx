@@ -20,6 +20,9 @@ import {
   ChevronRight,
   ShieldCheck,
   X,
+  ShoppingBag,
+  Inbox,
+  UserPlus,
 } from 'lucide-react';
 import { useClub } from '../../context/ClubContext';
 
@@ -34,11 +37,14 @@ interface SidebarItem {
 const navItems: SidebarItem[] = [
   { name: 'Dashboard', icon: LayoutDashboard, id: 'Dashboard' },
   { name: 'Bookings', icon: CalendarDays, id: 'Bookings' },
+  { name: 'Walk-in Front Desk', icon: UserPlus, id: 'Walk-in Front Desk' },
   { name: 'Members', icon: Users, id: 'Members' },
-  { name: 'Facilities', icon: Building2, id: 'Facilities' },
+  { name: 'Facilities & Courts', icon: Building2, id: 'Facilities' },
+  { name: 'Pro Shop & Inventory', icon: ShoppingBag, id: 'Pro Shop & Inventory' },
   { name: 'Restaurant & Bar', icon: UtensilsCrossed, id: 'Restaurant & Bar' },
   { name: 'Events & Tournaments', icon: Trophy, id: 'Events & Tournaments' },
   { name: 'Membership Plans', icon: CreditCard, id: 'Membership Plans' },
+  { name: 'Enquiries & Leads', icon: Inbox, id: 'Enquiries & Leads' },
   { name: 'Staff Management', icon: Briefcase, id: 'Staff Management' },
   { name: 'Finance & Payments', icon: IndianRupee, id: 'Finance & Payments' },
   { name: 'Reports & Analytics', icon: BarChart3, id: 'Reports & Analytics' },
@@ -74,18 +80,18 @@ export const ClubSidebar: React.FC = () => {
 
       {/* Sidebar Container */}
       <aside
-        className={`fixed top-0 bottom-0 left-0 z-50 flex flex-col bg-[#0F172A] text-slate-300 border-r border-slate-800 transition-all duration-300 ease-in-out ${
+        className={`fixed top-0 bottom-0 left-0 z-50 flex flex-col bg-[#071A3D] text-slate-300 border-r border-[#0B1F4D] transition-all duration-300 ease-in-out ${
           sidebarCollapsed ? 'w-20' : 'w-64'
         } ${
           mobileSidebarOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'
         }`}
       >
         {/* Top Header / Club Brand */}
-        <div className="flex items-center justify-between h-16 px-4 border-b border-slate-800/80 bg-[#0F172A]">
+        <div className="flex items-center justify-between h-16 px-4 border-b border-[#0B1F4D] bg-[#071A3D]">
           <div className="flex items-center gap-3 overflow-hidden">
-            <div className="flex-shrink-0 w-9 h-9 rounded-xl bg-gradient-to-tr from-blue-600 via-indigo-600 to-amber-400 p-[1.5px] flex items-center justify-center shadow-lg shadow-blue-900/30">
-              <div className="w-full h-full bg-[#0F172A] rounded-[10px] flex items-center justify-center">
-                <span className="text-sm font-black text-transparent bg-clip-text bg-gradient-to-r from-amber-300 to-blue-400">
+            <div className="flex-shrink-0 w-9 h-9 rounded-xl bg-gradient-to-tr from-[#1565D8] via-[#2F80ED] to-amber-400 p-[1.5px] flex items-center justify-center shadow-lg shadow-blue-900/30">
+              <div className="w-full h-full bg-[#071A3D] rounded-[10px] flex items-center justify-center">
+                <span className="text-sm font-black text-transparent bg-clip-text bg-gradient-to-r from-amber-300 to-blue-300">
                   ⚡
                 </span>
               </div>
@@ -132,8 +138,8 @@ export const ClubSidebar: React.FC = () => {
                 title={sidebarCollapsed ? item.name : undefined}
                 className={`w-full group flex items-center gap-3 px-3 py-2.5 rounded-xl font-medium text-sm transition-all duration-150 relative ${
                   isActive
-                    ? 'bg-blue-600 text-white shadow-md shadow-blue-600/30 font-semibold'
-                    : 'text-slate-400 hover:text-white hover:bg-slate-800/70'
+                    ? 'bg-[#1565D8] text-white shadow-md shadow-[#0E5BD8]/30 font-semibold'
+                    : 'text-slate-300 hover:text-white hover:bg-[#0E5BD8]/25'
                 }`}
               >
                 <Icon
@@ -158,7 +164,7 @@ export const ClubSidebar: React.FC = () => {
 
                 {/* Collapsed Tooltip / Dot Badge */}
                 {sidebarCollapsed && badgeValue && (
-                  <span className="absolute top-2 right-2 w-2 h-2 rounded-full bg-rose-500 ring-2 ring-[#0F172A]" />
+                  <span className="absolute top-2 right-2 w-2 h-2 rounded-full bg-rose-500 ring-2 ring-[#071A3D]" />
                 )}
               </button>
             );
@@ -166,9 +172,9 @@ export const ClubSidebar: React.FC = () => {
         </div>
 
         {/* Multi-Tenant Footnote & Collapse Toggle */}
-        <div className="p-3 border-t border-slate-800 bg-[#0c1322]">
+        <div className="p-3 border-t border-[#0B1F4D] bg-[#05132d]">
           {!sidebarCollapsed && (
-            <div className="mb-3 px-2 py-2 rounded-lg bg-slate-900/90 border border-slate-800 flex items-center gap-2 text-xs text-slate-400">
+            <div className="mb-3 px-2 py-2 rounded-lg bg-[#071A3D]/90 border border-[#0B1F4D] flex items-center gap-2 text-xs text-slate-400">
               <ShieldCheck className="w-4 h-4 text-emerald-400 flex-shrink-0" />
               <div className="truncate">
                 <p className="text-slate-300 font-medium text-[11px]">Tenant Verified</p>
@@ -179,7 +185,7 @@ export const ClubSidebar: React.FC = () => {
 
           <button
             onClick={() => setSidebarCollapsed((prev) => !prev)}
-            className="hidden lg:flex w-full items-center justify-center gap-2 py-2 px-3 text-xs text-slate-400 hover:text-white hover:bg-slate-800 rounded-lg transition-colors"
+            className="hidden lg:flex w-full items-center justify-center gap-2 py-2 px-3 text-xs text-slate-400 hover:text-white hover:bg-[#0E5BD8]/25 rounded-lg transition-colors"
           >
             {sidebarCollapsed ? (
               <ChevronRight className="w-4 h-4" />

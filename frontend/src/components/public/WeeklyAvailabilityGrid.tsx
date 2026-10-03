@@ -58,6 +58,21 @@ export function WeeklyAvailabilityGrid({
         </div>
       </div>
 
+      {/* Friday Night Social Play Banner */}
+      {day.day === "Fri" && (
+        <div className="rounded-xl border border-indigo-200 bg-indigo-50/70 p-3 text-xs text-indigo-900 flex items-center justify-between gap-3">
+          <div className="flex items-center gap-2">
+            <span className="text-base">🎾</span>
+            <span>
+              <strong>Friday Night Social Play:</strong> 18:00 – 21:00 courts open for shared community matches.
+            </span>
+          </div>
+          <span className="shrink-0 rounded-md bg-indigo-600 px-2 py-0.5 text-[10px] font-bold text-white uppercase tracking-wider">
+            Court Sharing
+          </span>
+        </div>
+      )}
+
       {/* Slots */}
       <div className="grid grid-cols-3 gap-2 sm:grid-cols-4 md:grid-cols-6 lg:grid-cols-8">
         {day.slots.map((slot) => {
@@ -68,12 +83,23 @@ export function WeeklyAvailabilityGrid({
               key={slot.time}
               disabled={disabled}
               onClick={() => !disabled && onPickSlot?.(day.date, slot.time)}
-              className={`rounded-lg px-2 py-2.5 text-xs font-medium transition-colors ${SLOT_BUSYNESS_CLASS[tone]}`}
+              title={slot.socialPlayTag}
+              className={`relative rounded-lg px-2 py-2.5 text-xs font-medium transition-colors ${
+                slot.isSocialPlay
+                  ? "border border-indigo-300 bg-indigo-50 text-indigo-950 hover:bg-indigo-100"
+                  : SLOT_BUSYNESS_CLASS[tone]
+              }`}
             >
               <div>{slot.time}</div>
               <div className="mt-0.5 text-[10px] opacity-80">
-                {slot.freeCount}/{slot.totalCount}
+                {slot.isSocialPlay ? "Social Play" : `${slot.freeCount}/${slot.totalCount}`}
               </div>
+              {slot.isSocialPlay && (
+                <span className="absolute -top-1.5 -right-1 flex h-2 w-2">
+                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-indigo-400 opacity-75"></span>
+                  <span className="relative inline-flex rounded-full h-2 w-2 bg-indigo-600"></span>
+                </span>
+              )}
             </button>
           );
         })}

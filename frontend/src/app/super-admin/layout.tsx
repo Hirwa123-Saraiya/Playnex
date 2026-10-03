@@ -62,10 +62,17 @@ export default function SuperAdminLayout({
 
           {/* Right cluster */}
           <div className="order-1 ml-auto flex items-center gap-2 md:order-3 md:ml-0">
-            <button className="hidden h-10 items-center gap-2 rounded-lg border border-line bg-white px-3 text-sm text-muted hover:text-navy lg:flex">
+            <div className="hidden h-10 items-center gap-2 rounded-lg border border-line bg-white px-3 text-sm text-muted hover:text-navy lg:flex">
               <CalendarDays size={15} />
-              Mon, 14 Oct 2026
-            </button>
+              <span>
+                {new Date().toLocaleDateString('en-GB', {
+                  weekday: 'short',
+                  day: 'numeric',
+                  month: 'short',
+                  year: 'numeric',
+                })}
+              </span>
+            </div>
 
             <button className="hidden h-10 items-center gap-2 rounded-lg border border-line bg-white px-3 text-sm md:flex">
               <MapPin size={15} className="text-muted" />

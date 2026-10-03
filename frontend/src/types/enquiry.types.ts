@@ -8,7 +8,8 @@ export type EnquirySource =
   | "ContactForm"
   | "WalkIn"
   | "Phone"
-  | "Referral";
+  | "Referral"
+  | "TrialBooking";
 
 export type EnquiryStatus =
   | "New"          // just arrived, nobody assigned

@@ -30,6 +30,9 @@ export interface AvailabilitySlot {
   freeCount: number;
   /** Total courts in the club (for "3 of 5" display) */
   totalCount: number;
+  /** Friday Night Social Play indicator */
+  isSocialPlay?: boolean;
+  socialPlayTag?: string;
 }
 
 export interface DayAvailability {
