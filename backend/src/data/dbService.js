@@ -977,6 +977,29 @@ export const dbService = {
     return [];
   },
 
+  async getAllMembershipPlans(clubId) {
+    if (await checkPg()) {
+      let query = `
+        SELECT p.plan_id as id, p.tenant_id as "clubId", p.name, p.price::numeric as price,
+               p.billing_cycle as "billingCycle", p.tier, p.features,
+               p.is_active as "isActive", p.created_at as "createdAt",
+               t.club_name as "clubName", t.location as "clubLocation"
+        FROM membership_plans p
+        JOIN tenants t ON p.tenant_id = t.tenant_id
+        WHERE p.is_active = TRUE
+      `;
+      const params = [];
+      if (clubId && clubId !== 'All') {
+        params.push(clubId);
+        query += ` AND p.tenant_id = $${params.length}`;
+      }
+      query += ` ORDER BY p.price ASC`;
+      const { rows } = await pool.query(query, params);
+      return rows;
+    }
+    return [];
+  },
+
   async createPlan({ planId, tenantId, name, price, billingCycle, tier, features }) {
     if (await checkPg()) {
       const { rows } = await pool.query(

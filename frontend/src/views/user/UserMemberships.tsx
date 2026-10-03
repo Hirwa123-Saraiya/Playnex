@@ -132,56 +132,58 @@ export const UserMemberships: React.FC = () => {
             </p>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-            {membershipPlans.map((plan) => (
-              <div
-                key={plan.id}
-                className="bg-white rounded-3xl border border-slate-200 p-6 flex flex-col justify-between space-y-5 hover:shadow-xl transition-all"
-              >
-                <div className="space-y-3">
-                  <div className="flex justify-between items-start">
-                    <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-blue-50 text-blue-700 border border-blue-200 uppercase">
-                      {plan.tier}
-                    </span>
-                    {plan.discountBadge && (
-                      <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-700">
-                        {plan.discountBadge}
-                      </span>
-                    )}
-                  </div>
-
-                  <div>
-                    <span className="text-[11px] font-semibold text-blue-600 block">
-                      {plan.clubName}
-                    </span>
-                    <h4 className="text-base font-bold text-slate-900 mt-0.5">{plan.name}</h4>
-                    <p className="text-xs text-slate-500 mt-1 line-clamp-2">{plan.tagline}</p>
-                  </div>
-
-                  <div className="pt-2 border-t border-slate-100">
-                    <div className="flex items-baseline gap-1">
-                      <span className="text-2xl font-black text-slate-900">₹{plan.priceAnnual}</span>
-                      <span className="text-xs text-slate-400">/year</span>
-                    </div>
-                    <span className="text-[11px] text-slate-500">Monthly: ₹{plan.priceMonthly}</span>
-                  </div>
-
-                  <div className="space-y-1.5 pt-2 border-t border-slate-100 text-xs text-slate-600">
-                    {plan.includedFacilities.slice(0, 3).map((f) => (
-                      <div key={f} className="truncate">• {f}</div>
-                    ))}
-                  </div>
-                </div>
-
-                <button
-                  onClick={() => startMembershipPurchase(plan.clubId, plan.id)}
-                  className="w-full py-2.5 bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs rounded-xl shadow-xs transition-colors flex items-center justify-center gap-1"
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {membershipPlans
+              .filter((plan) => selectedClubFilter === 'All' || plan.clubId === selectedClubFilter)
+              .map((plan) => (
+                <div
+                  key={plan.id}
+                  className="bg-white rounded-3xl border border-slate-200 p-6 flex flex-col justify-between space-y-5 hover:shadow-xl transition-all"
                 >
-                  <span>Select Plan</span>
-                  <ChevronRight className="w-3.5 h-3.5" />
-                </button>
-              </div>
-            ))}
+                  <div className="space-y-3">
+                    <div className="flex justify-between items-start">
+                      <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-blue-50 text-blue-700 border border-blue-200 uppercase">
+                        {plan.tier}
+                      </span>
+                      {plan.discountBadge && (
+                        <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-700">
+                          {plan.discountBadge}
+                        </span>
+                      )}
+                    </div>
+
+                    <div>
+                      <span className="text-[11px] font-semibold text-blue-600 block">
+                        {plan.clubName}
+                      </span>
+                      <h4 className="text-base font-bold text-slate-900 mt-0.5">{plan.name}</h4>
+                      <p className="text-xs text-slate-500 mt-1 line-clamp-2">{plan.tagline}</p>
+                    </div>
+
+                    <div className="pt-2 border-t border-slate-100">
+                      <div className="flex items-baseline gap-1">
+                        <span className="text-2xl font-black text-slate-900">₹{plan.priceAnnual}</span>
+                        <span className="text-xs text-slate-400">/year</span>
+                      </div>
+                      <span className="text-[11px] text-slate-500">Monthly: ₹{plan.priceMonthly}</span>
+                    </div>
+
+                    <div className="space-y-1.5 pt-2 border-t border-slate-100 text-xs text-slate-600">
+                      {plan.includedFacilities.slice(0, 3).map((f) => (
+                        <div key={f} className="truncate">• {f}</div>
+                      ))}
+                    </div>
+                  </div>
+
+                  <button
+                    onClick={() => startMembershipPurchase(plan.clubId, plan.id)}
+                    className="w-full py-2.5 bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs rounded-xl shadow-xs transition-colors flex items-center justify-center gap-1"
+                  >
+                    <span>Select Plan</span>
+                    <ChevronRight className="w-3.5 h-3.5" />
+                  </button>
+                </div>
+              ))}
           </div>
         </div>
       )}

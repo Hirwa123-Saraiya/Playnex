@@ -78,6 +78,63 @@ export async function authenticate(req, res, next) {
 }
 
 /**
+ * Optional Authentication Middleware:
+ * Inspects accessToken if provided, attaches req.user if valid, but does not block guests.
+ */
+export async function optionalAuthenticate(req, res, next) {
+  try {
+    let token = req.cookies?.accessToken;
+
+    if (!token) {
+      const authHeader = req.headers.authorization;
+      if (authHeader && authHeader.startsWith('Bearer ')) {
+        token = authHeader.split(' ')[1];
+      }
+    }
+
+    if (!token) {
+      return next();
+    }
+
+    const decoded = jwt.verify(token, config.jwtSecret);
+    const user = (await dbService.findUserById(decoded.userId)) || (db.users && db.users.find((u) => u.user_id === decoded.userId && u.is_active));
+    if (user) {
+      const tenantName = user.tenant_name || (user.tenant_id ? (db.tenants?.find((t) => t.tenant_id === user.tenant_id)?.club_name || 'Sports Club') : 'Platform Wide');
+      let roleName = user.system_role;
+      let permissions = [];
+
+      if (user.system_role === 'SUPER_ADMIN') {
+        permissions = db.permissions ? db.permissions.map((p) => p.permission_id) : [];
+        roleName = 'Super Administrator';
+      } else if (user.system_role === 'CLUB_OWNER') {
+        permissions = db.permissions ? db.permissions.map((p) => p.permission_id) : [];
+        roleName = 'Club Owner';
+      } else if (user.system_role === 'MEMBER') {
+        permissions = ['courts:view', 'courts:book', 'shop:view', 'bar:view'];
+        roleName = `Club Member (${user.tier || 'Standard'})`;
+      }
+
+      req.user = {
+        userId: user.user_id,
+        email: user.email,
+        name: user.name,
+        systemRole: user.system_role,
+        roleName,
+        tenantId: user.tenant_id,
+        tenantName,
+        roleId: user.role_id,
+        tier: user.tier,
+        permissions,
+      };
+    }
+    next();
+  } catch (err) {
+    // Silent next for optional auth
+    next();
+  }
+}
+
+/**
  * Role-Based Access Guard
  */
 export function requireSystemRole(...allowedRoles) {

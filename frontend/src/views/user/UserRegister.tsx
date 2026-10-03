@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
-import { User, Mail, Phone, Lock, MapPin, ArrowRight, ShieldCheck } from 'lucide-react';
+import { User, Mail, Phone, Lock, MapPin, ArrowRight, ShieldCheck, AlertCircle, Loader2 } from 'lucide-react';
 import { useUserStore } from '../../store/userStore';
+import { authService } from '../../services/auth.service';
 
 export const UserRegister: React.FC = () => {
   const { loginAsUser, setActiveView } = useUserStore();
@@ -14,6 +15,8 @@ export const UserRegister: React.FC = () => {
   });
 
   const [selectedSports, setSelectedSports] = useState<string[]>(['Tennis', 'Swimming']);
+  const [isLoading, setIsLoading] = useState(false);
+  const [errorMessage, setErrorMessage] = useState('');
 
   const sportOptions = ['Tennis', 'Badminton', 'Swimming', 'Gym & Fitness', 'Squash', 'Padel', 'Yoga & Pilates'];
 
@@ -23,15 +26,45 @@ export const UserRegister: React.FC = () => {
     );
   };
 
-  const handleRegisterSubmit = (e: React.FormEvent) => {
+  const handleRegisterSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    loginAsUser({
-      name: formData.name || 'John Doe',
-      email: formData.email || 'john@example.com',
-      phone: formData.phone || '+91 98765 43210',
-      sportsInterests: selectedSports,
-    });
-    setActiveView('home');
+    if (!formData.name || !formData.email || !formData.password) {
+      setErrorMessage('Please fill in all required fields.');
+      return;
+    }
+
+    setIsLoading(true);
+    setErrorMessage('');
+
+    try {
+      const res = await authService.register({
+        name: formData.name.trim(),
+        email: formData.email.trim(),
+        password: formData.password,
+        type: 'MEMBER',
+      });
+
+      if (res.success && res.data?.user) {
+        if (typeof window !== 'undefined') {
+          if (res.data.accessToken) localStorage.setItem('accessToken', res.data.accessToken);
+          if (res.data.refreshToken) localStorage.setItem('refreshToken', res.data.refreshToken);
+        }
+        loginAsUser({
+          id: res.data.user.userId,
+          name: res.data.user.name,
+          email: res.data.user.email,
+          phone: formData.phone || '+91 98765 43210',
+          sportsInterests: selectedSports,
+        });
+        setActiveView('home');
+      } else {
+        setErrorMessage(res.message || 'Registration failed. Please try again.');
+      }
+    } catch (err: any) {
+      setErrorMessage(err.message || 'Registration failed. An account with this email may already exist.');
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   return (
@@ -172,12 +205,29 @@ export const UserRegister: React.FC = () => {
             </label>
           </div>
 
+          {errorMessage && (
+            <div className="p-3 bg-red-50 border border-red-200 rounded-xl flex items-center gap-2 text-xs font-semibold text-red-600">
+              <AlertCircle className="w-4 h-4 shrink-0 text-red-500" />
+              <span>{errorMessage}</span>
+            </div>
+          )}
+
           <button
             type="submit"
-            className="w-full py-3 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-bold text-sm shadow-md shadow-blue-500/25 transition-all active:scale-98 flex items-center justify-center gap-2"
+            disabled={isLoading}
+            className="w-full py-3 rounded-xl bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white font-bold text-sm shadow-md shadow-blue-500/25 transition-all active:scale-98 flex items-center justify-center gap-2"
           >
-            <span>Create My Account</span>
-            <ArrowRight className="w-4 h-4" />
+            {isLoading ? (
+              <>
+                <Loader2 className="w-4 h-4 animate-spin" />
+                <span>Creating Account...</span>
+              </>
+            ) : (
+              <>
+                <span>Create My Account</span>
+                <ArrowRight className="w-4 h-4" />
+              </>
+            )}
           </button>
         </form>
 

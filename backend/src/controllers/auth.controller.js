@@ -121,7 +121,16 @@ export async function register(req, res) {
     setAuthCookies(res, accessToken, refreshToken);
 
     const userProfile = await buildUserProfile(user);
-    return successResponse(res, { user: userProfile }, 'Registration successful', 201);
+    return successResponse(
+      res,
+      {
+        user: userProfile,
+        accessToken,
+        refreshToken,
+      },
+      'Registration successful',
+      201
+    );
   } catch (error) {
     return errorResponse(res, error.message, 500);
   }
@@ -152,20 +161,45 @@ export async function login(req, res) {
     setAuthCookies(res, accessToken, refreshToken);
 
     const userProfile = await buildUserProfile(user);
-    return successResponse(res, { user: userProfile }, 'Login successful');
+    return successResponse(
+      res,
+      {
+        user: userProfile,
+        accessToken,
+        refreshToken,
+      },
+      'Login successful'
+    );
   } catch (error) {
     return errorResponse(res, error.message, 500);
   }
 }
 
 /**
- * Refresh Access Token using Refresh Token from Cookies
+ * Refresh Access Token using Refresh Token from Cookies or Request Body/Header
  */
 export async function refresh(req, res) {
   try {
-    const refreshToken = req.cookies?.refreshToken;
+    let refreshToken =
+      req.body?.refreshToken ||
+      req.cookies?.refreshToken ||
+      req.headers['x-refresh-token'];
+
     if (!refreshToken) {
-      return errorResponse(res, 'Refresh token not found in cookies', 401);
+      const authHeader = req.headers.authorization;
+      if (authHeader && authHeader.startsWith('Bearer ')) {
+        const candidate = authHeader.split(' ')[1];
+        try {
+          jwt.verify(candidate, config.jwtRefreshSecret);
+          refreshToken = candidate;
+        } catch {
+          // Candidate in Authorization header was not a refresh token
+        }
+      }
+    }
+
+    if (!refreshToken) {
+      return errorResponse(res, 'Refresh token not found in request body, cookies, or headers', 401);
     }
 
     const decoded = jwt.verify(refreshToken, config.jwtRefreshSecret);
@@ -180,7 +214,15 @@ export async function refresh(req, res) {
     setAuthCookies(res, accessToken, newRefreshToken);
 
     const userProfile = await buildUserProfile(user);
-    return successResponse(res, { user: userProfile }, 'Token refreshed successfully');
+    return successResponse(
+      res,
+      {
+        user: userProfile,
+        accessToken,
+        refreshToken: newRefreshToken,
+      },
+      'Token refreshed successfully'
+    );
   } catch (error) {
     clearAuthCookies(res);
     return errorResponse(res, 'Invalid or expired refresh token', 401);

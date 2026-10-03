@@ -1,6 +1,16 @@
 import { dbService } from '../data/dbService.js';
 import { successResponse, errorResponse } from '../utils/apiResponse.js';
 
+export async function getMembershipPlans(req, res) {
+  try {
+    const { clubId } = req.query;
+    const plans = await dbService.getAllMembershipPlans(clubId);
+    return successResponse(res, plans, 'Membership plans retrieved successfully');
+  } catch (err) {
+    return errorResponse(res, err.message, 500);
+  }
+}
+
 export async function getUserMemberships(req, res) {
   try {
     const userId = req.user?.userId || req.query.userId || 'usr_demo_customer';

@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
-import { Mail, Lock, Smartphone, ArrowRight, Sparkles, CheckCircle2, ShieldCheck, User } from 'lucide-react';
+import { Mail, Lock, Smartphone, ArrowRight, Sparkles, CheckCircle2, ShieldCheck, User, AlertCircle, Loader2 } from 'lucide-react';
 import { useUserStore } from '../../store/userStore';
+import { authService } from '../../services/auth.service';
 
 export const UserLogin: React.FC = () => {
   const { loginAsUser, loginAsGuest, setActiveView, closeGuestModal } = useUserStore();
@@ -9,15 +10,38 @@ export const UserLogin: React.FC = () => {
   const [password, setPassword] = useState('password123');
   const [otp, setOtp] = useState('');
   const [otpSent, setOtpSent] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
+  const [errorMessage, setErrorMessage] = useState('');
 
-  const handleLoginSubmit = (e: React.FormEvent) => {
+  const handleLoginSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    loginAsUser({
-      email: emailOrPhone.includes('@') ? emailOrPhone : 'john@example.com',
-      phone: !emailOrPhone.includes('@') ? emailOrPhone : '+91 98765 43210',
-    });
-    closeGuestModal();
-    setActiveView('home');
+    setIsLoading(true);
+    setErrorMessage('');
+
+    try {
+      const email = emailOrPhone.includes('@') ? emailOrPhone.trim() : 'john@example.com';
+      const res = await authService.login(email, password);
+
+      if (res.success && res.data?.user) {
+        if (typeof window !== 'undefined') {
+          if (res.data.accessToken) localStorage.setItem('accessToken', res.data.accessToken);
+          if (res.data.refreshToken) localStorage.setItem('refreshToken', res.data.refreshToken);
+        }
+        loginAsUser({
+          id: res.data.user.userId,
+          name: res.data.user.name,
+          email: res.data.user.email,
+        });
+        closeGuestModal();
+        setActiveView('home');
+      } else {
+        setErrorMessage(res.message || 'Invalid email or password credentials');
+      }
+    } catch (err: any) {
+      setErrorMessage(err.message || 'Login failed. Please verify your credentials.');
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   const handleSocialLogin = (provider: string) => {
@@ -164,12 +188,29 @@ export const UserLogin: React.FC = () => {
             </div>
           )}
 
+          {errorMessage && (
+            <div className="p-3 bg-red-50 border border-red-200 rounded-xl flex items-center gap-2 text-xs font-semibold text-red-600">
+              <AlertCircle className="w-4 h-4 shrink-0 text-red-500" />
+              <span>{errorMessage}</span>
+            </div>
+          )}
+
           <button
             type="submit"
-            className="w-full py-3 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-bold text-sm shadow-md shadow-blue-500/25 transition-all active:scale-98 flex items-center justify-center gap-2"
+            disabled={isLoading}
+            className="w-full py-3 rounded-xl bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white font-bold text-sm shadow-md shadow-blue-500/25 transition-all active:scale-98 flex items-center justify-center gap-2"
           >
-            <span>Login to Playnex</span>
-            <ArrowRight className="w-4 h-4" />
+            {isLoading ? (
+              <>
+                <Loader2 className="w-4 h-4 animate-spin" />
+                <span>Logging in...</span>
+              </>
+            ) : (
+              <>
+                <span>Login to Playnex</span>
+                <ArrowRight className="w-4 h-4" />
+              </>
+            )}
           </button>
         </form>
 

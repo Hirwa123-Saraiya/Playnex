@@ -37,6 +37,14 @@ export const userMembershipsService = {
     });
   },
 
+  async getMembershipPlans(clubId?: string) {
+    return apiMethod<any[]>({
+      method: 'GET',
+      url: '/user/memberships/plans',
+      params: clubId ? { clubId } : undefined,
+    });
+  },
+
   async purchaseMembership(data: PurchaseMembershipPayload) {
     return apiMethod<UserMembershipRecord>({
       method: 'POST',

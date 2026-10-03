@@ -12,6 +12,8 @@ export interface RegisterPayload {
 
 export interface AuthSessionResponse {
   user: AuthUser;
+  accessToken?: string;
+  refreshToken?: string;
 }
 
 export const authService = {
@@ -50,10 +52,16 @@ export const authService = {
   /**
    * Refresh token using apiMethod
    */
-  async refresh() {
+  async refresh(refreshToken?: string) {
+    const token =
+      refreshToken ||
+      (typeof window !== 'undefined' ? localStorage.getItem('refreshToken') : undefined);
+
     return apiMethod<AuthSessionResponse>({
       method: 'POST',
       url: '/auth/refresh',
+      data: token ? { refreshToken: token } : {},
+      headers: token ? { 'x-refresh-token': token } : undefined,
     });
   },
 

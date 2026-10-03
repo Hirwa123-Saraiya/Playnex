@@ -34,6 +34,7 @@ import { userBookingsService } from '../services/userBookings.service';
 import { userMembershipsService } from '../services/userMemberships.service';
 import { userEventsService } from '../services/userEvents.service';
 import { userProfileService } from '../services/userProfile.service';
+import { authService } from '../services/auth.service';
 
 export interface BookingWizardState {
   clubId: string;
@@ -285,6 +286,11 @@ export const useUserStore = create<UserStoreState>((set, get) => ({
   },
 
   logout: () => {
+    if (typeof window !== 'undefined') {
+      localStorage.removeItem('accessToken');
+      localStorage.removeItem('refreshToken');
+    }
+    authService.logout().catch(() => {});
     set({
       isGuest: true,
       bookings: [],
@@ -810,10 +816,11 @@ export const useUserStore = create<UserStoreState>((set, get) => ({
 
   fetchLiveData: async () => {
     try {
-      const [clubsRes, facsRes, evtsRes, bksRes, memsRes, famRes] = await Promise.allSettled([
+      const [clubsRes, facsRes, evtsRes, plansRes, bksRes, memsRes, famRes] = await Promise.allSettled([
         userClubsService.getClubs(),
         userClubsService.getFacilities(),
         userEventsService.getEvents(),
+        userMembershipsService.getMembershipPlans(),
         userBookingsService.getMyBookings(get().currentUser.id),
         userMembershipsService.getMyMemberships(get().currentUser.id),
         userProfileService.getFamilyMembers(get().currentUser.id),
@@ -890,6 +897,36 @@ export const useUserStore = create<UserStoreState>((set, get) => ({
             isRegistered: false,
           }));
           updates.events = liveEvts;
+        }
+
+        if (plansRes.status === 'fulfilled' && plansRes.value.success && Array.isArray(plansRes.value.data) && plansRes.value.data.length > 0) {
+          const livePlans = plansRes.value.data.map((p: any) => {
+            const rawPrice = Number(p.price) || 2499;
+            const cycle = (p.billingCycle || 'monthly').toLowerCase();
+            return {
+              id: p.id,
+              clubId: p.clubId,
+              clubName: p.clubName || 'Playnex Club',
+              name: p.name,
+              tier: (['Silver', 'Gold', 'Platinum', 'Family'].includes(p.tier) ? p.tier : 'Gold') as any,
+              tagline: `Official ${p.tier || 'Gold'} sports membership for ${p.clubName || 'Country Club'}`,
+              priceMonthly: cycle === 'monthly' ? rawPrice : Math.round(rawPrice / (cycle === 'quarterly' ? 3 : 12)),
+              priceQuarterly: cycle === 'quarterly' ? rawPrice : cycle === 'monthly' ? rawPrice * 3 : Math.round(rawPrice / 4),
+              priceAnnual: cycle === 'yearly' ? rawPrice : cycle === 'monthly' ? rawPrice * 12 : rawPrice * 4,
+              discountBadge: cycle === 'yearly' ? 'Save 25%' : cycle === 'quarterly' ? 'Popular' : undefined,
+              includedFacilities: ['Olympic Badminton Arena', 'Clay Tennis Courts', 'Squash Courts', 'Swimming Pool'],
+              guestPassesPerMonth: p.tier === 'Platinum' ? 4 : p.tier === 'Gold' ? 2 : 1,
+              maxFamilyMembers: p.tier === 'Platinum' ? 4 : 2,
+              benefits: Array.isArray(p.features) && p.features.length > 0
+                ? p.features
+                : ['Priority court reservation', 'Free turnstile QR pass', '10% Pro-shop discount', 'Locker access'],
+              isPopular: p.tier === 'Gold',
+            };
+          });
+          updates.membershipPlans = livePlans;
+          if (!state.selectedPlanId && livePlans.length > 0) {
+            updates.selectedPlanId = livePlans[0].id;
+          }
         }
 
         if (bksRes.status === 'fulfilled' && bksRes.value.success && Array.isArray(bksRes.value.data) && bksRes.value.data.length > 0) {

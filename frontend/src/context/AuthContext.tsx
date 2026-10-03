@@ -23,7 +23,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<AuthUser | null>(null);
   const [isLoading, setIsLoading] = useState<boolean>(true);
 
-  // Restore authenticated session via HTTP-only cookie on initial mount
+  // Restore authenticated session via HTTP-only cookie or localStorage token on initial mount
   useEffect(() => {
     authService
       .getMe()
@@ -35,10 +35,25 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         }
       })
       .catch(async () => {
-        // Try refreshing token via refreshToken cookie before giving up
+        const storedRefreshToken =
+          typeof window !== 'undefined' ? localStorage.getItem('refreshToken') : null;
+        if (!storedRefreshToken) {
+          setUser(null);
+          return;
+        }
+
+        // Try refreshing token via stored refreshToken
         try {
-          const refreshRes = await authService.refresh();
+          const refreshRes = await authService.refresh(storedRefreshToken);
           if (refreshRes.success && refreshRes.data?.user) {
+            if (typeof window !== 'undefined') {
+              if (refreshRes.data.accessToken) {
+                localStorage.setItem('accessToken', refreshRes.data.accessToken);
+              }
+              if (refreshRes.data.refreshToken) {
+                localStorage.setItem('refreshToken', refreshRes.data.refreshToken);
+              }
+            }
             setUser(refreshRes.data.user);
           } else {
             setUser(null);
@@ -57,6 +72,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     try {
       const res = await authService.login(email, password);
       if (res.success && res.data?.user) {
+        if (typeof window !== 'undefined') {
+          if (res.data.accessToken) {
+            localStorage.setItem('accessToken', res.data.accessToken);
+          }
+          if (res.data.refreshToken) {
+            localStorage.setItem('refreshToken', res.data.refreshToken);
+          }
+        }
         setUser(res.data.user);
         return res.data.user;
       }
@@ -71,6 +94,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     try {
       const res = await authService.register(payload);
       if (res.success && res.data?.user) {
+        if (typeof window !== 'undefined') {
+          if (res.data.accessToken) {
+            localStorage.setItem('accessToken', res.data.accessToken);
+          }
+          if (res.data.refreshToken) {
+            localStorage.setItem('refreshToken', res.data.refreshToken);
+          }
+        }
         setUser(res.data.user);
         return res.data.user;
       }
@@ -86,6 +117,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     } catch (err) {
       console.error('Logout error:', err);
     } finally {
+      if (typeof window !== 'undefined') {
+        localStorage.removeItem('accessToken');
+        localStorage.removeItem('refreshToken');
+      }
       setUser(null);
     }
   };
