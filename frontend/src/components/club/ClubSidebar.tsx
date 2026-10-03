@@ -1,6 +1,6 @@
-'use client';
-
 import React from 'react';
+import Link from 'next/link';
+import { usePathname } from 'next/navigation';
 import {
   LayoutDashboard,
   CalendarDays,
@@ -32,29 +32,31 @@ interface SidebarItem {
   badge?: number | string;
   badgeColor?: string;
   id: string;
+  href: string;
 }
 
 const navItems: SidebarItem[] = [
-  { name: 'Dashboard', icon: LayoutDashboard, id: 'Dashboard' },
-  { name: 'Bookings', icon: CalendarDays, id: 'Bookings' },
-  { name: 'Walk-in Front Desk', icon: UserPlus, id: 'Walk-in Front Desk' },
-  { name: 'Members', icon: Users, id: 'Members' },
-  { name: 'Facilities & Courts', icon: Building2, id: 'Facilities' },
-  { name: 'Pro Shop & Inventory', icon: ShoppingBag, id: 'Pro Shop & Inventory' },
-  { name: 'Restaurant & Bar', icon: UtensilsCrossed, id: 'Restaurant & Bar' },
-  { name: 'Events & Tournaments', icon: Trophy, id: 'Events & Tournaments' },
-  { name: 'Membership Plans', icon: CreditCard, id: 'Membership Plans' },
-  { name: 'Enquiries & Leads', icon: Inbox, id: 'Enquiries & Leads' },
-  { name: 'Staff Management', icon: Briefcase, id: 'Staff Management' },
-  { name: 'Finance & Payments', icon: IndianRupee, id: 'Finance & Payments' },
-  { name: 'Reports & Analytics', icon: BarChart3, id: 'Reports & Analytics' },
-  { name: 'Communications', icon: MessageSquare, id: 'Communications' },
-  { name: 'Approvals', icon: CheckSquare, id: 'Approvals' },
-  { name: 'Platform Subscription', icon: ShieldCheck, id: 'Platform Subscription' },
-  { name: 'Settings', icon: Settings, id: 'Settings' },
+  { name: 'Dashboard', icon: LayoutDashboard, id: 'Dashboard', href: '/club/dashboard' },
+  { name: 'Bookings', icon: CalendarDays, id: 'Bookings', href: '/club/bookings' },
+  { name: 'Walk-in Front Desk', icon: UserPlus, id: 'Walk-in Front Desk', href: '/club/walk-in' },
+  { name: 'Members', icon: Users, id: 'Members', href: '/club/members' },
+  { name: 'Facilities & Courts', icon: Building2, id: 'Facilities', href: '/club/facilities' },
+  { name: 'Pro Shop & Inventory', icon: ShoppingBag, id: 'Pro Shop & Inventory', href: '/club/pro-shop' },
+  { name: 'Restaurant & Bar', icon: UtensilsCrossed, id: 'Restaurant & Bar', href: '/club/restaurant' },
+  { name: 'Events & Tournaments', icon: Trophy, id: 'Events & Tournaments', href: '/club/events' },
+  { name: 'Membership Plans', icon: CreditCard, id: 'Membership Plans', href: '/club/membership-plans' },
+  { name: 'Enquiries & Leads', icon: Inbox, id: 'Enquiries & Leads', href: '/club/enquiries' },
+  { name: 'Staff Management', icon: Briefcase, id: 'Staff Management', href: '/club/staff' },
+  { name: 'Finance & Payments', icon: IndianRupee, id: 'Finance & Payments', href: '/club/finance' },
+  { name: 'Reports & Analytics', icon: BarChart3, id: 'Reports & Analytics', href: '/club/reports' },
+  { name: 'Communications', icon: MessageSquare, id: 'Communications', href: '/club/communications' },
+  { name: 'Approvals', icon: CheckSquare, id: 'Approvals', href: '/club/approvals' },
+  { name: 'Platform Subscription', icon: ShieldCheck, id: 'Platform Subscription', href: '/club/subscription' },
+  { name: 'Settings', icon: Settings, id: 'Settings', href: '/club/settings' },
 ];
 
 export const ClubSidebar: React.FC = () => {
+  const pathname = usePathname();
   const {
     club,
     activeNav,
@@ -126,12 +128,14 @@ export const ClubSidebar: React.FC = () => {
         <div className="flex-1 overflow-y-auto px-3 py-4 space-y-1 scrollbar-thin">
           {navItems.map((item) => {
             const Icon = item.icon;
-            const isActive = activeNav === item.id;
+            const isPathActive = pathname === item.href || (item.href !== '/club/dashboard' && pathname.startsWith(item.href));
+            const isActive = isPathActive || activeNav === item.id;
             const badgeValue = item.id === 'Approvals' ? pendingApprovalTotal : item.badge;
 
             return (
-              <button
+              <Link
                 key={item.id}
+                href={item.href}
                 onClick={() => {
                   setActiveNav(item.id);
                   setMobileSidebarOpen(false);
@@ -167,7 +171,7 @@ export const ClubSidebar: React.FC = () => {
                 {sidebarCollapsed && badgeValue && (
                   <span className="absolute top-2 right-2 w-2 h-2 rounded-full bg-rose-500 ring-2 ring-[#071A3D]" />
                 )}
-              </button>
+              </Link>
             );
           })}
         </div>

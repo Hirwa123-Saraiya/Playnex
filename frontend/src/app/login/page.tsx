@@ -64,8 +64,10 @@ export default function LoginPage() {
         router.push('/pro-shop-inventory');
       } else if (user.roleName?.toLowerCase().includes('bar') || user.roleName?.toLowerCase().includes('kitchen')) {
         router.push('/bar-kitchen');
+      } else if (user.systemRole === 'CLUB_OWNER' || user.systemRole === 'STAFF') {
+        router.push('/club/dashboard');
       } else {
-        router.push('/');
+        router.push('/club/dashboard');
       }
     }
   }, [user, isLoading, router]);
@@ -86,8 +88,10 @@ export default function LoginPage() {
           router.push('/pro-shop-inventory');
         } else if (loggedInUser.roleName?.toLowerCase().includes('bar') || loggedInUser.roleName?.toLowerCase().includes('kitchen')) {
           router.push('/bar-kitchen');
+        } else if (loggedInUser.systemRole === 'CLUB_OWNER' || loggedInUser.systemRole === 'STAFF') {
+          router.push('/club/dashboard');
         } else {
-          router.push('/');
+          router.push('/club/dashboard');
         }
       } else {
         setError('Invalid email or password credentials');

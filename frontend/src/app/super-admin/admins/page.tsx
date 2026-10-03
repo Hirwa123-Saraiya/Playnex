@@ -327,7 +327,7 @@ export default function AdminsPage() {
 
                             {/* Opens Club Portal outside in a new tab */}
                             <a
-                              href={a.subdomain ? `http://${a.subdomain}.localhost:3000` : `/club?tenantId=${a.tenantId || ''}`}
+                              href={a.subdomain ? `http://${a.subdomain}.localhost:3000/club/dashboard` : `/club/dashboard?tenantId=${a.tenantId || ''}`}
                               target="_blank"
                               rel="noopener noreferrer"
                               onClick={() => setActiveMenuId(null)}

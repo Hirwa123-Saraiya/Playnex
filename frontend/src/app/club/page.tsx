@@ -1,8 +1,14 @@
 'use client';
 
-import React from 'react';
-import { ClubLayout } from '@/layouts/ClubLayout';
+import { useEffect } from 'react';
+import { useRouter } from 'next/navigation';
 
-export default function ClubPortalPage() {
-  return <ClubLayout />;
+export default function ClubIndexPage() {
+  const router = useRouter();
+
+  useEffect(() => {
+    router.replace('/club/dashboard');
+  }, [router]);
+
+  return null;
 }

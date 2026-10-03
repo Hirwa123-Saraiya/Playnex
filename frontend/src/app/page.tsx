@@ -1,7 +1,8 @@
 'use client';
 
-import React from 'react';
+import React, { useEffect } from 'react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import {
   CalendarCheck,
   Users,
@@ -122,11 +123,18 @@ const TESTIMONIALS = [
 ];
 
 export default function LandingPage() {
+  const router = useRouter();
   const { user, isLoading } = useAuth();
 
-  // If club owner or staff is logged in, show the Club Management Portal
+  // If club owner or staff is logged in, redirect directly to the Club Dashboard URL
+  useEffect(() => {
+    if (!isLoading && user && (user.systemRole === 'CLUB_OWNER' || user.systemRole === 'STAFF')) {
+      router.replace('/club/dashboard');
+    }
+  }, [user, isLoading, router]);
+
   if (!isLoading && user && (user.systemRole === 'CLUB_OWNER' || user.systemRole === 'STAFF')) {
-    return <ClubLayout />;
+    return null;
   }
 
   return (

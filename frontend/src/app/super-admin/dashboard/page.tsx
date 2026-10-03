@@ -497,7 +497,7 @@ export default function SuperAdminDashboard() {
                   </div>
                 </div>
                 <a
-                  href={`/club?tenantId=${managingClub.id}`}
+                  href={`/club/dashboard?tenantId=${managingClub.id}`}
                   target="_blank"
                   rel="noopener noreferrer"
                   className="inline-flex items-center gap-1.5 rounded-lg bg-blue px-3 py-1.5 text-xs font-bold text-white hover:bg-blueHover transition-colors shadow-2xs"
