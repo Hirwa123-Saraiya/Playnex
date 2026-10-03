@@ -1,0 +1,11 @@
+{
+  "name": "the-champions-club",
+  "version": "1.0.0",
+  "private": true,
+  "description": "The Champions Club - Sports Club Management Platform (Odoo Hackathon)",
+  "scripts": {
+    "dev:backend": "npm --prefix backend run dev",
+    "dev:frontend": "npm --prefix frontend run dev",
+    "start:backend": "npm --prefix backend start"
+  }
+}
