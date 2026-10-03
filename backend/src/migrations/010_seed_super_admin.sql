@@ -27,7 +27,7 @@ VALUES (
     NULL,
     'Super Admin',
     'superadmin@playnex.com',
-    '$2a$10$wE96t0.XbH2yG1o7r97xEu1k51rVd0WqXF1W2S4jV8e7p0y1m7c.e',
+    '$2b$10$MqCmEOatGnCJjUPte/McPO0LpFc/kp5GsW2H8JrryBhjtKp5zcg6K',
     'SUPER_ADMIN',
     NULL,
     TRUE

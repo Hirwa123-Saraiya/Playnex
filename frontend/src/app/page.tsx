@@ -4,7 +4,7 @@ import React, { useEffect } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/context/AuthContext';
-import { LogOut, User, Building2, Shield, Crown } from 'lucide-react';
+import { LogOut, User, Building2, Shield, Crown, LayoutDashboard } from 'lucide-react';
 
 export default function Home() {
   const router = useRouter();
@@ -60,13 +60,23 @@ export default function Home() {
           </div>
         </div>
 
-        <button
-          onClick={logout}
-          className="w-full py-2.5 px-4 rounded-xl bg-slate-800 hover:bg-slate-700 border border-slate-700 text-white font-medium text-xs transition flex items-center justify-center gap-2"
-        >
-          <LogOut className="w-3.5 h-3.5" />
-          <span>Sign Out</span>
-        </button>
+        <div className="space-y-2 pt-2">
+          <Link
+            href="/super-admin/dashboard"
+            className="w-full py-2.5 px-4 rounded-xl bg-[#17402B] hover:bg-[#1F5138] text-white font-medium text-xs transition flex items-center justify-center gap-2 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#D6F03C]"
+          >
+            <LayoutDashboard className="w-3.5 h-3.5" />
+            <span>Go to Super Admin Dashboard</span>
+          </Link>
+
+          <button
+            onClick={logout}
+            className="w-full py-2.5 px-4 rounded-xl bg-slate-800 hover:bg-slate-700 border border-slate-700 text-white font-medium text-xs transition flex items-center justify-center gap-2"
+          >
+            <LogOut className="w-3.5 h-3.5" />
+            <span>Sign Out</span>
+          </button>
+        </div>
       </div>
     </main>
   );
