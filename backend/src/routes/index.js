@@ -14,6 +14,14 @@ import communicationsRoutes from './communications.routes.js';
 import clubSettingsRoutes from './clubSettings.routes.js';
 import financeRoutes from './finance.routes.js';
 
+// User Portal Modular Sections
+import userClubsRoutes from './userClubs.routes.js';
+import userFacilitiesRoutes from './userFacilities.routes.js';
+import userBookingsRoutes from './userBookings.routes.js';
+import userMembershipsRoutes from './userMemberships.routes.js';
+import userEventsRoutes from './userEvents.routes.js';
+import userProfileRoutes from './userProfile.routes.js';
+
 const router = express.Router();
 
 router.get('/health', (req, res) => {
@@ -45,5 +53,13 @@ router.use('/club/approvals', approvalsRoutes);
 router.use('/club/communications', communicationsRoutes);
 router.use('/club/settings', clubSettingsRoutes);
 router.use('/club/finance', financeRoutes);
+
+// User / Customer Portal Modular Sections
+router.use('/user/clubs', userClubsRoutes);
+router.use('/user/facilities', userFacilitiesRoutes);
+router.use('/user/bookings', userBookingsRoutes);
+router.use('/user/memberships', userMembershipsRoutes);
+router.use('/user/events', userEventsRoutes);
+router.use('/user/profile', userProfileRoutes);
 
 export default router;

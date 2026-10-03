@@ -41,7 +41,12 @@ export const UserLayout: React.FC = () => {
     closeGuestModal,
     loginAsUser,
     setActiveView,
+    fetchLiveData,
   } = useUserStore();
+
+  React.useEffect(() => {
+    fetchLiveData();
+  }, [fetchLiveData]);
 
   // If user switched to club-owner portal, render ClubLayout with switcher banner
   if (portalMode === 'club-owner') {

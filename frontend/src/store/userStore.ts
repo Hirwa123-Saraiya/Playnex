@@ -29,6 +29,11 @@ import {
   mockReviews,
   mockTimeSlots,
 } from '../mock/userMockData';
+import { userClubsService } from '../services/userClubs.service';
+import { userBookingsService } from '../services/userBookings.service';
+import { userMembershipsService } from '../services/userMemberships.service';
+import { userEventsService } from '../services/userEvents.service';
+import { userProfileService } from '../services/userProfile.service';
 
 export interface BookingWizardState {
   clubId: string;
@@ -158,6 +163,9 @@ interface UserStoreState {
   markNotificationAsRead: (id: string) => void;
   markAllNotificationsAsRead: () => void;
 
+  // Live data fetch
+  fetchLiveData: () => Promise<void>;
+
   // Profile update
   updateProfile: (profile: Partial<UserProfile>) => void;
 }
@@ -165,17 +173,17 @@ interface UserStoreState {
 export const useUserStore = create<UserStoreState>((set, get) => ({
   portalMode: 'user',
   activeView: 'home',
-  isGuest: false,
+  isGuest: true,
   currentUser: initialUserProfile,
   guestAuthModalOpen: false,
 
-  selectedClubId: 'club-sunrise',
-  selectedFacilityId: 'fac-sunrise-tennis',
-  selectedEventId: 'evt-001',
-  selectedPlanId: 'plan-sunrise-gold',
-  selectedBookingId: '#BK20251014001',
-  selectedFamilyMemberId: 'fam-01',
-  lastConfirmedBooking: mockBookings[0],
+  selectedClubId: '',
+  selectedFacilityId: '',
+  selectedEventId: '',
+  selectedPlanId: '',
+  selectedBookingId: '',
+  selectedFamilyMemberId: '',
+  lastConfirmedBooking: null,
 
   searchQuery: '',
   selectedCity: 'All',
@@ -183,44 +191,61 @@ export const useUserStore = create<UserStoreState>((set, get) => ({
   selectedAmenity: 'All',
   filterMembershipOnly: false,
 
-  clubs: mockClubs,
-  facilities: mockFacilities,
-  timeSlots: mockTimeSlots,
-  bookings: mockBookings,
-  membershipPlans: mockMembershipPlans,
-  userMemberships: mockUserMemberships,
-  events: mockEvents,
-  familyMembers: mockFamilyMembers,
-  payments: mockPaymentTransactions,
-  notifications: mockNotifications,
-  reviews: mockReviews,
+  clubs: [],
+  facilities: [],
+  timeSlots: [
+    { id: 'slot-1', time: '06:00 AM - 07:00 AM', period: 'Morning', isAvailable: true, price: 500 },
+    { id: 'slot-2', time: '07:00 AM - 08:00 AM', period: 'Morning', isAvailable: true, price: 500 },
+    { id: 'slot-3', time: '08:00 AM - 09:00 AM', period: 'Morning', isAvailable: true, price: 650 },
+    { id: 'slot-4', time: '09:00 AM - 10:00 AM', period: 'Morning', isAvailable: true, price: 650 },
+    { id: 'slot-5', time: '04:00 PM - 05:00 PM', period: 'Afternoon', isAvailable: true, price: 650 },
+    { id: 'slot-6', time: '05:00 PM - 06:00 PM', period: 'Evening', isAvailable: true, price: 800 },
+    { id: 'slot-7', time: '06:00 PM - 07:00 PM', period: 'Evening', isAvailable: true, price: 800 },
+    { id: 'slot-8', time: '07:00 PM - 08:00 PM', period: 'Evening', isAvailable: true, price: 800 },
+    { id: 'slot-9', time: '08:00 PM - 09:00 PM', period: 'Evening', isAvailable: true, price: 700 },
+  ],
+  bookings: [],
+  membershipPlans: [],
+  userMemberships: [],
+  events: [],
+  familyMembers: [],
+  payments: [],
+  notifications: [],
+  reviews: [],
 
-  favoriteClubIds: ['club-sunrise', 'club-greenvalley'],
-  favoriteFacilityIds: ['fac-sunrise-tennis', 'fac-riverside-pool'],
-  favoriteEventIds: ['evt-001'],
+  favoriteClubIds: [],
+  favoriteFacilityIds: [],
+  favoriteEventIds: [],
 
   isNotificationPanelOpen: false,
 
   bookingWizard: {
-    clubId: 'club-sunrise',
-    facilityId: 'fac-sunrise-tennis',
-    date: '14 Oct 2025',
-    slot: mockTimeSlots[1],
-    paymentMethod: 'Credit / Debit Card',
+    clubId: '',
+    facilityId: '',
+    date: new Date().toISOString().split('T')[0],
+    slot: null,
+    paymentMethod: 'UPI',
     step: 1,
   },
 
   membershipWizard: {
-    clubId: 'club-sunrise',
-    planId: 'plan-sunrise-gold',
+    clubId: '',
+    planId: '',
     durationMonths: 12,
-    linkedFamilyNames: ['Sarah Doe (Spouse)'],
-    paymentMethod: 'Credit / Debit Card',
+    linkedFamilyNames: [],
+    paymentMethod: 'UPI',
     step: 1,
   },
 
   setPortalMode: (mode) => set({ portalMode: mode }),
-  setActiveView: (view) => set({ activeView: view }),
+  setActiveView: (view) => {
+    const { isGuest, openGuestModal } = get();
+    if (isGuest && (view === 'bookings' || view === 'family' || view === 'profile' || view === 'payments')) {
+      openGuestModal(() => set({ activeView: view }));
+      return;
+    }
+    set({ activeView: view });
+  },
   setIsGuest: (isGuest) => set({ isGuest }),
 
   openGuestModal: (onSuccessCallback) => {
@@ -245,6 +270,7 @@ export const useUserStore = create<UserStoreState>((set, get) => ({
       guestAuthModalOpen: false,
       guestActionPending: undefined,
     }));
+    get().fetchLiveData();
     if (callback) {
       callback();
     }
@@ -261,6 +287,9 @@ export const useUserStore = create<UserStoreState>((set, get) => ({
   logout: () => {
     set({
       isGuest: true,
+      bookings: [],
+      userMemberships: [],
+      familyMembers: [],
       activeView: 'home',
     });
   },
@@ -421,6 +450,21 @@ export const useUserStore = create<UserStoreState>((set, get) => ({
       activeView: 'booking-confirmation',
     }));
 
+    userBookingsService
+      .createBooking({
+        clubId: club.id,
+        facilityId: facility.id,
+        userId: currentUser.id,
+        memberName: currentUser.name,
+        bookingDate: bookingWizard.date,
+        startTime: bookingWizard.slot?.time?.split(' - ')[0] || '06:00:00',
+        endTime: bookingWizard.slot?.time?.split(' - ')[1] || '07:00:00',
+        totalPrice: totalPaid,
+        paymentStatus: 'paid',
+        courtName: facility.name,
+      })
+      .catch((err) => console.warn('Booking sync to db:', err));
+
     return newBooking;
   },
 
@@ -441,6 +485,10 @@ export const useUserStore = create<UserStoreState>((set, get) => ({
         ...state.notifications,
       ],
     }));
+
+    userBookingsService
+      .cancelBooking(bookingId, get().currentUser.id)
+      .catch((err) => console.warn('Cancel sync:', err));
   },
 
   rescheduleBooking: (bookingId, newDate, newSlot) => {
@@ -563,6 +611,19 @@ export const useUserStore = create<UserStoreState>((set, get) => ({
       activeView: 'memberships',
     }));
 
+    userMembershipsService
+      .purchaseMembership({
+        clubId: club.id,
+        planId: plan.id,
+        planName: plan.name,
+        tier: plan.tier,
+        durationMonths: membershipWizard.durationMonths,
+        paymentMethod: membershipWizard.paymentMethod,
+        amount: amount,
+        userId: currentUser.id,
+      })
+      .catch((err) => console.warn('Membership purchase sync:', err));
+
     return newMembership;
   },
 
@@ -586,6 +647,13 @@ export const useUserStore = create<UserStoreState>((set, get) => ({
   },
 
   addFamilyMember: (memberData) => {
+    const { isGuest, openGuestModal } = get();
+    if (isGuest) {
+      openGuestModal(() => {
+        get().addFamilyMember(memberData);
+      });
+      return;
+    }
     const newMember: FamilyMember = {
       id: `fam-${Date.now()}`,
       userId: get().currentUser.id,
@@ -692,6 +760,13 @@ export const useUserStore = create<UserStoreState>((set, get) => ({
   },
 
   addReview: (reviewData) => {
+    const { isGuest, openGuestModal } = get();
+    if (isGuest) {
+      openGuestModal(() => {
+        get().addReview(reviewData);
+      });
+      return;
+    }
     const { currentUser } = get();
     const newRev: ReviewItem = {
       id: `rev-${Date.now()}`,
@@ -731,6 +806,170 @@ export const useUserStore = create<UserStoreState>((set, get) => ({
     set((state) => ({
       notifications: state.notifications.map((n) => ({ ...n, isRead: true })),
     }));
+  },
+
+  fetchLiveData: async () => {
+    try {
+      const [clubsRes, facsRes, evtsRes, bksRes, memsRes, famRes] = await Promise.allSettled([
+        userClubsService.getClubs(),
+        userClubsService.getFacilities(),
+        userEventsService.getEvents(),
+        userBookingsService.getMyBookings(get().currentUser.id),
+        userMembershipsService.getMyMemberships(get().currentUser.id),
+        userProfileService.getFamilyMembers(get().currentUser.id),
+      ]);
+
+      set((state) => {
+        const updates: Partial<UserStoreState> = {};
+
+        if (clubsRes.status === 'fulfilled' && clubsRes.value.success && Array.isArray(clubsRes.value.data) && clubsRes.value.data.length > 0) {
+          const liveClubs = clubsRes.value.data.map((c: any) => ({
+            id: c.id,
+            name: c.name,
+            tagline: `${c.sport || 'Sports'} & Country Club`,
+            city: c.location || 'Local',
+            address: c.address || `${c.location} Sports Complex`,
+            rating: Number(c.rating) || 4.8,
+            reviewsCount: Number(c.reviewCount) || 12,
+            heroImage: 'https://images.unsplash.com/photo-1534438327276-14e5300c3a48?auto=format&fit=crop&w=800&q=80',
+            gallery: [
+              'https://images.unsplash.com/photo-1534438327276-14e5300c3a48?auto=format&fit=crop&w=800&q=80',
+            ],
+            sports: [c.sport || 'Tennis'],
+            amenities: ['Parking', 'Pro Shop', 'Locker Room'],
+            membershipAvailable: true,
+            minPricePerHour: Number(c.startingPrice) || 500,
+            operatingHours: '06:00 AM - 11:00 PM',
+            phone: c.phone || '+91 98765 43210',
+            email: 'info@playnex.club',
+            description: `${c.name} is a premier sports destination in ${c.location}.`,
+            isFeatured: true,
+          }));
+          updates.clubs = liveClubs;
+        }
+
+        if (facsRes.status === 'fulfilled' && facsRes.value.success && Array.isArray(facsRes.value.data) && facsRes.value.data.length > 0) {
+          const liveFacs = facsRes.value.data.map((f: any) => ({
+            id: f.id,
+            clubId: f.clubId,
+            clubName: f.clubName,
+            name: f.name,
+            category: 'Tennis Court' as const,
+            type: f.surface ? `Outdoor | ${f.surface}` : 'Outdoor | Hard Court',
+            pricingPerHour: Number(f.hourlyRate) || 500,
+            rating: 4.8,
+            reviewsCount: 15,
+            image: 'https://images.unsplash.com/photo-1554068865-24cecd4e34b8?auto=format&fit=crop&w=600&q=80',
+            gallery: ['https://images.unsplash.com/photo-1554068865-24cecd4e34b8?auto=format&fit=crop&w=600&q=80'],
+            description: `${f.name} offers premier playing surfaces.`,
+            features: ['Flood Lights', 'Locker Room'],
+            rules: ['Non-marking shoes mandatory', 'Arrive 10 mins prior'],
+            cancellationPolicy: 'Free cancellation up to 4 hours before slot',
+            capacity: 4,
+            coachingAvailable: true,
+          }));
+          updates.facilities = liveFacs;
+        }
+
+        if (evtsRes.status === 'fulfilled' && evtsRes.value.success && Array.isArray(evtsRes.value.data) && evtsRes.value.data.length > 0) {
+          const liveEvts = evtsRes.value.data.map((e: any) => ({
+            id: e.id,
+            clubId: e.clubId || 'club-main',
+            clubName: e.club || 'Playnex Club',
+            clubCity: 'Local',
+            title: e.title,
+            category: 'Tournament' as const,
+            date: e.eventDate || 'Upcoming',
+            time: `${e.startTime} - ${e.endTime}`,
+            image: 'https://images.unsplash.com/photo-1587280501635-68a0e82cd5ff?auto=format&fit=crop&w=600&q=80',
+            price: Number(e.entryFee) || 0,
+            spotsTotal: Number(e.maxParticipants) || 32,
+            spotsLeft: Math.max(0, (Number(e.maxParticipants) || 32) - (Number(e.registeredCount) || 0)),
+            description: e.description || '',
+            schedule: [{ time: e.startTime || '09:00 AM', activity: 'Tournament Commencement' }],
+            isRegistered: false,
+          }));
+          updates.events = liveEvts;
+        }
+
+        if (bksRes.status === 'fulfilled' && bksRes.value.success && Array.isArray(bksRes.value.data) && bksRes.value.data.length > 0) {
+          const liveBks = bksRes.value.data.map((b: any) => ({
+            id: b.id,
+            userId: state.currentUser.id,
+            bookingNumber: b.id,
+            userName: b.memberName,
+            userEmail: state.currentUser.email,
+            userPhone: state.currentUser.phone,
+            clubId: b.clubId,
+            clubName: b.clubName,
+            clubCity: b.clubLocation || 'Local',
+            facilityId: b.facilityId,
+            facilityName: b.courtName || 'Court',
+            facilityCategory: b.sport || 'Court',
+            facilityImage: 'https://images.unsplash.com/photo-1554068865-24cecd4e34b8?auto=format&fit=crop&w=600&q=80',
+            date: b.bookingDate,
+            timeSlot: `${b.startTime} - ${b.endTime}`,
+            duration: '1 Hour',
+            amount: Number(b.totalPrice) || 500,
+            tax: Math.round((Number(b.totalPrice) || 500) * 0.18),
+            totalPaid: Number(b.totalPrice) || 500,
+            status: b.status === 'confirmed' ? ('Upcoming' as const) : b.status === 'cancelled' ? ('Cancelled' as const) : ('Completed' as const),
+            paymentMethod: 'UPI' as const,
+            paymentId: `PAY-${b.id}`,
+            createdAt: b.createdAt,
+            qrCodeUrl: `https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=PLX-${b.id}`,
+          }));
+          updates.bookings = liveBks;
+        }
+
+        if (memsRes.status === 'fulfilled' && memsRes.value.success && Array.isArray(memsRes.value.data) && memsRes.value.data.length > 0) {
+          const liveMems = memsRes.value.data.map((m: any) => ({
+            id: m.id,
+            membershipNumber: m.id,
+            userId: m.userId,
+            clubId: m.clubId,
+            clubName: m.clubName,
+            clubCity: m.clubLocation || 'Local',
+            planId: m.planId || 'plan-1',
+            planName: m.planName,
+            tier: (['Silver', 'Gold', 'Platinum', 'Family'].includes(m.tier) ? m.tier : 'Gold') as any,
+            status: 'Active' as const,
+            startDate: m.startDate,
+            endDate: m.endDate,
+            durationMonths: 12,
+            amountPaid: Number(m.amount) || 0,
+            qrCode: `https://api.qrserver.com/v1/create-qr-code/?size=220x220&data=MEM-${m.id}`,
+            linkedFamilyMembers: [],
+          }));
+          updates.userMemberships = liveMems;
+        }
+
+        if (famRes.status === 'fulfilled' && famRes.value.success && Array.isArray(famRes.value.data) && famRes.value.data.length > 0) {
+          const liveFam = famRes.value.data.map((f: any) => ({
+            id: f.id,
+            userId: f.userId,
+            name: f.name,
+            relation: (['Spouse', 'Child', 'Parent', 'Sibling'].includes(f.relation) ? f.relation : 'Child') as any,
+            age: Number(f.age) || 25,
+            gender: 'Male' as const,
+            avatarUrl: 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&w=150&q=80',
+            sportsInterests: ['Tennis'],
+          }));
+          updates.familyMembers = liveFam;
+        }
+
+        if (!state.selectedClubId && updates.clubs && updates.clubs.length > 0) {
+          updates.selectedClubId = updates.clubs[0].id;
+        }
+        if (!state.selectedFacilityId && updates.facilities && updates.facilities.length > 0) {
+          updates.selectedFacilityId = updates.facilities[0].id;
+        }
+
+        return updates;
+      });
+    } catch (err) {
+      console.warn('Could not load live user portal data:', err);
+    }
   },
 
   updateProfile: (profileUpdates) => {

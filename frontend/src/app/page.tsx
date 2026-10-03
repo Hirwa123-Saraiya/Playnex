@@ -4,15 +4,18 @@ import React, { useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/context/AuthContext';
 import { ClubLayout } from '../layouts/ClubLayout';
-import { UserLayout } from '../layouts/UserLayout';
 
 export default function Home() {
   const router = useRouter();
   const { user, isLoading } = useAuth();
 
   useEffect(() => {
-    if (!isLoading && user?.systemRole === 'SUPER_ADMIN') {
-      router.push('/super-admin/dashboard');
+    if (!isLoading) {
+      if (!user) {
+        router.push('/login');
+      } else if (user.systemRole === 'SUPER_ADMIN') {
+        router.push('/super-admin/dashboard');
+      }
     }
   }, [user, isLoading, router]);
 
@@ -24,7 +27,7 @@ export default function Home() {
     );
   }
 
-  if (user?.systemRole === 'SUPER_ADMIN') {
+  if (!user || user.systemRole === 'SUPER_ADMIN') {
     return (
       <main className="min-h-screen bg-slate-950 flex items-center justify-center text-slate-400 text-xs">
         Redirecting to dashboard...
@@ -32,11 +35,6 @@ export default function Home() {
     );
   }
 
-  // With club login (CLUB_OWNER, STAFF), the club dashboard opens
-  if (user?.systemRole === 'CLUB_OWNER' || user?.systemRole === 'STAFF') {
-    return <ClubLayout />;
-  }
-
-  // Customer / Member Portal
-  return <UserLayout />;
+  // Club portal for CLUB_OWNER, STAFF
+  return <ClubLayout />;
 }

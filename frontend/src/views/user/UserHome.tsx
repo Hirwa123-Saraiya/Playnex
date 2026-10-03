@@ -8,7 +8,6 @@ import {
   Star,
   Users,
   Calendar,
-  Smartphone,
   CheckCircle,
   MapPin,
 } from 'lucide-react';
@@ -347,44 +346,7 @@ export const UserHome: React.FC = () => {
         </div>
       </section>
 
-      {/* Section 6: Mobile App Promotion */}
-      <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="bg-gradient-to-r from-blue-600 to-indigo-700 rounded-3xl p-6 sm:p-10 text-white flex flex-col md:flex-row items-center justify-between gap-8 shadow-xl">
-          <div className="space-y-4 max-w-lg">
-            <span className="text-xs font-bold uppercase tracking-wider bg-white/20 px-3 py-1 rounded-full">
-              Mobile First Experience
-            </span>
-            <h3 className="text-2xl sm:text-3xl font-black">
-              Download the Playnex App on iOS & Android
-            </h3>
-            <p className="text-xs sm:text-sm text-blue-100 leading-relaxed">
-              Unlock turnstiles with Apple Wallet, receive 15-minute slot reminders, track live court occupancy, and chat with club concierges on the go.
-            </p>
-            <div className="flex flex-wrap gap-3 pt-2">
-              <button
-                onClick={() => alert('Playnex iOS app link sent to your registered phone.')}
-                className="px-5 py-2.5 rounded-xl bg-slate-950 text-white font-bold text-xs hover:bg-slate-900 transition-colors flex items-center gap-2"
-              >
-                <span>App Store</span>
-              </button>
-              <button
-                onClick={() => alert('Playnex Android APK link sent to your registered phone.')}
-                className="px-5 py-2.5 rounded-xl bg-slate-950 text-white font-bold text-xs hover:bg-slate-900 transition-colors flex items-center gap-2"
-              >
-                <span>Google Play</span>
-              </button>
-            </div>
-          </div>
-
-          <div className="flex items-center gap-4 bg-white/10 p-5 rounded-2xl border border-white/20 backdrop-blur-md">
-            <Smartphone className="w-12 h-12 text-white shrink-0" />
-            <div className="text-xs">
-              <div className="font-bold text-sm">Instant Turnstile Entry</div>
-              <div className="text-blue-100 mt-0.5">Add membership card to Apple & Google Wallet</div>
-            </div>
-          </div>
-        </div>
-      </section>
+      {/* End of content */}
     </div>
   );
 };

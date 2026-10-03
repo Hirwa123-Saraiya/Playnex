@@ -1274,6 +1274,286 @@ export const dbService = {
       transactions: [],
     };
   },
+
+  /**
+   * USER PORTAL MODULES
+   */
+  async getUserClubs({ city, sport, search } = {}) {
+    if (await checkPg()) {
+      let query = `
+        SELECT t.tenant_id as id,
+               t.club_name as name,
+               t.sport,
+               t.location,
+               t.address,
+               t.phone,
+               t.subscription_plan as "subscriptionPlan",
+               t.status,
+               COALESCE((SELECT COUNT(*) FROM facilities WHERE tenant_id = t.tenant_id AND is_active = TRUE), 0)::int as "facilitiesCount",
+               COALESCE((SELECT MIN(hourly_rate) FROM facilities WHERE tenant_id = t.tenant_id AND is_active = TRUE), 500)::numeric as "startingPrice",
+               COALESCE((SELECT AVG(rating) FROM club_reviews WHERE tenant_id = t.tenant_id), 4.8)::numeric as rating,
+               COALESCE((SELECT COUNT(*) FROM club_reviews WHERE tenant_id = t.tenant_id), 0)::int as "reviewCount"
+        FROM tenants t
+        WHERE LOWER(t.status) = 'active'
+      `;
+      const params = [];
+      if (city && city !== 'All') {
+        params.push(`%${city}%`);
+        query += ` AND (t.location ILIKE $${params.length} OR t.address ILIKE $${params.length})`;
+      }
+      if (sport && sport !== 'All') {
+        params.push(`%${sport}%`);
+        query += ` AND t.sport ILIKE $${params.length}`;
+      }
+      if (search) {
+        params.push(`%${search}%`);
+        query += ` AND (t.club_name ILIKE $${params.length} OR t.location ILIKE $${params.length} OR t.sport ILIKE $${params.length})`;
+      }
+      query += ` ORDER BY t.created_at DESC`;
+      const { rows } = await pool.query(query, params);
+      return rows;
+    }
+    return [];
+  },
+
+  async getUserClubDetails(clubId) {
+    if (await checkPg()) {
+      const clubRes = await pool.query(
+        `SELECT t.tenant_id as id, t.club_name as name, t.sport, t.location, t.address, t.phone,
+                t.subscription_plan as "subscriptionPlan", t.status,
+                COALESCE((SELECT AVG(rating) FROM club_reviews WHERE tenant_id = t.tenant_id), 4.8)::numeric as rating,
+                COALESCE((SELECT COUNT(*) FROM club_reviews WHERE tenant_id = t.tenant_id), 0)::int as "reviewCount"
+         FROM tenants t
+         WHERE t.tenant_id = $1`,
+        [clubId]
+      );
+      if (clubRes.rows.length === 0) return null;
+
+      const [facRes, planRes, evtRes, revRes] = await Promise.all([
+        pool.query(
+          `SELECT facility_id as id, name, type, hourly_rate as "hourlyRate", surface, open_time as "openTime", close_time as "closeTime", is_active as "isActive"
+           FROM facilities WHERE tenant_id = $1 AND is_active = TRUE`,
+          [clubId]
+        ),
+        pool.query(
+          `SELECT plan_id as id, name, price, billing_cycle as "billingCycle", tier, features, is_active as "isActive"
+           FROM membership_plans WHERE tenant_id = $1 AND is_active = TRUE`,
+          [clubId]
+        ),
+        pool.query(
+          `SELECT event_id as id, title, description, sport, event_date::text as "eventDate", start_time as "startTime", end_time as "endTime", entry_fee as "entryFee", max_participants as "maxParticipants", registered_count as "registeredCount", status
+           FROM club_events WHERE tenant_id = $1 AND status != 'cancelled' ORDER BY event_date ASC`,
+          [clubId]
+        ),
+        pool.query(
+          `SELECT id, user_name as "userName", rating, comment, created_at as "createdAt"
+           FROM club_reviews WHERE tenant_id = $1 ORDER BY created_at DESC LIMIT 20`,
+          [clubId]
+        ),
+      ]);
+
+      return {
+        ...clubRes.rows[0],
+        facilities: facRes.rows,
+        plans: planRes.rows,
+        events: evtRes.rows,
+        reviews: revRes.rows,
+      };
+    }
+    return null;
+  },
+
+  async getUserFacilities({ clubId, sport } = {}) {
+    if (await checkPg()) {
+      let query = `
+        SELECT f.facility_id as id, f.name, f.type, f.hourly_rate as "hourlyRate",
+               f.surface, f.open_time as "openTime", f.close_time as "closeTime",
+               f.is_active as "isActive", f.tenant_id as "clubId",
+               t.club_name as "clubName", t.location as "clubLocation"
+        FROM facilities f
+        JOIN tenants t ON f.tenant_id = t.tenant_id
+        WHERE f.is_active = TRUE
+      `;
+      const params = [];
+      if (clubId) {
+        params.push(clubId);
+        query += ` AND f.tenant_id = $${params.length}`;
+      }
+      if (sport && sport !== 'All') {
+        params.push(`%${sport}%`);
+        query += ` AND f.type ILIKE $${params.length}`;
+      }
+      query += ` ORDER BY f.name ASC`;
+      const { rows } = await pool.query(query, params);
+      return rows;
+    }
+    return [];
+  },
+
+  async createUserBooking({ bookingId, tenantId, facilityId, userId, memberName, bookingDate, startTime, endTime, totalPrice, paymentStatus, courtName }) {
+    if (await checkPg()) {
+      if (userId) {
+        try {
+          const cleanId = String(userId).toLowerCase().replace(/[^a-z0-9]/g, '');
+          await pool.query(
+            `INSERT INTO users (user_id, email, name, system_role, password_hash)
+             VALUES ($1, $2, $3, 'MEMBER', '$2b$10$dummyhashformembers12345')
+             ON CONFLICT (user_id) DO NOTHING`,
+            [userId, `${cleanId || 'customer'}@playnex.com`, memberName || 'Customer']
+          );
+        } catch (_) {}
+      }
+      const { rows } = await pool.query(
+        `INSERT INTO bookings (booking_id, tenant_id, facility_id, user_id, member_name, booking_date, start_time, end_time, total_amount, total_price, status, payment_status, court_name)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $9, 'confirmed', $10, $11)
+         RETURNING booking_id as id, tenant_id as "clubId", facility_id as "facilityId", user_id as "userId", member_name as "memberName", booking_date::text as "bookingDate", start_time as "startTime", end_time as "endTime", total_price as "totalPrice", status, payment_status as "paymentStatus", court_name as "courtName", created_at as "createdAt"`,
+        [bookingId, tenantId, facilityId, userId, memberName || 'Customer', bookingDate, startTime, endTime, totalPrice || 500, paymentStatus || 'paid', courtName || 'Court 1']
+      );
+      return rows[0];
+    }
+    return null;
+  },
+
+  async getUserBookings(userId) {
+    if (await checkPg()) {
+      const { rows } = await pool.query(
+        `SELECT b.booking_id as id, b.tenant_id as "clubId", b.facility_id as "facilityId",
+                b.member_name as "memberName", b.booking_date::text as "bookingDate",
+                b.start_time as "startTime", b.end_time as "endTime",
+                COALESCE(b.total_price, b.total_amount) as "totalPrice",
+                b.status, b.payment_status as "paymentStatus",
+                COALESCE(b.court_name, f.name) as "courtName",
+                t.club_name as "clubName", t.location as "clubLocation",
+                f.type as "sport", b.created_at as "createdAt"
+         FROM bookings b
+         JOIN tenants t ON b.tenant_id = t.tenant_id
+         LEFT JOIN facilities f ON b.facility_id = f.facility_id
+         WHERE b.user_id = $1
+         ORDER BY b.booking_date DESC, b.start_time DESC`,
+        [userId]
+      );
+      return rows;
+    }
+    return [];
+  },
+
+  async cancelUserBooking(bookingId, userId) {
+    if (await checkPg()) {
+      const { rows } = await pool.query(
+        `UPDATE bookings
+         SET status = 'cancelled'
+         WHERE booking_id = $1 AND user_id = $2
+         RETURNING booking_id as id, status`,
+        [bookingId, userId]
+      );
+      return rows[0] || null;
+    }
+    return null;
+  },
+
+  async purchaseUserMembership({ id, userId, tenantId, planId, planName, tier, durationMonths, paymentMethod, amount }) {
+    if (await checkPg()) {
+      const startDate = new Date();
+      const endDate = new Date();
+      endDate.setMonth(endDate.getMonth() + (Number(durationMonths) || 12));
+      const sDateStr = startDate.toISOString().split('T')[0];
+      const eDateStr = endDate.toISOString().split('T')[0];
+
+      const { rows } = await pool.query(
+        `INSERT INTO user_memberships (id, user_id, tenant_id, plan_id, plan_name, tier, start_date, end_date, status, payment_method, amount)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, 'Active', $9, $10)
+         RETURNING id, user_id as "userId", tenant_id as "clubId", plan_id as "planId", plan_name as "planName", tier, start_date::text as "startDate", end_date::text as "endDate", status, payment_method as "paymentMethod", amount, created_at as "createdAt"`,
+        [id, userId, tenantId, planId, planName, tier || 'Standard', sDateStr, eDateStr, paymentMethod || 'UPI', amount || 0]
+      );
+      return rows[0];
+    }
+    return null;
+  },
+
+  async getUserMemberships(userId) {
+    if (await checkPg()) {
+      const { rows } = await pool.query(
+        `SELECT um.id, um.user_id as "userId", um.tenant_id as "clubId",
+                um.plan_id as "planId", um.plan_name as "planName", um.tier,
+                um.start_date::text as "startDate", um.end_date::text as "endDate",
+                um.status, um.payment_method as "paymentMethod", um.amount,
+                t.club_name as "clubName", t.location as "clubLocation",
+                um.created_at as "createdAt"
+         FROM user_memberships um
+         JOIN tenants t ON um.tenant_id = t.tenant_id
+         WHERE um.user_id = $1
+         ORDER BY um.created_at DESC`,
+        [userId]
+      );
+      return rows;
+    }
+    return [];
+  },
+
+  async getFamilyMembers(userId) {
+    if (await checkPg()) {
+      const { rows } = await pool.query(
+        `SELECT id, user_id as "userId", name, relation, age, created_at as "createdAt"
+         FROM family_members
+         WHERE user_id = $1
+         ORDER BY created_at ASC`,
+        [userId]
+      );
+      return rows;
+    }
+    return [];
+  },
+
+  async addFamilyMember({ id, userId, name, relation, age }) {
+    if (await checkPg()) {
+      const { rows } = await pool.query(
+        `INSERT INTO family_members (id, user_id, name, relation, age)
+         VALUES ($1, $2, $3, $4, $5)
+         RETURNING id, user_id as "userId", name, relation, age, created_at as "createdAt"`,
+        [id, userId, name, relation, age || null]
+      );
+      return rows[0];
+    }
+    return null;
+  },
+
+  async deleteFamilyMember(id, userId) {
+    if (await checkPg()) {
+      const { rowCount } = await pool.query(
+        `DELETE FROM family_members WHERE id = $1 AND user_id = $2`,
+        [id, userId]
+      );
+      return rowCount > 0;
+    }
+    return false;
+  },
+
+  async addClubReview({ id, tenantId, userId, userName, rating, comment }) {
+    if (await checkPg()) {
+      const { rows } = await pool.query(
+        `INSERT INTO club_reviews (id, tenant_id, user_id, user_name, rating, comment)
+         VALUES ($1, $2, $3, $4, $5, $6)
+         RETURNING id, tenant_id as "clubId", user_id as "userId", user_name as "userName", rating, comment, created_at as "createdAt"`,
+        [id, tenantId, userId || null, userName, rating, comment]
+      );
+      return rows[0];
+    }
+    return null;
+  },
+
+  async registerEventParticipant(eventId) {
+    if (await checkPg()) {
+      const { rows } = await pool.query(
+        `UPDATE club_events
+         SET registered_count = registered_count + 1
+         WHERE event_id = $1
+         RETURNING event_id as id, title, registered_count as "registeredCount", max_participants as "maxParticipants"`,
+        [eventId]
+      );
+      return rows[0] || null;
+    }
+    return null;
+  },
 };
 
 export default dbService;
