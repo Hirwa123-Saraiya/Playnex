@@ -61,9 +61,15 @@ export interface UserItem {
 export interface ClubRevenueItem {
   id: string;
   club: string;
+  subscriptionPlan?: string;
+  subdomain?: string;
+  platformFee?: number;
   month: number;
   week: number;
   today: number;
+  billingCycle?: string;
+  paymentStatus?: string;
+  nextInvoice?: string;
   growth: number;
 }
 

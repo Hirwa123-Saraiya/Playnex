@@ -5,7 +5,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import type { LucideIcon } from "lucide-react";
 import {
-  LayoutGrid, Building2, Users, UserCog, Wallet, Settings,
+  LayoutGrid, Building2, UserCog, Wallet, Settings,
   Zap, ShieldCheck, PanelLeftClose, Trophy, BarChart3,
 } from "lucide-react";
 import { clubsService } from "@/services/clubs.service";
@@ -41,7 +41,6 @@ export default function Sidebar() {
     { label: "Dashboard",   href: "/super-admin/dashboard", icon: LayoutGrid },
     { label: "Clubs",       href: "/super-admin/clubs",     icon: Building2, badge: clubCount !== null ? clubCount : undefined, badgeTone: "lime" },
     { label: "Club admins", href: "/super-admin/admins",    icon: UserCog },
-    { label: "Users",       href: "/super-admin/users",     icon: Users },
     { label: "Revenue",     href: "/super-admin/revenue",   icon: Wallet },
     { label: "Events",      href: "/super-admin/events",    icon: Trophy },
     { label: "Reports",     href: "/super-admin/reports",   icon: BarChart3 },

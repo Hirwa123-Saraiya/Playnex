@@ -376,7 +376,7 @@ export const dbService = {
   },
 
   /**
-   * Get Revenue data by Club directly from database
+   * Get Platform Revenue from Club Subscriptions & SaaS Charges
    */
   async getRevenueData() {
     if (await checkPg()) {
@@ -384,23 +384,51 @@ export const dbService = {
         SELECT 
           t.tenant_id as id,
           t.club_name as club,
-          COALESCE((SELECT SUM(total_amount) FROM bookings WHERE tenant_id = t.tenant_id AND booking_date >= CURRENT_DATE - INTERVAL '30 days'), 0)::numeric as month,
-          COALESCE((SELECT SUM(total_amount) FROM bookings WHERE tenant_id = t.tenant_id AND booking_date >= CURRENT_DATE - INTERVAL '7 days'), 0)::numeric as week,
-          COALESCE((SELECT SUM(total_amount) FROM bookings WHERE tenant_id = t.tenant_id AND booking_date = CURRENT_DATE), 0)::numeric as today,
+          COALESCE(t.subscription_plan, 'Standard') as "subscriptionPlan",
+          t.subdomain,
+          t.status as "status",
+          CASE 
+            WHEN LOWER(COALESCE(t.subscription_plan, 'standard')) = 'enterprise' THEN 19999
+            WHEN LOWER(COALESCE(t.subscription_plan, 'standard')) = 'growth' THEN 9999
+            WHEN LOWER(COALESCE(t.subscription_plan, 'standard')) = 'standard' THEN 4999
+            ELSE 9999
+          END::numeric as "platformFee",
+          CASE 
+            WHEN LOWER(COALESCE(t.subscription_plan, 'standard')) = 'enterprise' THEN 19999
+            WHEN LOWER(COALESCE(t.subscription_plan, 'standard')) = 'growth' THEN 9999
+            WHEN LOWER(COALESCE(t.subscription_plan, 'standard')) = 'standard' THEN 4999
+            ELSE 9999
+          END::numeric as month,
+          0::numeric as week,
+          0::numeric as today,
+          'Monthly' as "billingCycle",
+          'Paid' as "paymentStatus",
+          COALESCE(TO_CHAR(t.created_at + INTERVAL '1 month', 'DD Mon YYYY'), 'Next Month') as "nextInvoice",
           0 as growth
         FROM tenants t
         ORDER BY month DESC
       `);
       return rows;
     }
-    return memoryDb.tenants.map((t) => ({
-      id: t.tenant_id,
-      club: t.club_name,
-      month: 0,
-      week: 0,
-      today: 0,
-      growth: 0,
-    }));
+    return memoryDb.tenants.map((t) => {
+      const plan = t.subscription_plan || 'Standard';
+      const fee = plan.toLowerCase() === 'enterprise' ? 19999 : plan.toLowerCase() === 'growth' ? 9999 : 4999;
+      return {
+        id: t.tenant_id,
+        club: t.club_name,
+        subscriptionPlan: plan,
+        subdomain: t.subdomain,
+        status: t.status || 'Active',
+        platformFee: fee,
+        month: fee,
+        week: 0,
+        today: 0,
+        billingCycle: 'Monthly',
+        paymentStatus: 'Paid',
+        nextInvoice: 'Next Month',
+        growth: 0,
+      };
+    });
   },
 
   /**
