@@ -691,6 +691,18 @@ export const dbService = {
 
   async createBooking({ bookingId, tenantId, facilityId, userId, memberName, bookingDate, startTime, endTime, totalAmount, status, paymentStatus }) {
     if (await checkPg()) {
+      // Anti-double booking: two bookings cannot overlap on the same facility and date
+      const overlapCheck = await pool.query(
+        `SELECT booking_id FROM bookings
+         WHERE facility_id = $1 AND booking_date = $2 AND status != 'cancelled'
+           AND (start_time < $4 AND end_time > $3)
+         LIMIT 1`,
+        [facilityId, bookingDate, startTime, endTime]
+      );
+      if (overlapCheck.rows.length > 0) {
+        throw new Error('Court is already booked for this time slot. Double booking is not permitted.');
+      }
+
       // If userId is missing, fallback or find/create guest
       let assignedUserId = userId;
       if (!assignedUserId) {
@@ -1415,6 +1427,30 @@ export const dbService = {
 
   async createUserBooking({ bookingId, tenantId, facilityId, userId, memberName, bookingDate, startTime, endTime, totalPrice, paymentStatus, courtName }) {
     if (await checkPg()) {
+      // 1. Anti-double booking: Check overlapping confirmed booking on same facility and date
+      const overlapCheck = await pool.query(
+        `SELECT booking_id FROM bookings
+         WHERE facility_id = $1 AND booking_date = $2 AND status != 'cancelled'
+           AND (start_time < $4 AND end_time > $3)
+         LIMIT 1`,
+        [facilityId, bookingDate, startTime, endTime]
+      );
+      if (overlapCheck.rows.length > 0) {
+        throw new Error('Court is already booked for this time slot. Double booking is not permitted.');
+      }
+
+      // 2. Member daily play limit (at most twice a day)
+      if (userId && !String(userId).startsWith('usr_guest')) {
+        const countRes = await pool.query(
+          `SELECT COUNT(*) as count FROM bookings
+           WHERE user_id = $1 AND booking_date = $2 AND status != 'cancelled'`,
+          [userId, bookingDate]
+        );
+        if (parseInt(countRes.rows[0]?.count || '0', 10) >= 2) {
+          throw new Error('Daily booking limit reached. Each member can book at most twice a day.');
+        }
+      }
+
       if (userId) {
         try {
           const cleanId = String(userId).toLowerCase().replace(/[^a-z0-9]/g, '');
