@@ -111,6 +111,28 @@ export const clubsService = {
   },
 
   /**
+   * Update admin details in database
+   */
+  async updateAdmin(id: string, updates: Partial<AdminItem>) {
+    return apiMethod<any>({
+      method: 'PUT',
+      url: `/clubs/admins/${id}`,
+      data: updates,
+    });
+  },
+
+  /**
+   * Reset admin password
+   */
+  async resetAdminPassword(id: string, newPassword?: string) {
+    return apiMethod<{ temporaryPassword: string }>({
+      method: 'POST',
+      url: `/clubs/admins/${id}/reset-password`,
+      data: { newPassword },
+    });
+  },
+
+  /**
    * Fetch all end users/members dynamically from database
    */
   async getUsers() {

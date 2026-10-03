@@ -1,3 +1,4 @@
+import bcrypt from 'bcryptjs';
 import { pool } from '../config/database.js';
 import { db as memoryDb } from './db.js';
 
@@ -366,6 +367,64 @@ export const dbService = {
           lastLogin: 'Recently',
         };
       });
+  },
+
+  /**
+   * Update an existing Club Admin in PostgreSQL
+   */
+  async updateAdmin(userId, { name, email, role, status }) {
+    let systemRole = undefined;
+    if (role) {
+      systemRole = role.toLowerCase() === 'owner' ? 'CLUB_OWNER' : 'STAFF';
+    }
+    const isActive = status ? status.toLowerCase() === 'active' : undefined;
+
+    if (await checkPg()) {
+      const { rows } = await pool.query(
+        `UPDATE users
+         SET name = COALESCE($2, name),
+             email = COALESCE($3, email),
+             system_role = COALESCE($4, system_role),
+             is_active = COALESCE($5, is_active)
+         WHERE user_id = $1
+         RETURNING user_id as id, name, email, system_role, is_active`,
+        [userId, name || null, email || null, systemRole || null, isActive !== undefined ? isActive : null]
+      );
+      return rows[0] || null;
+    }
+
+    const u = memoryDb.users.find((user) => user.user_id === userId);
+    if (u) {
+      if (name) u.name = name;
+      if (email) u.email = email;
+      if (systemRole) u.system_role = systemRole;
+      if (isActive !== undefined) u.is_active = isActive;
+      return u;
+    }
+    return null;
+  },
+
+  /**
+   * Reset Admin Password in PostgreSQL
+   */
+  async resetAdminPassword(userId, newPassword) {
+    const salt = await bcrypt.genSalt(10);
+    const hash = await bcrypt.hash(newPassword, salt);
+
+    if (await checkPg()) {
+      const { rows } = await pool.query(
+        `UPDATE users SET password_hash = $2 WHERE user_id = $1 RETURNING user_id`,
+        [userId, hash]
+      );
+      return rows.length > 0;
+    }
+
+    const u = memoryDb.users.find((user) => user.user_id === userId);
+    if (u) {
+      u.password_hash = hash;
+      return true;
+    }
+    return false;
   },
 
   /**

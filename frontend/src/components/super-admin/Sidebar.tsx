@@ -83,21 +83,34 @@ export default function Sidebar() {
         background: "linear-gradient(180deg, #071A3D 0%, #0B1F4D 100%)",
       }}
     >
-      {/* Brand */}
+      {/* Brand & Collapse */}
       <div
-        className={`mb-3 flex items-center md:mb-6 transition-all ${
-          isCollapsed ? "justify-center px-0" : "gap-3 px-1"
+        className={`mb-3 flex items-center md:mb-5 transition-all ${
+          isCollapsed ? "flex-col gap-2 justify-center px-0" : "justify-between px-1"
         }`}
       >
-        <span className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-blue text-white shadow-sm">
-          <Zap size={20} strokeWidth={2.5} />
-        </span>
-        {!isCollapsed && (
-          <div className="min-w-0 transition-opacity duration-200">
-            <div className="truncate text-sm font-bold leading-tight">Playnex</div>
-            <div className="truncate text-[11px] text-white/60">Super admin</div>
-          </div>
-        )}
+        <div className="flex items-center gap-3 min-w-0">
+          <span className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-blue text-white shadow-sm">
+            <Zap size={20} strokeWidth={2.5} />
+          </span>
+          {!isCollapsed && (
+            <div className="min-w-0 transition-opacity duration-200">
+              <div className="truncate text-sm font-bold leading-tight">Playnex</div>
+              <div className="truncate text-[11px] text-white/60">Super admin</div>
+            </div>
+          )}
+        </div>
+
+        {/* Clean, professional collapse toggle */}
+        <button
+          type="button"
+          onClick={toggleCollapse}
+          aria-label={isCollapsed ? "Expand sidebar" : "Collapse sidebar"}
+          title={isCollapsed ? "Expand sidebar" : "Collapse sidebar"}
+          className="hidden md:grid h-8 w-8 place-items-center rounded-lg text-white/70 hover:text-white hover:bg-white/10 transition-colors"
+        >
+          {isCollapsed ? <PanelLeftOpen size={16} /> : <PanelLeftClose size={16} />}
+        </button>
       </div>
 
       {/* Nav */}
@@ -170,17 +183,6 @@ export default function Sidebar() {
           </div>
         </div>
       )}
-
-      {/* Collapse handle */}
-      <button
-        type="button"
-        onClick={toggleCollapse}
-        aria-label={isCollapsed ? "Expand sidebar" : "Collapse sidebar"}
-        title={isCollapsed ? "Expand sidebar" : "Collapse sidebar"}
-        className="absolute -right-3.5 top-6 hidden h-7 w-7 items-center justify-center rounded-full border border-white/20 bg-[#0B1F4D] text-white/80 hover:text-white hover:bg-blue shadow-md transition-all md:flex z-50 cursor-pointer"
-      >
-        {isCollapsed ? <PanelLeftOpen size={14} /> : <PanelLeftClose size={14} />}
-      </button>
     </aside>
   );
 }

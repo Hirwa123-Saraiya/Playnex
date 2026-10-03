@@ -39,6 +39,41 @@ export async function getClubAdmins(req, res) {
 }
 
 /**
+ * Update an existing Club Admin in database
+ */
+export async function updateClubAdmin(req, res) {
+  try {
+    const { id } = req.params;
+    const { name, email, role, status } = req.body;
+    const updated = await dbService.updateAdmin(id, { name, email, role, status });
+    if (!updated) {
+      return errorResponse(res, 'Admin not found or update failed', 404);
+    }
+    return successResponse(res, updated, 'Admin updated successfully');
+  } catch (err) {
+    return errorResponse(res, err.message, 500);
+  }
+}
+
+/**
+ * Reset password for a Club Admin
+ */
+export async function resetAdminPassword(req, res) {
+  try {
+    const { id } = req.params;
+    const { newPassword } = req.body;
+    const pwd = newPassword || `Playnex@${Math.floor(1000 + Math.random() * 9000)}`;
+    const success = await dbService.resetAdminPassword(id, pwd);
+    if (!success) {
+      return errorResponse(res, 'Admin not found', 404);
+    }
+    return successResponse(res, { temporaryPassword: pwd }, 'Password reset successfully');
+  } catch (err) {
+    return errorResponse(res, err.message, 500);
+  }
+}
+
+/**
  * List all Members / End Users directly from database
  */
 export async function getClubUsers(req, res) {

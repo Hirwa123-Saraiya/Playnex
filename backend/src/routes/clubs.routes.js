@@ -6,6 +6,8 @@ import {
   deleteClub,
   getPlatformStats,
   getClubAdmins,
+  updateClubAdmin,
+  resetAdminPassword,
   getClubUsers,
   getRevenue,
   getClubById,
@@ -21,6 +23,12 @@ router.get('/stats', getPlatformStats);
 
 // GET /api/v1/clubs/admins - List all club admins
 router.get('/admins', getClubAdmins);
+
+// PUT /api/v1/clubs/admins/:id - Update club admin details
+router.put('/admins/:id', updateClubAdmin);
+
+// POST /api/v1/clubs/admins/:id/reset-password - Reset club admin password
+router.post('/admins/:id/reset-password', resetAdminPassword);
 
 // GET /api/v1/clubs/users - List all club members/users
 router.get('/users', getClubUsers);
