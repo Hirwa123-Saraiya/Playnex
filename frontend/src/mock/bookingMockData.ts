@@ -7,10 +7,7 @@ export const COURTS: Court[] = [
   { id: "ct3", name: "Cricket Net 1",  sport: "Cricket", surface: "Turf", indoor: true,  active: true },
   { id: "ct4", name: "Padel Court 1",  sport: "Padel",   surface: "Glass", indoor: false, active: true },
   { id: "ct5", name: "Badminton Court",sport: "Badminton", surface: "Wood", indoor: true, active: true },
-];cd D:\Playnex
-git status
-git branch
-
+];
 /**
  * Build slots for a court on a given date.
  * Real app: this comes from the API. Mock: we mark some as booked.
