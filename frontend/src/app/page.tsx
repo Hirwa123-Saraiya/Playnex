@@ -145,7 +145,7 @@ export default function LandingPage() {
 
           <nav className="hidden items-center gap-6 text-sm text-[#64748B] md:flex">
             <a href="#features" className="hover:text-[#1565D8] font-medium transition-colors">Features</a>
-            <Link href="/memberships" className="hover:text-[#1565D8] font-medium transition-colors">Memberships</Link>
+            {/* <Link href="/memberships" className="hover:text-[#1565D8] font-medium transition-colors">Memberships</Link> */}
             <Link href="/users" className="hover:text-[#1565D8] font-medium transition-colors">User Portal</Link>
             <Link href="/front-desk" className="hover:text-[#1565D8] font-medium transition-colors">Front Desk</Link>
             <Link href="/pro-shop" className="hover:text-[#1565D8] font-medium transition-colors">Pro Shop</Link>
@@ -204,12 +204,12 @@ export default function LandingPage() {
               <span>Open User / Member Portal</span>
               <ArrowRight size={16} />
             </Link>
-            <Link
+            {/* <Link
               href="/memberships"
               className="inline-flex w-full items-center justify-center gap-2 rounded-xl border border-[#D9E6F5] bg-white px-6 py-3.5 text-sm font-semibold text-[#1E293B] shadow-xs hover:border-[#1565D8]/40 hover:text-[#1565D8] sm:w-auto transition-all"
             >
               Explore Memberships
-            </Link>
+            </Link> */}
           </div>
 
           <div className="mt-6 flex flex-wrap items-center justify-center gap-x-5 gap-y-2 text-xs text-[#64748B]">
@@ -376,7 +376,7 @@ export default function LandingPage() {
           <div className="flex flex-wrap gap-x-5 gap-y-2 text-xs text-[#64748B]">
             <Link href="/login" className="hover:text-[#1565D8] transition-colors">Admin Login</Link>
             <Link href="/users" className="hover:text-[#1565D8] transition-colors">User Portal</Link>
-            <Link href="/memberships" className="hover:text-[#1565D8] transition-colors">Memberships</Link>
+            {/* <Link href="/memberships" className="hover:text-[#1565D8] transition-colors">Memberships</Link> */}
             <Link href="/pro-shop" className="hover:text-[#1565D8] transition-colors">Pro Shop</Link>
             <Link href="/bar-kitchen" className="hover:text-[#1565D8] transition-colors">Bar & Kitchen</Link>
             <Link href="/finance" className="hover:text-[#1565D8] transition-colors">Finance ERP</Link>
