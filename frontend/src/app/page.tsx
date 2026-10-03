@@ -16,6 +16,7 @@ import {
   ShieldCheck,
   Sparkles,
   User,
+  Building2,
 } from 'lucide-react';
 import { MobileNav } from '@/components/landing/MobileNav';
 import PWAInstallButton from '@/components/layout/PWAInstallButton';
@@ -315,6 +316,33 @@ export default function LandingPage() {
           </div>
         </div>
       </footer>
+
+      {/* Quick Portal Switcher Banner */}
+      <div className="fixed bottom-4 right-4 z-50 bg-slate-950/90 backdrop-blur-md border border-slate-700/80 rounded-2xl p-1.5 shadow-2xl flex items-center gap-1">
+        <Link
+          href="/bar-kitchen"
+          className="px-3 py-1.5 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 text-slate-300 hover:text-white hover:bg-slate-800"
+        >
+          <UtensilsCrossed className="w-3.5 h-3.5 text-amber-400" />
+          <span>Bar & Kitchen POS</span>
+        </Link>
+
+        <Link
+          href="/admin/front-desk"
+          className="px-3 py-1.5 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 text-slate-300 hover:text-white hover:bg-slate-800"
+        >
+          <Building2 className="w-3.5 h-3.5 text-blue-400" />
+          <span>Front Desk</span>
+        </Link>
+
+        <Link
+          href="/users"
+          className="px-3 py-1.5 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 bg-blue-600 text-white shadow-md"
+        >
+          <User className="w-3.5 h-3.5" />
+          <span>Member App</span>
+        </Link>
+      </div>
     </div>
   );
 }
