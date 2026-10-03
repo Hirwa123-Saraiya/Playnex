@@ -18,6 +18,7 @@ import {
   User,
   Building2,
   Landmark,
+  ShoppingBag,
 } from 'lucide-react';
 import { MobileNav } from '@/components/landing/MobileNav';
 import PWAInstallButton from '@/components/layout/PWAInstallButton';
@@ -321,6 +322,14 @@ export default function LandingPage() {
       {/* Quick Portal Switcher Banner */}
       <div className="fixed bottom-4 right-4 z-50 bg-slate-950/90 backdrop-blur-md border border-slate-700/80 rounded-2xl p-1.5 shadow-2xl flex items-center gap-1">
         <Link
+          href="/pro-shop-inventory"
+          className="px-3 py-1.5 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 text-slate-300 hover:text-white hover:bg-slate-800"
+        >
+          <ShoppingBag className="w-3.5 h-3.5 text-rose-400" />
+          <span>Pro Shop</span>
+        </Link>
+
+        <Link
           href="/finance"
           className="px-3 py-1.5 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 text-slate-300 hover:text-white hover:bg-slate-800"
         >
@@ -333,7 +342,7 @@ export default function LandingPage() {
           className="px-3 py-1.5 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 text-slate-300 hover:text-white hover:bg-slate-800"
         >
           <UtensilsCrossed className="w-3.5 h-3.5 text-amber-400" />
-          <span>Bar & Kitchen POS</span>
+          <span>Bar & Kitchen</span>
         </Link>
 
         <Link
