@@ -1,6 +1,8 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo, useState, useEffect } from "react";
+import { useRouter } from "next/navigation";
+import { useAuth } from "@/context/AuthContext";
 import {
   Bar, BarChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis,
 } from "recharts";
@@ -22,8 +24,20 @@ const STATUS_STYLE: Record<ClubStatus, string> = {
 const KPI_ICONS = [Users, CalendarCheck, Wallet, LayoutGrid, Clock, Trophy];
 
 export default function SuperAdminDashboard() {
+  const router = useRouter();
+  const { user, isLoading } = useAuth();
   const [query, setQuery] = useState("");
   const [status, setStatus] = useState<"All" | ClubStatus>("All");
+
+  useEffect(() => {
+    if (!isLoading) {
+      if (!user) {
+        router.push("/login");
+      } else if (user.systemRole !== "SUPER_ADMIN") {
+        router.push("/");
+      }
+    }
+  }, [user, isLoading, router]);
 
   const filtered = useMemo(
     () =>
@@ -50,6 +64,14 @@ export default function SuperAdminDashboard() {
   }, []);
 
   const grandTotal = categoryTotals.reduce((s, c) => s + c.value, 0);
+
+  if (isLoading || !user || user.systemRole !== "SUPER_ADMIN") {
+    return (
+      <div className="flex min-h-[400px] items-center justify-center text-sm text-muted">
+        Verifying super admin privileges...
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-5 md:space-y-6">
