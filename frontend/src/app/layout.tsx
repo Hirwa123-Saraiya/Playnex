@@ -1,12 +1,10 @@
 import type { Metadata } from 'next';
 import './globals.css';
+import { ClubProvider } from '../context/ClubContext';
 
 export const metadata: Metadata = {
-  title: 'The Champions Club - Sports Club Management',
-  description: 'Digital backbone of a modern sports club that has outgrown WhatsApp and Excel.',
-  icons: {
-    icon: '/odoo_logo.svg',
-  },
+  title: 'Playnex | Club Owner Portal - Multi-Tenant Club Management',
+  description: 'Enterprise-grade SaaS sports club management platform for facilities, bookings, memberships, finances, and departments.',
 };
 
 export default function RootLayout({
@@ -16,8 +14,10 @@ export default function RootLayout({
 }) {
   return (
     <html lang="en">
-      <body className="bg-slate-950 text-slate-100 antialiased min-h-screen">
-        {children}
+      <body className="bg-[#F8FAFC] text-slate-900 antialiased min-h-screen">
+        <ClubProvider>
+          {children}
+        </ClubProvider>
       </body>
     </html>
   );
