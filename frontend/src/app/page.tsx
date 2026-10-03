@@ -31,7 +31,6 @@ import {
   type LucideIcon,
 } from 'lucide-react';
 import { MobileNav } from '@/components/landing/MobileNav';
-import PWAInstallButton from '@/components/layout/PWAInstallButton';
 import { useAuth } from '@/context/AuthContext';
 import { ClubLayout } from '../layouts/ClubLayout';
 
@@ -155,7 +154,6 @@ export default function LandingPage() {
           </nav>
 
           <div className="hidden items-center gap-3 md:flex">
-            <PWAInstallButton />
             <Link
               href="/login"
               className="rounded-xl border border-[#D9E6F5] bg-white px-4 py-2 text-sm font-semibold text-[#1E293B] hover:border-[#1565D8]/40 hover:text-[#1565D8] transition-all shadow-xs"
@@ -397,7 +395,7 @@ export default function LandingPage() {
             <Link href="/login" className="hover:text-[#1565D8] transition-colors">Admin Login</Link>
             <Link href="/users" className="hover:text-[#1565D8] transition-colors">User Portal</Link>
             <Link href="/memberships" className="hover:text-[#1565D8] transition-colors">Memberships</Link>
-            <Link href="/pro-shop-inventory" className="hover:text-[#1565D8] transition-colors">Pro Shop</Link>
+            <Link href="/pro-shop" className="hover:text-[#1565D8] transition-colors">Pro Shop</Link>
             <Link href="/bar-kitchen" className="hover:text-[#1565D8] transition-colors">Bar & Kitchen</Link>
             <Link href="/finance" className="hover:text-[#1565D8] transition-colors">Finance ERP</Link>
             <Link href="/super-admin/dashboard" className="hover:text-[#1565D8] transition-colors">Super Admin</Link>
@@ -405,54 +403,6 @@ export default function LandingPage() {
           </div>
         </div>
       </footer>
-
-      {/* ============ QUICK PORTAL STATION SWITCHER DOCK ============ */}
-      <div className="fixed bottom-4 right-4 z-50 bg-[#071A3D]/95 backdrop-blur-md border border-[#1565D8]/30 rounded-2xl p-1.5 shadow-2xl flex items-center gap-1 text-white">
-        <Link
-          href="/pro-shop"
-          className="px-3 py-1.5 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 text-slate-300 hover:text-white hover:bg-white/10"
-          title="Pro Shop Inventory & POS"
-        >
-          <ShoppingBag className="w-3.5 h-3.5 text-rose-400" />
-          <span>Pro Shop</span>
-        </Link>
-
-        <Link
-          href="/finance"
-          className="px-3 py-1.5 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 text-slate-300 hover:text-white hover:bg-white/10"
-          title="Finance ERP & Invoicing"
-        >
-          <Landmark className="w-3.5 h-3.5 text-emerald-400" />
-          <span>Finance ERP</span>
-        </Link>
-
-        <Link
-          href="/bar-kitchen"
-          className="px-3 py-1.5 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 text-slate-300 hover:text-white hover:bg-white/10"
-          title="Bar & Kitchen POS"
-        >
-          <UtensilsCrossed className="w-3.5 h-3.5 text-amber-400" />
-          <span>Bar & Kitchen</span>
-        </Link>
-
-        <Link
-          href="/front-desk"
-          className="px-3 py-1.5 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 text-slate-300 hover:text-white hover:bg-white/10"
-          title="Front Desk Terminal"
-        >
-          <Building2 className="w-3.5 h-3.5 text-blue-400" />
-          <span>Front Desk</span>
-        </Link>
-
-        <Link
-          href="/users"
-          className="px-3 py-1.5 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 bg-[#1565D8] text-white shadow-md hover:bg-[#0E5BD8]"
-          title="Member App & Bookings"
-        >
-          <User className="w-3.5 h-3.5" />
-          <span>Member App</span>
-        </Link>
-      </div>
     </div>
   );
 }
