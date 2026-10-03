@@ -1,4 +1,6 @@
-import React, { useState } from 'react';
+'use client';
+
+import React, { useState, useEffect } from 'react';
 import {
   TrendingUp,
   ArrowUpRight,
@@ -10,6 +12,7 @@ import {
   Download,
   DollarSign,
   Sparkles,
+  Loader2,
 } from 'lucide-react';
 import {
   ResponsiveContainer,
@@ -24,39 +27,81 @@ import {
   Pie,
   Cell,
 } from 'recharts';
+import {
+  financeService,
+  RevenueSourceItem,
+  MembershipTypeItem,
+  MonthlyTrendItem,
+} from '@/services/finance.service';
 
 export const FinanceRevenue: React.FC = () => {
   const [selectedPeriod, setSelectedPeriod] = useState<'Monthly' | 'Quarterly' | 'Yearly'>('Monthly');
+  const [loading, setLoading] = useState(true);
 
-  const revenueSources = [
-    { source: 'Membership Subscription', amount: 820000, growth: 14.2, share: 28.8, dept: 'Membership' },
-    { source: 'Court & Pitch Bookings', amount: 650000, growth: 9.8, share: 22.8, dept: 'Court Booking' },
-    { source: 'Restaurant & Dining', amount: 320000, growth: 12.0, share: 11.2, dept: 'Restaurant' },
-    { source: 'The 19th Hole Bar', amount: 190000, growth: 18.5, share: 6.7, dept: 'Bar' },
-    { source: 'Pro Sports Shop Sales', amount: 480000, growth: 7.4, share: 16.9, dept: 'Shop' },
-    { source: 'Banquets & Private Galas', amount: 180000, growth: 15.0, share: 6.3, dept: 'Banquet' },
-    { source: 'Coaching Clinics & Academy', amount: 150000, growth: 8.2, share: 5.3, dept: 'Coaching' },
-    { source: 'Events & Tournament Entry', amount: 230000, growth: 22.4, share: 8.1, dept: 'Events' },
-    { source: 'Corporate Sponsorships', amount: 120000, growth: 5.0, share: 4.2, dept: 'Sponsorship' },
-    { source: 'Guest Passes & Day Pool', amount: 45000, growth: 11.2, share: 1.6, dept: 'Guest Pass' },
-    { source: 'Display Advertising Panels', amount: 35000, growth: 4.0, share: 1.2, dept: 'Advertising' },
-  ];
+  // Live Database States
+  const [totalMonthlyRevenue, setTotalMonthlyRevenue] = useState<number>(0);
+  const [arpu, setArpu] = useState<number>(0);
+  const [activeMembers, setActiveMembers] = useState<number>(0);
+  const [revenueSources, setRevenueSources] = useState<RevenueSourceItem[]>([]);
+  const [membershipTypes, setMembershipTypes] = useState<MembershipTypeItem[]>([]);
+  const [monthlyTrend, setMonthlyTrend] = useState<MonthlyTrendItem[]>([]);
 
-  const membershipTypes = [
-    { type: 'Individual Member', count: 1420, revenue: 426000, color: '#3B82F6' },
-    { type: 'Family Royal Plan', count: 680, revenue: 272000, color: '#10B981' },
-    { type: 'Corporate Patron', count: 48, revenue: 96000, color: '#8B5CF6' },
-    { type: 'Student / Junior Athlete', count: 310, revenue: 26000, color: '#F59E0B' },
-  ];
+  useEffect(() => {
+    let isMounted = true;
+    async function loadFinanceData() {
+      try {
+        setLoading(true);
+        const res = await financeService.getFinanceData();
+        if (isMounted && res.success && res.data) {
+          const { summary, revenueSources: sources, membershipTypes: types, monthlyTrend: trend } = res.data;
+          setTotalMonthlyRevenue(summary.totalMonthlyRevenue || summary.grossRevenue || 0);
+          setArpu(summary.arpu || 0);
+          setActiveMembers(summary.activeMembers || 0);
+          if (sources) setRevenueSources(sources);
+          if (types) setMembershipTypes(types);
+          if (trend) setMonthlyTrend(trend);
+        }
+      } catch (err) {
+        console.error('Failed to load database finance revenue data:', err);
+      } finally {
+        if (isMounted) setLoading(false);
+      }
+    }
+    loadFinanceData();
+    return () => {
+      isMounted = false;
+    };
+  }, []);
 
-  const monthlyTrend = [
-    { month: 'May', revenue: 2180000, target: 2000000 },
-    { month: 'Jun', revenue: 2340000, target: 2100000 },
-    { month: 'Jul', revenue: 2490000, target: 2250000 },
-    { month: 'Aug', revenue: 2620000, target: 2400000 },
-    { month: 'Sep', revenue: 2710000, target: 2550000 },
-    { month: 'Oct', revenue: 2845000, target: 2700000 },
-  ];
+  const handleExportCsv = () => {
+    const headers = ['Revenue Stream', 'Department', 'Turnover (INR)', 'Share (%)', 'Growth (%)'];
+    const rows = revenueSources.map((r) => [r.source, r.dept, r.amount, `${r.share}%`, `+${r.growth}%`]);
+
+    const csvContent = [
+      headers.join(','),
+      ...rows.map((row) => row.map((cell) => `"${String(cell ?? '').replace(/"/g, '""')}"`).join(',')),
+    ].join('\n');
+
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.setAttribute('download', `Club_Revenue_Breakdown_${new Date().toISOString().slice(0, 10)}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+  };
+
+  if (loading) {
+    return (
+      <div className="flex h-96 items-center justify-center">
+        <Loader2 className="animate-spin text-blue" size={32} />
+      </div>
+    );
+  }
+
+  const membershipTotal = membershipTypes.reduce((s, t) => s + t.revenue, 0);
 
   return (
     <div className="space-y-6 pb-12 animate-in fade-in">
@@ -64,17 +109,17 @@ export const FinanceRevenue: React.FC = () => {
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
           <h1 className="text-2xl font-black text-slate-900 tracking-tight">
-            Revenue Intelligence & Income Streams
+            Revenue Intelligence &amp; Income Streams
           </h1>
           <p className="text-xs sm:text-sm text-slate-500 mt-0.5">
-            Multi-facility revenue tracking across 12 club departments, membership renewals, and sponsorships.
+            Live database revenue tracking across club operations, bookings, member subscriptions and facilities.
           </p>
         </div>
 
         <div className="flex items-center gap-2">
           <button
-            onClick={() => alert('Exporting full Revenue Breakdown CSV...')}
-            className="px-4 py-2 bg-white border border-slate-200 text-slate-700 hover:bg-slate-50 text-xs font-bold rounded-2xl shadow-2xs flex items-center gap-1.5"
+            onClick={handleExportCsv}
+            className="px-4 py-2 bg-white border border-slate-200 text-slate-700 hover:bg-slate-50 text-xs font-bold rounded-2xl shadow-2xs flex items-center gap-1.5 transition-colors"
           >
             <Download className="w-3.5 h-3.5" />
             <span>Export CSV</span>
@@ -86,20 +131,30 @@ export const FinanceRevenue: React.FC = () => {
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
         <div className="bg-white p-5 rounded-3xl border border-slate-200/90 shadow-2xs">
           <span className="text-xs font-bold text-slate-400 uppercase tracking-wider block">Total Monthly Revenue</span>
-          <span className="text-2xl font-black text-slate-900 mt-1 block">₹ 28,45,000</span>
+          <span className="text-2xl font-black text-slate-900 mt-1 block">
+            ₹ {totalMonthlyRevenue.toLocaleString('en-IN')}
+          </span>
           <span className="text-xs text-emerald-600 font-extrabold flex items-center gap-1 mt-1">
-            <ArrowUpRight className="w-3.5 h-3.5" /> +12.0% above budget target
+            <ArrowUpRight className="w-3.5 h-3.5" /> Live PostgreSQL database sync
           </span>
         </div>
         <div className="bg-white p-5 rounded-3xl border border-slate-200/90 shadow-2xs">
-          <span className="text-xs font-bold text-slate-400 uppercase tracking-wider block">Membership Renewals Rate</span>
-          <span className="text-2xl font-black text-blue-600 mt-1 block">94.2%</span>
-          <span className="text-xs text-slate-500 mt-1 block">2,458 active members enrolled</span>
+          <span className="text-xs font-bold text-slate-400 uppercase tracking-wider block">Membership Enrolled</span>
+          <span className="text-2xl font-black text-blue-600 mt-1 block">
+            {activeMembers} Active Members
+          </span>
+          <span className="text-xs text-slate-500 mt-1 block">
+            {membershipTypes.length} active membership categories
+          </span>
         </div>
         <div className="bg-white p-5 rounded-3xl border border-slate-200/90 shadow-2xs">
           <span className="text-xs font-bold text-slate-400 uppercase tracking-wider block">Average Revenue Per User (ARPU)</span>
-          <span className="text-2xl font-black text-purple-600 mt-1 block">₹ 1,157</span>
-          <span className="text-xs text-emerald-600 font-bold mt-1 block">+8.4% YoY enhancement</span>
+          <span className="text-2xl font-black text-purple-600 mt-1 block">
+            ₹ {arpu.toLocaleString('en-IN')}
+          </span>
+          <span className="text-xs text-emerald-600 font-bold mt-1 block">
+            Calculated from active member ledger
+          </span>
         </div>
       </div>
 
@@ -112,7 +167,7 @@ export const FinanceRevenue: React.FC = () => {
               Monthly Revenue vs Budget Target
             </h3>
             <span className="text-xs font-bold text-slate-500 bg-slate-100 px-2.5 py-1 rounded-lg">
-              Last 6 Months
+              Live Database Aggregation
             </span>
           </div>
 
@@ -120,8 +175,8 @@ export const FinanceRevenue: React.FC = () => {
             <ResponsiveContainer width="100%" height="100%">
               <LineChart data={monthlyTrend}>
                 <XAxis dataKey="month" stroke="#94A3B8" fontSize={11} tickLine={false} />
-                <YAxis stroke="#94A3B8" fontSize={11} tickLine={false} tickFormatter={(v) => `₹${v / 100000}L`} />
-                <Tooltip formatter={(v: number) => [`₹${(v / 100000).toFixed(2)} Lakhs`, '']} />
+                <YAxis stroke="#94A3B8" fontSize={11} tickLine={false} tickFormatter={(v) => `₹${v / 1000}k`} />
+                <Tooltip formatter={(v: number) => [`₹${v.toLocaleString('en-IN')}`, '']} />
                 <Line type="monotone" dataKey="revenue" stroke="#3B82F6" strokeWidth={3} name="Actual Revenue" dot={{ r: 4 }} />
                 <Line type="monotone" dataKey="target" stroke="#94A3B8" strokeDasharray="5 5" strokeWidth={2} name="Budget Target" />
               </LineChart>
@@ -136,31 +191,39 @@ export const FinanceRevenue: React.FC = () => {
               Membership Category Revenue
             </h3>
             <span className="text-xs font-bold text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-full">
-              ₹8.20L Total
+              ₹ {membershipTotal.toLocaleString('en-IN')} Total
             </span>
           </div>
 
           <div className="space-y-3">
-            {membershipTypes.map((tier) => (
-              <div key={tier.type} className="p-3 rounded-2xl bg-slate-50 border border-slate-100">
-                <div className="flex justify-between items-center text-xs">
-                  <span className="font-extrabold text-slate-800">{tier.type}</span>
-                  <span className="font-black text-slate-900">₹{tier.revenue.toLocaleString()}</span>
+            {membershipTypes.map((tier) => {
+              const pct = membershipTotal > 0 ? Math.round((tier.revenue / membershipTotal) * 100) : 0;
+              return (
+                <div key={tier.type} className="p-3 rounded-2xl bg-slate-50 border border-slate-100">
+                  <div className="flex justify-between items-center text-xs">
+                    <span className="font-extrabold text-slate-800">{tier.type}</span>
+                    <span className="font-black text-slate-900">₹ {tier.revenue.toLocaleString('en-IN')}</span>
+                  </div>
+                  <div className="flex justify-between text-[11px] text-slate-400 mt-1">
+                    <span>{tier.count} Enrolled Members</span>
+                    <span>{pct}% of membership pool</span>
+                  </div>
                 </div>
-                <div className="flex justify-between text-[11px] text-slate-400 mt-1">
-                  <span>{tier.count} Enrolled Members</span>
-                  <span>{Math.round((tier.revenue / 820000) * 100)}% of membership pool</span>
-                </div>
+              );
+            })}
+            {membershipTypes.length === 0 && (
+              <div className="py-8 text-center text-xs text-muted">
+                No active membership plans found in database.
               </div>
-            ))}
+            )}
           </div>
         </div>
       </div>
 
-      {/* 12-Department Revenue Sources Breakdown Table */}
+      {/* Facility & Stream Revenue Breakdown Table */}
       <div className="bg-white rounded-3xl border border-slate-200/90 p-5 shadow-xs overflow-hidden">
         <h3 className="text-base font-extrabold text-slate-900 mb-3">
-          Facility & Stream Revenue Breakdown
+          Facility &amp; Stream Revenue Breakdown
         </h3>
         <div className="overflow-x-auto rounded-2xl border border-slate-200">
           <table className="w-full text-left text-xs">
@@ -183,7 +246,7 @@ export const FinanceRevenue: React.FC = () => {
                     </span>
                   </td>
                   <td className="py-2.5 px-4 text-right font-black text-slate-900">
-                    ₹ {item.amount.toLocaleString()}
+                    ₹ {item.amount.toLocaleString('en-IN')}
                   </td>
                   <td className="py-2.5 px-4 text-center font-bold text-slate-600">
                     {item.share}%
@@ -193,6 +256,13 @@ export const FinanceRevenue: React.FC = () => {
                   </td>
                 </tr>
               ))}
+              {revenueSources.length === 0 && (
+                <tr>
+                  <td colSpan={5} className="py-8 text-center text-muted">
+                    No revenue records available yet.
+                  </td>
+                </tr>
+              )}
             </tbody>
           </table>
         </div>

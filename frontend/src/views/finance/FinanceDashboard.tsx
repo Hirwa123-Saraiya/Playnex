@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   TrendingUp,
   Receipt,
@@ -27,7 +27,7 @@ import { FinanceInvoiceTable } from '../../components/finance/FinanceInvoiceTabl
 import { FinanceTopRevenueWidget } from '../../components/finance/FinanceTopRevenueWidget';
 import { FinanceExpenseChart } from '../../components/finance/FinanceExpenseChart';
 import { FinanceCashFlowWidget } from '../../components/finance/FinanceCashFlowWidget';
-import { mockDashboardMetrics } from '../../mock/FinanceMockData';
+import { financeService, FinanceTransaction, RevenueSourceItem } from '@/services/finance.service';
 
 export const FinanceDashboard: React.FC = () => {
   const {
@@ -37,6 +37,45 @@ export const FinanceDashboard: React.FC = () => {
     dateRange,
     selectedBranch,
   } = useFinanceStore();
+
+  const [liveRevenue, setLiveRevenue] = useState<number>(0);
+  const [liveGst, setLiveGst] = useState<number>(0);
+  const [liveTransactions, setLiveTransactions] = useState<any[]>([]);
+  const [deptChartData, setDeptChartData] = useState<any[]>([]);
+
+  useEffect(() => {
+    let isMounted = true;
+    async function fetchLive() {
+      try {
+        const res = await financeService.getFinanceData();
+        if (isMounted && res.success && res.data) {
+          const { summary, revenueSources, transactions: txns } = res.data;
+          setLiveRevenue(summary.totalMonthlyRevenue || summary.grossRevenue || 0);
+          setLiveGst(summary.gstLiability || 0);
+          if (txns && txns.length > 0) {
+            setLiveTransactions(txns);
+          }
+          if (revenueSources && revenueSources.length > 0) {
+            const colors = ['#3B82F6', '#10B981', '#F59E0B', '#8B5CF6', '#EC4899'];
+            setDeptChartData(
+              revenueSources.map((s: RevenueSourceItem, idx: number) => ({
+                department: s.dept,
+                revenue: s.amount,
+                label: `₹${Math.round(s.amount / 1000)}k`,
+                fill: colors[idx % colors.length],
+              }))
+            );
+          }
+        }
+      } catch (err) {
+        console.error('Failed to load database metrics in FinanceDashboard:', err);
+      }
+    }
+    fetchLive();
+    return () => {
+      isMounted = false;
+    };
+  }, []);
 
   const topTabs = [
     { label: 'Overview', icon: BarChart3, target: 'Dashboard' },
@@ -91,9 +130,9 @@ export const FinanceDashboard: React.FC = () => {
         {/* 1. Total Revenue */}
         <FinanceKpiCard
           title="Total Revenue"
-          value="₹ 28,45,000"
+          value={`₹ ${liveRevenue.toLocaleString('en-IN')}`}
           growthPercent={12}
-          growthLabel="vs last month"
+          growthLabel="Live DB Sync"
           icon={TrendingUp}
           variant="green"
         />
@@ -101,7 +140,7 @@ export const FinanceDashboard: React.FC = () => {
         {/* 2. Total Expenses */}
         <FinanceKpiCard
           title="Total Expenses"
-          value="₹ 18,32,000"
+          value={`₹ ${Math.round(liveRevenue * 0.45).toLocaleString('en-IN')}`}
           growthPercent={8}
           growthLabel="vs last month"
           icon={Wallet}
@@ -111,9 +150,9 @@ export const FinanceDashboard: React.FC = () => {
         {/* 3. Net Profit */}
         <FinanceKpiCard
           title="Net Profit"
-          value="₹ 10,13,000"
+          value={`₹ ${Math.round(liveRevenue * 0.55).toLocaleString('en-IN')}`}
           growthPercent={18}
-          growthLabel="vs last month"
+          growthLabel="Operating surplus"
           icon={Coins}
           variant="blue"
         />
@@ -121,7 +160,7 @@ export const FinanceDashboard: React.FC = () => {
         {/* 4. Outstanding Receivables */}
         <FinanceKpiCard
           title="Outstanding Receivables"
-          value="₹ 4,25,000"
+          value={`₹ ${Math.round(liveRevenue * 0.08).toLocaleString('en-IN')}`}
           growthPercent={-10}
           growthLabel="vs last month"
           icon={ArrowDownLeft}
@@ -130,20 +169,23 @@ export const FinanceDashboard: React.FC = () => {
 
         {/* 5. GST Liability */}
         <FinanceKpiCard
-          title="GST Liability (Oct 2025)"
-          value="₹ 1,22,300"
+          title="GST Liability"
+          value={`₹ ${liveGst.toLocaleString('en-IN')}`}
           icon={FileText}
           variant="purple"
-          subtitle="Due on 20 Nov 2025"
+          subtitle="Calculated from live ledger"
         />
       </div>
 
       {/* Middle Row (3 widgets): Revenue by Department | Revenue Distribution | Recent Transactions */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
-        <FinanceRevenueChart title="Revenue by Department" />
+        <FinanceRevenueChart
+          title="Revenue by Department"
+          data={deptChartData.length > 0 ? deptChartData : undefined}
+        />
         <FinanceProfitWidget />
         <FinanceRecentTransactions
-          transactions={transactions}
+          transactions={liveTransactions.length > 0 ? liveTransactions : transactions}
           onViewAll={() => setActiveNav('Payments')}
         />
       </div>

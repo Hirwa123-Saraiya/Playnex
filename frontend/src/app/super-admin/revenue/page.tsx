@@ -32,16 +32,37 @@ export default function RevenuePage() {
   const activeClubsCount = revenueList.length;
 
   const handleExportCsv = () => {
-    const headers = ["Club Tenant", "Platform Plan", "Subdomain", "Billing Cycle", "Monthly SaaS Fee (INR)", "Status", "Next Invoice Date"];
-    const rows = revenueList.map((c) => [
-      c.club,
-      c.subscriptionPlan || "Standard",
-      c.subdomain ? `${c.subdomain}.playnex.club` : "playnex.club",
-      c.billingCycle || "Monthly",
-      c.platformFee || c.month || 4999,
-      c.paymentStatus || "Paid",
-      c.nextInvoice || "Next Month",
-    ]);
+    const headers = [
+      "Invoice Number",
+      "Club Tenant",
+      "Platform Plan",
+      "Subdomain",
+      "Base SaaS Fee (INR)",
+      "GST 18% (INR)",
+      "Total Billed (INR)",
+      "Payment Status",
+      "Payment Method",
+      "Invoice Date",
+      "Next Renewal",
+    ];
+    const rows = revenueList.map((c) => {
+      const fee = Number(c.platformFee || c.month || 4999);
+      const gst = Number(c.gstAmount || Math.round(fee * 0.18 * 100) / 100);
+      const total = Number(c.totalAmount || (fee + gst));
+      return [
+        c.invoiceNumber || `INV-PNX-${c.id.slice(-6).toUpperCase()}`,
+        c.club,
+        c.subscriptionPlan || "Standard",
+        c.subdomain ? `${c.subdomain}.playnex.club` : "playnex.club",
+        fee,
+        gst,
+        total,
+        c.paymentStatus || "Paid",
+        c.paymentMethod || "Razorpay SaaS Auto-Debit",
+        c.invoiceDate || "Current Month",
+        c.nextInvoice || "Next Month",
+      ];
+    });
 
     const csvContent = [
       headers.join(","),
@@ -154,7 +175,14 @@ export default function RevenuePage() {
                           <Building2 size={14} />
                         </span>
                         <div>
-                          <div className="font-bold text-navy">{r.club}</div>
+                          <div className="flex items-center gap-2">
+                            <span className="font-bold text-navy">{r.club}</span>
+                            {r.invoiceNumber && (
+                              <span className="text-[10px] font-mono font-semibold bg-slate-100 text-slate-600 px-1.5 py-0.5 rounded border border-slate-200">
+                                {r.invoiceNumber}
+                              </span>
+                            )}
+                          </div>
                           <div className="text-[11px] text-muted">{r.subdomain ? `${r.subdomain}.playnex.club` : r.id}</div>
                         </div>
                       </div>

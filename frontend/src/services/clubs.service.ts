@@ -60,16 +60,22 @@ export interface UserItem {
 
 export interface ClubRevenueItem {
   id: string;
+  invoiceNumber?: string;
+  tenantId?: string;
   club: string;
   subscriptionPlan?: string;
   subdomain?: string;
   platformFee?: number;
   month: number;
+  gstAmount?: number;
+  totalAmount?: number;
   week: number;
   today: number;
   billingCycle?: string;
   paymentStatus?: string;
+  invoiceDate?: string;
   nextInvoice?: string;
+  paymentMethod?: string;
   growth: number;
 }
 
