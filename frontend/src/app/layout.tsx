@@ -2,6 +2,7 @@ import type { Metadata } from 'next';
 import { Inter } from 'next/font/google';
 import './globals.css';
 import { AuthProvider } from '../context/AuthContext';
+import { ClubProvider } from '../context/ClubContext';
 
 const inter = Inter({ subsets: ['latin'], display: 'swap' });
 
@@ -21,7 +22,11 @@ export default function RootLayout({
   return (
     <html lang="en" className={inter.className}>
       <body className="min-h-screen bg-sand text-text antialiased">
-        <AuthProvider>{children}</AuthProvider>
+        <AuthProvider>
+          <ClubProvider>
+            {children}
+          </ClubProvider>
+        </AuthProvider>
       </body>
     </html>
   );
