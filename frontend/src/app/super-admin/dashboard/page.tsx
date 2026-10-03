@@ -8,8 +8,8 @@ import {
   Bar, BarChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis,
 } from "recharts";
 import {
-  Users, CalendarCheck, Wallet, LayoutGrid, Clock, Trophy,
-  TrendingUp, TrendingDown, Sparkles, ArrowRight, Building2,
+  Wallet, LayoutGrid, Clock,
+  TrendingUp, TrendingDown, Sparkles, ArrowRight, Building2, UserCog,
 } from "lucide-react";
 import { inr, type ClubStatus } from "@/lib/mockData";
 import { clubsService, type ClubItem, type PlatformStats } from "@/services/clubs.service";
@@ -19,8 +19,6 @@ const STATUS_STYLE: Record<ClubStatus, string> = {
   Pending:   "bg-amber-100 text-amber-800",
   Suspended: "bg-red-100 text-red-800",
 };
-
-const KPI_ICONS = [Building2, Users, CalendarCheck, Wallet, LayoutGrid, Trophy];
 
 export default function SuperAdminDashboard() {
   const router = useRouter();
@@ -69,22 +67,45 @@ export default function SuperAdminDashboard() {
 
   const dynamicKpis = useMemo(() => {
     const totalClubs = stats?.total_clubs ?? clubs.length;
-    const totalMembers = stats?.total_members ?? 0;
-    const todayBookings = stats?.today_bookings ?? 0;
-    const todayRevenue = Number(stats?.today_revenue ?? 0);
-    const activeFac = stats?.active_facilities ?? 0;
-    const totalFac = stats?.total_facilities ?? 0;
     const totalAdmins = stats?.total_admins ?? clubs.length;
 
+    const mrr = clubs.reduce((acc, c) => {
+      const plan = (c.subscriptionPlan || "Standard").toLowerCase();
+      const fee = plan === "enterprise" ? 19999 : plan === "growth" ? 9999 : 4999;
+      return acc + fee;
+    }, 0);
+    const arr = mrr * 12;
+
     return [
-      { label: "Active Clubs", value: String(totalClubs), note: "Registered clubs" },
-      { label: "Total Members", value: totalMembers.toLocaleString("en-IN"), note: "Active members" },
-      { label: "Today's Bookings", value: String(todayBookings), note: "Bookings scheduled" },
-      { label: "Today's Revenue", value: inr(todayRevenue), note: "Revenue collected" },
-      { label: "Active Facilities", value: `${activeFac} / ${totalFac}`, note: "Available courts & arenas" },
-      { label: "Club Admins", value: String(totalAdmins), note: "Club administrators" },
+      { label: "Active Clubs", value: String(totalClubs), note: "Registered sports clubs", icon: Building2 },
+      { label: "Club Admins", value: String(totalAdmins), note: "Designated club owners", icon: UserCog },
+      { label: "Monthly Platform MRR", value: inr(mrr), note: "Active SaaS subscriptions", icon: Wallet },
+      { label: "Annual Platform ARR", value: inr(arr), note: "Projected annual SaaS run rate", icon: TrendingUp },
     ];
   }, [stats, clubs]);
+
+  const { mrr, enterpriseClubs, growthClubs, standardClubs } = useMemo(() => {
+    let m = 0;
+    let ent = 0;
+    let gro = 0;
+    let std = 0;
+
+    clubs.forEach((c) => {
+      const plan = (c.subscriptionPlan || "Standard").toLowerCase();
+      if (plan === "enterprise") {
+        m += 19999;
+        ent += 1;
+      } else if (plan === "growth") {
+        m += 9999;
+        gro += 1;
+      } else {
+        m += 4999;
+        std += 1;
+      }
+    });
+
+    return { mrr: m, enterpriseClubs: ent, growthClubs: gro, standardClubs: std };
+  }, [clubs]);
 
   const filtered = useMemo(
     () =>
@@ -95,10 +116,6 @@ export default function SuperAdminDashboard() {
       ),
     [clubs, query, status]
   );
-
-  const topClubs = useMemo(() => {
-    return [...clubs].sort((a, b) => (Number(b.members) || 0) - (Number(a.members) || 0)).slice(0, 5);
-  }, [clubs]);
 
   if (isLoading || !user || user.systemRole !== "SUPER_ADMIN") {
     return (
@@ -117,30 +134,30 @@ export default function SuperAdminDashboard() {
             Welcome, Super Admin!
           </h1>
           <div className="mt-1 text-xs text-muted sm:text-sm">
-            Overview of clubs, facilities, bookings, and revenue across the platform.
+            Overview of clubs, platform software subscriptions, and administrative operations.
           </div>
         </div>
       </div>
 
-      {/* KPI cards */}
-      <section className="grid grid-cols-2 gap-3 sm:gap-4 md:grid-cols-3 lg:grid-cols-6">
-        {dynamicKpis.map((k, i) => {
-          const Icon = KPI_ICONS[i % KPI_ICONS.length];
+      {/* KPI cards - Focused 4 SaaS Platform Cards */}
+      <section className="grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-4">
+        {dynamicKpis.map((k) => {
+          const Icon = k.icon;
           return (
             <div
               key={k.label}
-              className="rounded-2xl border border-line bg-card p-3 shadow-card sm:p-4"
+              className="rounded-2xl border border-line bg-card p-4 shadow-card"
             >
               <div className="flex items-center gap-2 text-[10px] font-semibold uppercase tracking-wide text-muted sm:text-[11px]">
-                <span className="grid h-7 w-7 shrink-0 place-items-center rounded-md bg-blueSoft text-blue">
-                  <Icon size={14} />
+                <span className="grid h-8 w-8 shrink-0 place-items-center rounded-lg bg-blueSoft text-blue">
+                  <Icon size={16} />
                 </span>
                 <span className="truncate">{k.label}</span>
               </div>
               <div className="mt-2 text-xl font-bold leading-none text-navy sm:mt-3 sm:text-2xl">
                 {k.value}
               </div>
-              <div className="mt-2 text-[10px] sm:mt-3 sm:text-[11px] text-muted truncate">
+              <div className="mt-2 text-[11px] text-muted truncate">
                 {k.note}
               </div>
             </div>
@@ -148,119 +165,129 @@ export default function SuperAdminDashboard() {
         })}
       </section>
 
-      {/* Chart + Top Clubs */}
+      {/* SaaS Subscription Overview + Registered Clubs Directory */}
       <div className="grid gap-4 md:gap-6 lg:grid-cols-3">
+        {/* Platform Subscription Billing Overview */}
         <section className="rounded-2xl border border-line bg-card p-4 shadow-card md:p-5 lg:col-span-2">
           <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
             <div>
-              <h2 className="text-base font-bold text-navy">Revenue Overview</h2>
+              <h2 className="text-base font-bold text-navy">Platform SaaS Subscription Overview</h2>
               <p className="text-xs text-muted">
-                Platform revenue across all registered clubs
+                Recurring software licensing fees billed directly to clubs
               </p>
             </div>
+            <Link
+              href="/super-admin/revenue"
+              className="inline-flex items-center gap-1 text-xs font-bold text-blue hover:underline"
+            >
+              Manage Billing <ArrowRight size={13} />
+            </Link>
           </div>
 
           <div className="grid gap-4 md:grid-cols-3">
-            {/* Chart */}
-            <div className="flex flex-col items-center justify-center rounded-lg border border-line bg-[#F8FBFF] p-6 text-center md:col-span-2">
-              <div className="mb-2 text-2xl font-bold text-navy">
-                {inr(Number(stats?.today_revenue || 0))}
+            {/* Total MRR Highlight */}
+            <div className="flex flex-col items-center justify-center rounded-xl border border-line bg-[#F8FBFF] p-6 text-center md:col-span-2">
+              <span className="text-xs font-semibold uppercase tracking-wider text-muted">Monthly Recurring Revenue</span>
+              <div className="mt-2 text-3xl font-extrabold text-navy">
+                {inr(mrr)}
               </div>
-              <div className="text-xs text-muted max-w-sm">
-                {Number(stats?.today_revenue || 0) > 0
-                  ? "Recorded transactions today across all registered club facilities."
-                  : "No transactions recorded yet today. Revenue from member bookings will reflect here live."}
-              </div>
-              <div className="mt-4 flex gap-4 text-xs font-medium text-muted">
-                <div>Clubs: <span className="font-semibold text-navy">{clubs.length}</span></div>
-                <div>Bookings: <span className="font-semibold text-navy">{stats?.today_bookings || 0}</span></div>
-                <div>Members: <span className="font-semibold text-navy">{stats?.total_members || 0}</span></div>
+              <p className="mt-2 text-xs text-muted max-w-sm">
+                Software platform charges billed across all active sports clubs & academies.
+              </p>
+              <div className="mt-5 flex items-center justify-center gap-6 border-t border-slate-200/80 pt-4 text-xs font-medium text-muted w-full">
+                <div>Active Clubs: <span className="font-bold text-navy">{clubs.length}</span></div>
+                <div>Billing Cycle: <span className="font-bold text-emerald-700">Monthly</span></div>
+                <div>Status: <span className="font-bold text-blue">100% Current</span></div>
               </div>
             </div>
 
-            {/* Platform metrics panel */}
-            <div className="rounded-lg border border-line bg-[#F4F8FD] p-3 md:p-4">
-              <div className="text-[11px] font-semibold uppercase tracking-wide text-muted">
-                Platform Breakdown
+            {/* Plan Tier Distribution */}
+            <div className="rounded-xl border border-line bg-[#F4F8FD] p-4 flex flex-col justify-between">
+              <div>
+                <div className="text-[11px] font-bold uppercase tracking-wider text-muted">
+                  Subscription Tiers
+                </div>
+                <div className="mt-1 text-sm font-semibold text-navy">
+                  Active Club Breakdown
+                </div>
+                <ul className="mt-4 space-y-3">
+                  <li className="flex items-center justify-between text-xs">
+                    <span className="font-medium text-blue-700 bg-blue-50 border border-blue-200 px-2 py-0.5 rounded">Enterprise (₹19,999)</span>
+                    <span className="font-bold text-navy">{enterpriseClubs} {enterpriseClubs === 1 ? 'Club' : 'Clubs'}</span>
+                  </li>
+                  <li className="flex items-center justify-between text-xs">
+                    <span className="font-medium text-emerald-700 bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded">Growth (₹9,999)</span>
+                    <span className="font-bold text-navy">{growthClubs} Clubs</span>
+                  </li>
+                  <li className="flex items-center justify-between text-xs">
+                    <span className="font-medium text-slate-700 bg-slate-100 border border-slate-200 px-2 py-0.5 rounded">Standard (₹4,999)</span>
+                    <span className="font-bold text-navy">{standardClubs} Clubs</span>
+                  </li>
+                </ul>
               </div>
-              <div className="mt-1 text-lg font-bold text-navy md:text-xl">
-                {inr(Number(stats?.today_revenue || 0))}
+
+              <div className="mt-4 pt-3 border-t border-slate-200 text-[11px] text-muted text-center">
+                Avg. ARPU: <span className="font-bold text-navy">{clubs.length > 0 ? inr(Math.round(mrr / clubs.length)) : inr(0)}/club</span>
               </div>
-              <ul className="mt-3 space-y-2 md:space-y-2.5">
-                <li className="text-xs">
-                  <div className="flex items-center justify-between">
-                    <span className="text-muted">Total Clubs</span>
-                    <span className="font-semibold text-navy">{stats?.total_clubs || clubs.length}</span>
-                  </div>
-                </li>
-                <li className="text-xs">
-                  <div className="flex items-center justify-between">
-                    <span className="text-muted">Total Admins</span>
-                    <span className="font-semibold text-navy">{stats?.total_admins || clubs.length}</span>
-                  </div>
-                </li>
-                <li className="text-xs">
-                  <div className="flex items-center justify-between">
-                    <span className="text-muted">Active Facilities</span>
-                    <span className="font-semibold text-navy">{stats?.active_facilities || 0}</span>
-                  </div>
-                </li>
-                <li className="text-xs">
-                  <div className="flex items-center justify-between">
-                    <span className="text-muted">Total Facilities</span>
-                    <span className="font-semibold text-navy">{stats?.total_facilities || 0}</span>
-                  </div>
-                </li>
-              </ul>
             </div>
           </div>
         </section>
 
-        {/* Top Clubs */}
-        <section className="rounded-2xl border border-line bg-card p-4 shadow-card md:p-5">
-          <div className="mb-4 flex items-center justify-between">
-            <div>
-              <h2 className="text-base font-bold text-navy">Top Clubs by Members</h2>
-              <p className="text-xs text-muted">Ranked by registered membership</p>
+        {/* Registered Clubs Directory */}
+        <section className="rounded-2xl border border-line bg-card p-4 shadow-card md:p-5 flex flex-col justify-between">
+          <div>
+            <div className="mb-4 flex items-center justify-between">
+              <div>
+                <h2 className="text-base font-bold text-navy">Registered Clubs</h2>
+                <p className="text-xs text-muted">Active club operating tenants</p>
+              </div>
+              <Link href="/super-admin/clubs" className="flex items-center gap-1 text-xs font-bold text-blue hover:underline">
+                View all <ArrowRight size={12} />
+              </Link>
             </div>
-            <Link href="/super-admin/clubs" className="flex items-center gap-1 text-xs font-medium text-blue hover:underline">
-              View all <ArrowRight size={12} />
-            </Link>
+
+            <ul className="space-y-3">
+              {clubs.slice(0, 4).map((club) => {
+                const planName = club.subscriptionPlan || "Enterprise";
+                const isEnterprise = planName.toLowerCase() === "enterprise";
+                return (
+                  <li key={club.id} className="rounded-xl border border-line bg-[#F8FBFF] p-3 transition-colors hover:border-blue/40">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2 min-w-0">
+                        <span className="grid h-7 w-7 shrink-0 place-items-center rounded-lg bg-blueSoft text-blue">
+                          <Building2 size={14} />
+                        </span>
+                        <div className="min-w-0">
+                          <h4 className="text-xs font-bold text-navy truncate">{club.name}</h4>
+                          <p className="text-[11px] text-muted truncate">{club.adminEmail || club.location}</p>
+                        </div>
+                      </div>
+                      <span className={`shrink-0 text-[10px] font-bold px-2 py-0.5 rounded border ${
+                        isEnterprise ? "bg-blue-50 text-blue-700 border-blue-200" : "bg-emerald-50 text-emerald-700 border-emerald-200"
+                      }`}>
+                        {planName}
+                      </span>
+                    </div>
+                  </li>
+                );
+              })}
+
+              {clubs.length === 0 && (
+                <li className="py-6 text-center text-xs text-muted">
+                  No clubs registered yet.
+                </li>
+              )}
+            </ul>
           </div>
 
-          <ul className="space-y-4">
-            {topClubs.map((club) => {
-              const memberCount = Number(club.members) || 0;
-              const maxMem = Math.max(...topClubs.map(c => Number(c.members) || 0), 1);
-              const pct = maxMem > 0 && memberCount > 0 ? Math.min(100, Math.round((memberCount / maxMem) * 100)) : 0;
-              return (
-                <li key={club.id}>
-                  <div className="mb-1 flex items-center justify-between text-xs">
-                    <span className="truncate pr-2 font-medium text-text">{club.name}</span>
-                    <span className="text-muted">
-                      {memberCount} {memberCount === 1 ? 'member' : 'members'}
-                    </span>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-line">
-                      <div
-                        className="h-full rounded-full bg-blue"
-                        style={{ width: `${pct}%` }}
-                      />
-                    </div>
-                    <span className="w-16 text-right text-[11px] font-semibold text-blue">
-                      {club.sport}
-                    </span>
-                  </div>
-                </li>
-              );
-            })}
-            {topClubs.length === 0 && (
-              <li className="py-6 text-center text-xs text-muted">
-                No clubs registered yet.
-              </li>
-            )}
-          </ul>
+          <div className="mt-4 pt-3 border-t border-line">
+            <Link
+              href="/super-admin/clubs/new"
+              className="w-full inline-flex items-center justify-center gap-1.5 rounded-xl bg-blue px-3 py-2 text-xs font-bold text-white shadow-sm hover:bg-blueHover transition-all"
+            >
+              <span>+ Register New Club Tenant</span>
+            </Link>
+          </div>
         </section>
       </div>
 
@@ -292,48 +319,67 @@ export default function SuperAdminDashboard() {
 
         <div className="-mx-4 overflow-x-auto md:mx-0">
           <table className="w-full min-w-[720px] text-left text-sm">
-            <thead className="border-b border-line text-navy">
+            <thead className="border-b border-line text-navy bg-[#F4F8FD]">
               <tr>
-                <th className="px-4 py-2 font-medium md:px-0">Club</th>
-                <th className="px-4 py-2 font-medium md:px-0">Club admin</th>
-                <th className="px-4 py-2 text-right font-medium md:px-0">Members</th>
-                <th className="px-4 py-2 text-right font-medium md:px-0">Bookings today</th>
-                <th className="px-4 py-2 text-right font-medium md:px-0">Revenue (month)</th>
-                <th className="px-4 py-2 pl-6 font-medium md:pl-6">Status</th>
-                <th className="px-4 py-2 text-right font-medium md:px-0">Actions</th>
+                <th className="px-4 py-3 font-semibold md:px-0 md:pl-3">Club Tenant</th>
+                <th className="px-4 py-3 font-semibold md:px-0">Designated Admin</th>
+                <th className="px-4 py-3 font-semibold md:px-0">Platform Plan</th>
+                <th className="px-4 py-3 text-right font-semibold md:px-0">Monthly SaaS Fee</th>
+                <th className="px-4 py-3 pl-6 font-semibold md:pl-6">Status</th>
+                <th className="px-4 py-3 text-right font-semibold md:px-0 md:pr-3">Actions</th>
               </tr>
             </thead>
             <tbody>
-              {filtered.map((c) => (
-                <tr
-                  key={c.id}
-                  className="border-b border-line last:border-0 hover:bg-[#F8FBFF] transition-colors"
-                >
-                  <td className="px-4 py-3 md:px-0">
-                    <div className="font-medium text-navy">{c.name}</div>
-                    <div className="text-xs text-muted">{c.sport}</div>
-                  </td>
-                  <td className="px-4 py-3 text-text md:px-0">{c.admin}</td>
-                  <td className="px-4 py-3 text-right text-text md:px-0">{c.members}</td>
-                  <td className="px-4 py-3 text-right text-text md:px-0">{c.bookingsToday}</td>
-                  <td className="px-4 py-3 text-right text-text md:px-0">{inr(c.revenue)}</td>
-                  <td className="px-4 py-3 pl-6 md:pl-6">
-                    <span
-                      className={`rounded-full px-2.5 py-0.5 text-xs font-medium ${STATUS_STYLE[c.status]}`}
-                    >
-                      {c.status}
-                    </span>
-                  </td>
-                  <td className="px-4 py-3 text-right md:px-0">
-                    <button className="rounded-md border border-blue px-3 py-1 text-xs font-medium text-blue hover:bg-blue hover:text-white">
-                      {c.status === "Pending" ? "Review" : "Open"}
-                    </button>
-                  </td>
-                </tr>
-              ))}
+              {filtered.map((c) => {
+                const plan = c.subscriptionPlan || "Standard";
+                const isEnterprise = plan.toLowerCase() === "enterprise";
+                const fee = isEnterprise ? 19999 : plan.toLowerCase() === "growth" ? 9999 : 4999;
+                return (
+                  <tr
+                    key={c.id}
+                    className="border-b border-line last:border-0 hover:bg-[#F8FBFF] transition-colors"
+                  >
+                    <td className="px-4 py-3 md:px-0 md:pl-3">
+                      <div className="font-semibold text-navy">{c.name}</div>
+                      <div className="text-xs text-muted">
+                        {c.subdomain ? `${c.subdomain}.playnex.club` : c.sport}
+                      </div>
+                    </td>
+                    <td className="px-4 py-3 text-text md:px-0">
+                      <div className="font-medium text-navy">{c.admin}</div>
+                      <div className="text-xs text-muted">{c.adminEmail || "owner@playnex.club"}</div>
+                    </td>
+                    <td className="px-4 py-3 md:px-0">
+                      <span className={`inline-flex items-center text-xs font-bold px-2.5 py-0.5 rounded border ${
+                        isEnterprise ? "bg-blue-50 text-blue-700 border-blue-200" : "bg-emerald-50 text-emerald-700 border-emerald-200"
+                      }`}>
+                        {plan}
+                      </span>
+                    </td>
+                    <td className="px-4 py-3 text-right font-bold text-navy md:px-0">
+                      {inr(fee)}<span className="text-xs font-normal text-muted">/mo</span>
+                    </td>
+                    <td className="px-4 py-3 pl-6 md:pl-6">
+                      <span
+                        className={`rounded-full px-2.5 py-0.5 text-xs font-medium ${STATUS_STYLE[c.status] || "bg-emerald-500 text-white"}`}
+                      >
+                        {c.status}
+                      </span>
+                    </td>
+                    <td className="px-4 py-3 text-right md:px-0 md:pr-3">
+                      <Link
+                        href="/super-admin/clubs"
+                        className="inline-flex items-center gap-1 rounded-lg border border-line bg-white px-2.5 py-1 text-xs font-semibold text-navy hover:border-blue hover:text-blue transition-colors"
+                      >
+                        Manage
+                      </Link>
+                    </td>
+                  </tr>
+                );
+              })}
               {filtered.length === 0 && (
                 <tr>
-                  <td colSpan={7} className="py-8 text-center text-muted">
+                  <td colSpan={6} className="py-8 text-center text-muted">
                     No clubs match your search. Clear the filters to see all clubs.
                   </td>
                 </tr>

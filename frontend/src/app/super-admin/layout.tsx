@@ -55,10 +55,10 @@ export default function SuperAdminLayout({
   });
 
   return (
-    <div className="flex min-h-screen flex-col bg-[#F7FAFC] text-[#1E293B] md:flex-row font-sans">
+    <div className="flex h-screen w-full overflow-hidden flex-col md:flex-row bg-[#F7FAFC] text-[#1E293B] font-sans">
       <Sidebar />
 
-      <div className="flex min-w-0 flex-1 flex-col">
+      <div className="flex min-w-0 flex-1 flex-col h-full overflow-y-auto">
         {/* Top Navbar */}
         <header className="sticky top-0 z-30 flex h-16 w-full items-center justify-between border-b border-[#D9E6F5] bg-white/95 backdrop-blur-md px-4 md:px-8 transition-all">
           {/* Global Search */}

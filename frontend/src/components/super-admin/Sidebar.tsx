@@ -49,7 +49,7 @@ export default function Sidebar() {
 
   return (
     <aside
-      className="relative flex w-full shrink-0 flex-col gap-2 px-3 py-3 text-white md:min-h-screen md:w-[248px] md:px-4 md:py-5"
+      className="relative flex w-full shrink-0 flex-col gap-2 px-3 py-3 text-white md:h-screen md:w-[248px] md:px-4 md:py-5 md:overflow-y-auto no-scrollbar [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden"
       style={{
         background: "linear-gradient(180deg, #071A3D 0%, #0B1F4D 100%)",
       }}
