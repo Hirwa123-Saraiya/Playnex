@@ -13,7 +13,7 @@ import {
   ShieldCheck,
   UserRound,
   Users,
-  WalkieTalkie,
+  Radio,
   X,
 } from "lucide-react";
 
@@ -659,7 +659,7 @@ export default function FrontDeskPage() {
 
                   <div className="flex gap-3">
 
-                    <WalkieTalkie
+                    <Radio
                       size={19}
                       className="mt-0.5 shrink-0 text-orange-400"
                     />
@@ -889,7 +889,7 @@ export default function FrontDeskPage() {
                 ) : (
                   <>
                     {bookingMode === "GUEST" ? (
-                      <WalkieTalkie size={18} />
+                      <Radio size={18} />
                     ) : (
                       <Phone size={18} />
                     )}
