@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import {
   AlertCircle,
   CalendarDays,
@@ -8,35 +8,10 @@ import {
   UserRound,
   Users,
 } from "lucide-react";
-
-type Sport = {
-  id: string;
-  name: string;
-  icon: string;
-  price: number;
-};
-
-type Court = {
-  id: string;
-  name: string;
-  sport: string;
-  location: string;
-};
-
-const SPORTS: Sport[] = [
-  { id: "badminton", name: "Badminton", icon: "🏸", price: 600 },
-  { id: "tennis", name: "Tennis", icon: "🎾", price: 1000 },
-  { id: "football", name: "Football", icon: "⚽", price: 1200 },
-  { id: "basketball", name: "Basketball", icon: "🏀", price: 900 },
-];
-
-const COURTS: Court[] = [
-  { id: "badminton-1", name: "Badminton Court 01", sport: "badminton", location: "Indoor Arena" },
-  { id: "badminton-2", name: "Badminton Court 02", sport: "badminton", location: "Indoor Arena" },
-  { id: "tennis-1", name: "Tennis Court 01", sport: "tennis", location: "Outdoor Zone" },
-  { id: "football-1", name: "Football Ground", sport: "football", location: "Main Ground" },
-  { id: "basketball-1", name: "Basketball Court", sport: "basketball", location: "Sports Block" },
-];
+import {
+  frontDeskService,
+  type FrontDeskCourt,
+} from "@/services/frontDesk.service";
 
 const TIME_SLOTS = [
   "08:00 AM", "09:00 AM", "10:00 AM", "11:00 AM", "12:00 PM",
@@ -44,10 +19,22 @@ const TIME_SLOTS = [
   "06:00 PM", "07:00 PM", "08:00 PM",
 ];
 
+function to24h(display: string): string {
+  const [time, period] = display.split(" ");
+  const [hStr, mStr] = time.split(":");
+  let h = Number(hStr);
+  if (period === "PM" && h !== 12) h += 12;
+  if (period === "AM" && h === 12) h = 0;
+  return `${String(h).padStart(2, "0")}:${mStr}`;
+}
+
 export default function WalkInBookingPage() {
-  const [selectedSport, setSelectedSport] = useState("badminton");
-  const [selectedCourt, setSelectedCourt] = useState("badminton-1");
-  const [selectedDate, setSelectedDate] = useState("");
+  const [courts, setCourts] = useState<FrontDeskCourt[]>([]);
+  const [loadingCourts, setLoadingCourts] = useState(true);
+
+  const [selectedSport, setSelectedSport] = useState("");
+  const [selectedCourt, setSelectedCourt] = useState("");
+  const [selectedDate, setSelectedDate] = useState(new Date().toISOString().slice(0, 10));
   const [selectedTime, setSelectedTime] = useState("");
   const [duration, setDuration] = useState("60");
   const [guestName, setGuestName] = useState("");
@@ -57,32 +44,41 @@ export default function WalkInBookingPage() {
   const [isConfirmed, setIsConfirmed] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState("");
+  const [bookingRef, setBookingRef] = useState("");
 
-  const currentSport = useMemo(() => {
-    return SPORTS.find((sport) => sport.id === selectedSport) ?? SPORTS[0];
-  }, [selectedSport]);
+  useEffect(() => {
+    (async () => {
+      setLoadingCourts(true);
+      try {
+        const data = await frontDeskService.getCourts();
+        setCourts(data);
+        if (data.length > 0) {
+          setSelectedSport(data[0].sport);
+          setSelectedCourt(data[0].id);
+        }
+      } finally {
+        setLoadingCourts(false);
+      }
+    })();
+  }, []);
 
-  const availableCourts = useMemo(() => {
-    return COURTS.filter((court) => court.sport === selectedSport);
-  }, [selectedSport]);
+  const sports = Array.from(new Set(courts.map((c) => c.sport)));
+  const availableCourts = courts.filter((c) => c.sport === selectedSport);
+  const currentCourt = courts.find((c) => c.id === selectedCourt);
 
-  const currentCourt = useMemo(() => {
-    return COURTS.find((court) => court.id === selectedCourt) ?? availableCourts[0];
-  }, [selectedCourt, availableCourts]);
-
+  const basePrice = currentCourt?.hourlyRate ?? 600;
   const guestMultiplier = 1.5;
-  const basePrice = currentSport.price;
   const finalPrice = Math.round(basePrice * guestMultiplier * (Number(duration) / 60) * 100) / 100;
 
-  function handleSportChange(sportId: string) {
-    setSelectedSport(sportId);
-    const firstCourt = COURTS.find((court) => court.sport === sportId);
-    if (firstCourt) setSelectedCourt(firstCourt.id);
+  function handleSportChange(sport: string) {
+    setSelectedSport(sport);
+    const first = courts.find((c) => c.sport === sport);
+    if (first) setSelectedCourt(first.id);
     setSelectedTime("");
     setError("");
   }
 
-  function handleConfirmBooking() {
+  async function handleConfirmBooking() {
     setError("");
     if (!guestName.trim()) return setError("Please enter the guest's full name.");
     if (!guestPhone.trim()) return setError("Please enter the guest's phone number.");
@@ -91,15 +87,32 @@ export default function WalkInBookingPage() {
     if (!selectedCourt) return setError("Please select a court.");
 
     setIsLoading(true);
-    setTimeout(() => {
-      setIsLoading(false);
+    try {
+      const res = await frontDeskService.createWalkIn({
+        courtId: selectedCourt,
+        date: selectedDate,
+        startTime: to24h(selectedTime),
+        guestName: guestName.trim(),
+        guestPhone: guestPhone.trim(),
+        guestEmail: guestEmail.trim() || undefined,
+        paymentMethod: paymentMethod as "cash" | "card" | "upi",
+      });
+
+      if (!res.success) {
+        setError(res.message || "Booking failed.");
+        return;
+      }
+
+      setBookingRef(res.data?.id || `WLK-${Date.now()}`);
       setIsConfirmed(true);
-    }, 1000);
+    } catch (err: any) {
+      setError(err?.message || "Booking failed.");
+    } finally {
+      setIsLoading(false);
+    }
   }
 
-  /* ============================================================
-     Success screen
-     ============================================================ */
+  /* ---------- Success screen ---------- */
   if (isConfirmed) {
     return (
       <main className="min-h-screen bg-page px-4 py-8 text-text sm:px-6">
@@ -113,20 +126,16 @@ export default function WalkInBookingPage() {
             <p className="mt-6 text-xs font-bold uppercase tracking-[0.2em] text-blue">
               Booking Confirmed
             </p>
-            <h1 className="mt-2 text-3xl font-black text-navy">
-              Your court is reserved!
-            </h1>
+            <h1 className="mt-2 text-3xl font-black text-navy">Your court is reserved!</h1>
             <p className="mx-auto mt-3 max-w-md text-sm leading-6 text-muted">
-              The walk-in booking has been successfully created. The guest can use the
-              booking reference at the front desk.
+              The walk-in booking has been successfully created. The guest can use the booking
+              reference at the front desk.
             </p>
 
             <div className="mt-8 rounded-2xl border border-line bg-page p-5 text-left">
               <div className="flex items-center justify-between border-b border-line pb-4">
                 <span className="text-xs text-muted">Booking Reference</span>
-                <span className="font-mono text-sm font-bold text-blue">
-                  WLK-2026-00128
-                </span>
+                <span className="font-mono text-sm font-bold text-blue">{bookingRef}</span>
               </div>
               <div className="space-y-4 pt-4">
                 <div className="flex justify-between gap-4">
@@ -135,9 +144,7 @@ export default function WalkInBookingPage() {
                 </div>
                 <div className="flex justify-between gap-4">
                   <span className="text-sm text-muted">Sport</span>
-                  <span className="text-sm font-semibold text-navy">
-                    {currentSport.icon} {currentSport.name}
-                  </span>
+                  <span className="text-sm font-semibold text-navy">{selectedSport}</span>
                 </div>
                 <div className="flex justify-between gap-4">
                   <span className="text-sm text-muted">Court</span>
@@ -157,15 +164,19 @@ export default function WalkInBookingPage() {
                   <span className="text-sm font-bold text-text">
                     Total Paid ({paymentMethod.toUpperCase()})
                   </span>
-                  <span className="text-sm font-black text-blue">
-                    ₹{finalPrice}
-                  </span>
+                  <span className="text-sm font-black text-blue">₹{finalPrice}</span>
                 </div>
               </div>
             </div>
 
             <button
-              onClick={() => setIsConfirmed(false)}
+              onClick={() => {
+                setIsConfirmed(false);
+                setGuestName("");
+                setGuestPhone("");
+                setGuestEmail("");
+                setSelectedTime("");
+              }}
               className="mt-8 w-full rounded-xl bg-blue py-3 text-sm font-bold text-white transition-all hover:bg-blueHover"
             >
               Book Another Court
@@ -176,9 +187,7 @@ export default function WalkInBookingPage() {
     );
   }
 
-  /* ============================================================
-     Main booking form
-     ============================================================ */
+  /* ---------- Main form ---------- */
   return (
     <main className="min-h-screen bg-page px-4 py-8 text-text sm:px-6">
       <div className="mx-auto max-w-4xl">
@@ -197,7 +206,6 @@ export default function WalkInBookingPage() {
         )}
 
         <div className="mt-8 grid grid-cols-1 gap-8 lg:grid-cols-3">
-          {/* ---------- Left column ---------- */}
           <div className="space-y-6 lg:col-span-2">
             {/* Guest Contact */}
             <div className="rounded-2xl border border-line bg-white p-6 shadow-card">
@@ -239,25 +247,30 @@ export default function WalkInBookingPage() {
                 <Users size={18} className="text-blue" />
                 Select Sport Category
               </h2>
-              <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-                {SPORTS.map((sport) => {
-                  const active = selectedSport === sport.id;
-                  return (
-                    <button
-                      key={sport.id}
-                      onClick={() => handleSportChange(sport.id)}
-                      className={`flex flex-col items-center gap-2 rounded-xl border p-4 text-sm font-bold transition-all ${
-                        active
-                          ? "border-blue bg-blueSoft text-blue"
-                          : "border-line bg-white text-muted hover:border-blue/40 hover:text-navy"
-                      }`}
-                    >
-                      <span className="text-2xl">{sport.icon}</span>
-                      {sport.name}
-                    </button>
-                  );
-                })}
-              </div>
+              {loadingCourts ? (
+                <p className="text-sm text-muted">Loading sports…</p>
+              ) : sports.length === 0 ? (
+                <p className="text-sm text-muted">No sports configured for this club yet.</p>
+              ) : (
+                <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+                  {sports.map((sport) => {
+                    const active = selectedSport === sport;
+                    return (
+                      <button
+                        key={sport}
+                        onClick={() => handleSportChange(sport)}
+                        className={`flex flex-col items-center gap-2 rounded-xl border p-4 text-sm font-bold transition-all ${
+                          active
+                            ? "border-blue bg-blueSoft text-blue"
+                            : "border-line bg-white text-muted hover:border-blue/40 hover:text-navy"
+                        }`}
+                      >
+                        {sport}
+                      </button>
+                    );
+                  })}
+                </div>
+              )}
             </div>
 
             {/* Date & Court */}
@@ -290,7 +303,7 @@ export default function WalkInBookingPage() {
                   >
                     {availableCourts.map((court) => (
                       <option key={court.id} value={court.id}>
-                        {court.name} ({court.location})
+                        {court.name}
                       </option>
                     ))}
                   </select>
@@ -323,14 +336,14 @@ export default function WalkInBookingPage() {
             </div>
           </div>
 
-          {/* ---------- Right column: checkout ---------- */}
+          {/* Right — checkout */}
           <div className="space-y-6">
             <div className="sticky top-6 rounded-2xl border border-line bg-white p-6 shadow-card">
               <h2 className="mb-4 text-lg font-bold text-navy">Summary &amp; Billings</h2>
 
               <div className="space-y-4 rounded-xl border border-line bg-page p-4">
                 <div className="flex justify-between text-sm">
-                  <span className="text-muted">Base Membership Rate</span>
+                  <span className="text-muted">Base Rate</span>
                   <span className="font-semibold text-text">₹{basePrice}</span>
                 </div>
                 <div className="flex justify-between text-sm">
@@ -376,7 +389,7 @@ export default function WalkInBookingPage() {
 
               <button
                 onClick={handleConfirmBooking}
-                disabled={isLoading}
+                disabled={isLoading || !currentCourt}
                 className="mt-6 inline-flex w-full cursor-pointer items-center justify-center gap-2 rounded-xl bg-blue py-4 text-base font-black text-white shadow-md shadow-blue/20 transition-all hover:bg-blueHover disabled:cursor-not-allowed disabled:opacity-50"
               >
                 {isLoading ? "Processing Fields..." : "Commit Walk-In Reservation"}

@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   AlertCircle,
   CalendarDays,
@@ -15,119 +15,143 @@ import {
   Radio,
   X,
 } from "lucide-react";
+import {
+  frontDeskService,
+  type FrontDeskBooking,
+  type FrontDeskCourt,
+  type FrontDeskMember,
+  type FrontDeskStaff,
+} from "@/services/frontDesk.service";
 
 type BookingMode = "MEMBER" | "GUEST";
-
-type Member = {
-  id: string;
-  name: string;
-  email: string;
-  phone: string;
-  membership: string;
-};
-
-type Court = {
-  id: string;
-  name: string;
-  sport: string;
-  price: number;
-};
-
-type Booking = {
-  id: string;
-  court: string;
-  sport: string;
-  customer: string;
-  type: "MEMBER" | "GUEST";
-  start: string;
-  end: string;
-  status: "BOOKED" | "CHECKED IN";
-};
-
-type StaffMember = {
-  id: string;
-  name: string;
-  role: "FRONT DESK" | "COACH" | "CLEANER";
-  start: string;
-  end: string;
-  active: boolean;
-};
-
-const MEMBERS: Member[] = [
-  { id: "MEM-001", name: "Rahul Mehta", email: "rahul@example.com", phone: "+91 98765 43210", membership: "Premium" },
-  { id: "MEM-002", name: "Priya Shah",  email: "priya@example.com", phone: "+91 98765 12345", membership: "Gold" },
-  { id: "MEM-003", name: "Arjun Patel", email: "arjun@example.com", phone: "+91 98250 45678", membership: "Premium" },
-  { id: "MEM-004", name: "Karan Shah",  email: "karan@example.com", phone: "+91 99090 11223", membership: "Standard" },
-];
-
-const COURTS: Court[] = [
-  { id: "COURT-001", name: "Court 01", sport: "Badminton", price: 600 },
-  { id: "COURT-002", name: "Court 02", sport: "Badminton", price: 600 },
-  { id: "COURT-003", name: "Court 03", sport: "Tennis",    price: 1000 },
-  { id: "COURT-004", name: "Court 04", sport: "Squash",    price: 800 },
-];
-
-const BOOKINGS: Booking[] = [
-  { id: "BOOK-001", court: "Court 01", sport: "Badminton", customer: "Rahul Mehta",    type: "MEMBER", start: "09:00", end: "10:00", status: "CHECKED IN" },
-  { id: "BOOK-002", court: "Court 01", sport: "Badminton", customer: "Walk-in Guest",  type: "GUEST",  start: "11:00", end: "12:00", status: "BOOKED" },
-  { id: "BOOK-003", court: "Court 02", sport: "Badminton", customer: "Priya Shah",     type: "MEMBER", start: "10:00", end: "11:00", status: "BOOKED" },
-  { id: "BOOK-004", court: "Court 03", sport: "Tennis",    customer: "Walk-in Guest",  type: "GUEST",  start: "12:00", end: "13:00", status: "BOOKED" },
-];
-
-const STAFF: StaffMember[] = [
-  { id: "STAFF-001", name: "Aarav Joshi",  role: "FRONT DESK", start: "08:00", end: "16:00", active: true  },
-  { id: "STAFF-002", name: "Neha Patel",   role: "COACH",      start: "10:00", end: "18:00", active: true  },
-  { id: "STAFF-003", name: "Vikram Singh", role: "CLEANER",    start: "07:00", end: "15:00", active: false },
-];
+type TimelineTab = "TIMELINE" | "STAFF";
 
 const TIME_SLOTS = [
   "08:00", "09:00", "10:00", "11:00", "12:00",
   "13:00", "14:00", "15:00", "16:00", "17:00",
 ];
 
+const TODAY = new Date().toISOString().slice(0, 10);
+
 function timeToMinutes(time: string): number {
-  const [hours, minutes] = time.split(":").map(Number);
-  return hours * 60 + minutes;
+  const [h, m] = time.split(":").map(Number);
+  return h * 60 + m;
 }
 
-function isBookingActive(booking: Booking, time: string): boolean {
-  const bookingStart = timeToMinutes(booking.start);
-  const bookingEnd = timeToMinutes(booking.end);
-  const selectedTime = timeToMinutes(time);
-  return selectedTime >= bookingStart && selectedTime < bookingEnd;
+function isBookingActive(booking: FrontDeskBooking, time: string): boolean {
+  const start = timeToMinutes(booking.startTime.slice(0, 5));
+  const end = timeToMinutes(booking.endTime.slice(0, 5));
+  const t = timeToMinutes(time);
+  return t >= start && t < end;
+}
+
+function toDisplayStatus(s: FrontDeskBooking["status"]): "BOOKED" | "CHECKED IN" | "COMPLETED" | "CANCELLED" {
+  if (s === "checked_in") return "CHECKED IN";
+  if (s === "completed") return "COMPLETED";
+  if (s === "cancelled") return "CANCELLED";
+  return "BOOKED";
 }
 
 export default function FrontDeskPage() {
+  /* ---------- Remote data ---------- */
+  const [courts, setCourts] = useState<FrontDeskCourt[]>([]);
+  const [bookings, setBookings] = useState<FrontDeskBooking[]>([]);
+  const [staff, setStaff] = useState<FrontDeskStaff[]>([]);
+  const [members, setMembers] = useState<FrontDeskMember[]>([]);
+
+  const [loadingCourts, setLoadingCourts] = useState(true);
+  const [loadingTimeline, setLoadingTimeline] = useState(true);
+  const [loadingStaff, setLoadingStaff] = useState(true);
+  const [loadingMembers, setLoadingMembers] = useState(false);
+
+  /* ---------- Form state ---------- */
   const [bookingMode, setBookingMode] = useState<BookingMode>("MEMBER");
   const [memberSearch, setMemberSearch] = useState("");
-  const [selectedMember, setSelectedMember] = useState<Member | null>(null);
+  const [selectedMember, setSelectedMember] = useState<FrontDeskMember | null>(null);
   const [guestName, setGuestName] = useState("");
   const [guestPhone, setGuestPhone] = useState("");
   const [guestEmail, setGuestEmail] = useState("");
-  const [selectedCourt, setSelectedCourt] = useState(COURTS[0].id);
+  const [selectedCourt, setSelectedCourt] = useState<string>("");
   const [selectedTime, setSelectedTime] = useState("10:00");
   const [duration, setDuration] = useState("60");
-  const [activeTab, setActiveTab] = useState<"TIMELINE" | "STAFF">("TIMELINE");
+
+  const [activeTab, setActiveTab] = useState<TimelineTab>("TIMELINE");
   const [isLoading, setIsLoading] = useState(false);
   const [toast, setToast] = useState<{ type: "success" | "error"; message: string } | null>(null);
 
-  const currentCourt = COURTS.find((court) => court.id === selectedCourt) ?? COURTS[0];
+  /* ---------- Loaders ---------- */
+  const loadCourts = useCallback(async () => {
+    setLoadingCourts(true);
+    try {
+      const data = await frontDeskService.getCourts();
+      setCourts(data);
+      if (data.length > 0) setSelectedCourt(data[0].id);
+    } finally {
+      setLoadingCourts(false);
+    }
+  }, []);
 
-  const filteredMembers = useMemo(() => {
-    const search = memberSearch.trim().toLowerCase();
-    if (!search) return MEMBERS;
-    return MEMBERS.filter(
-      (member) =>
-        member.name.toLowerCase().includes(search) ||
-        member.email.toLowerCase().includes(search) ||
-        member.phone.toLowerCase().includes(search) ||
-        member.id.toLowerCase().includes(search)
-    );
-  }, [memberSearch]);
+  const loadTimeline = useCallback(async () => {
+    setLoadingTimeline(true);
+    try {
+      const data = await frontDeskService.getTimeline(TODAY);
+      setBookings(data);
+    } finally {
+      setLoadingTimeline(false);
+    }
+  }, []);
 
-  const finalPrice =
-    bookingMode === "GUEST" ? currentCourt.price * 1.5 : currentCourt.price;
+  const loadStaff = useCallback(async () => {
+    setLoadingStaff(true);
+    try {
+      const data = await frontDeskService.getStaff(TODAY);
+      setStaff(data);
+    } finally {
+      setLoadingStaff(false);
+    }
+  }, []);
 
+  useEffect(() => {
+    loadCourts();
+    loadTimeline();
+    loadStaff();
+  }, [loadCourts, loadTimeline, loadStaff]);
+
+  /* Debounced member search */
+  useEffect(() => {
+    if (bookingMode !== "MEMBER") return;
+    const trimmed = memberSearch.trim();
+    if (!trimmed) {
+      setMembers([]);
+      return;
+    }
+    setLoadingMembers(true);
+    const t = setTimeout(async () => {
+      try {
+        const data = await frontDeskService.searchMembers(trimmed);
+        setMembers(data);
+      } finally {
+        setLoadingMembers(false);
+      }
+    }, 250);
+    return () => clearTimeout(t);
+  }, [memberSearch, bookingMode]);
+
+  /* ---------- Derived ---------- */
+  const currentCourt = courts.find((c) => c.id === selectedCourt);
+
+  const finalPrice = useMemo(() => {
+    const rate = currentCourt?.hourlyRate ?? 600;
+    const multiplier = bookingMode === "GUEST" ? 1.5 : 1;
+    const base = rate * multiplier;
+    const dur = Number(duration) / 60;
+    return Math.round(base * dur);
+  }, [currentCourt, bookingMode, duration]);
+
+  const walkInCount = bookings.filter((b) => b.type === "GUEST").length;
+  const checkedInCount = bookings.filter((b) => b.status === "checked_in").length;
+
+  /* ---------- Handlers ---------- */
   function showToast(type: "success" | "error", message: string) {
     setToast({ type, message });
     window.setTimeout(() => setToast(null), 4000);
@@ -137,17 +161,20 @@ export default function FrontDeskPage() {
     setBookingMode(mode);
     setSelectedMember(null);
     setMemberSearch("");
+    setMembers([]);
     setGuestName("");
     setGuestPhone("");
     setGuestEmail("");
   }
 
-  function handleBooking() {
-    if (bookingMode === "MEMBER") {
-      if (!selectedMember) {
-        showToast("error", "Please select a member first.");
-        return;
-      }
+  async function handleBooking() {
+    if (!currentCourt) {
+      showToast("error", "No courts available.");
+      return;
+    }
+    if (bookingMode === "MEMBER" && !selectedMember) {
+      showToast("error", "Please select a member first.");
+      return;
     }
     if (bookingMode === "GUEST") {
       if (!guestName.trim()) {
@@ -161,18 +188,37 @@ export default function FrontDeskPage() {
     }
 
     setIsLoading(true);
-    window.setTimeout(() => {
+    try {
+      const res = await frontDeskService.createWalkIn({
+        courtId: currentCourt.id,
+        date: TODAY,
+        startTime: selectedTime,
+        guestName: bookingMode === "GUEST" ? guestName.trim() : undefined,
+        guestPhone: bookingMode === "GUEST" ? guestPhone.trim() : undefined,
+        guestEmail: bookingMode === "GUEST" ? guestEmail.trim() || undefined : undefined,
+        memberId: bookingMode === "MEMBER" ? selectedMember?.id : undefined,
+        paymentMethod: "cash",
+      });
+
+      if (!res.success) {
+        showToast("error", res.message || "Booking failed.");
+        return;
+      }
+
+      showToast("success", `Booking created for ₹${finalPrice.toLocaleString("en-IN")}.`);
+      await loadTimeline();
+      resetForm();
+    } catch (err: any) {
+      showToast("error", err?.message || "Booking failed.");
+    } finally {
       setIsLoading(false);
-      showToast(
-        "success",
-        `Booking created successfully for ₹${finalPrice.toLocaleString("en-IN")}.`
-      );
-    }, 1000);
+    }
   }
 
   function resetForm() {
     setSelectedMember(null);
     setMemberSearch("");
+    setMembers([]);
     setGuestName("");
     setGuestPhone("");
     setGuestEmail("");
@@ -280,10 +326,14 @@ export default function FrontDeskPage() {
                   </div>
 
                   <div className="mt-2 max-h-48 overflow-y-auto rounded-xl border border-line bg-white">
-                    {filteredMembers.length === 0 ? (
-                      <div className="p-4 text-center text-xs text-muted">No member found</div>
+                    {loadingMembers ? (
+                      <div className="p-4 text-center text-xs text-muted">Searching…</div>
+                    ) : members.length === 0 ? (
+                      <div className="p-4 text-center text-xs text-muted">
+                        {memberSearch.trim() ? "No member found" : "Type to search"}
+                      </div>
                     ) : (
-                      filteredMembers.map((member) => (
+                      members.map((member) => (
                         <button
                           key={member.id}
                           type="button"
@@ -296,7 +346,7 @@ export default function FrontDeskPage() {
                             <div>
                               <p className="text-sm font-bold text-navy">{member.name}</p>
                               <p className="mt-1 text-xs text-muted">
-                                {member.id} • {member.membership}
+                                {member.id} • {member.membership || member.tier || "Member"}
                               </p>
                             </div>
                             {selectedMember?.id === member.id && (
@@ -318,9 +368,7 @@ export default function FrontDeskPage() {
                       <UserRound size={18} />
                     </div>
                     <div className="min-w-0 flex-1">
-                      <p className="truncate text-sm font-bold text-navy">
-                        {selectedMember.name}
-                      </p>
+                      <p className="truncate text-sm font-bold text-navy">{selectedMember.name}</p>
                       <p className="truncate text-xs text-muted">{selectedMember.phone}</p>
                     </div>
                     <button
@@ -379,13 +427,20 @@ export default function FrontDeskPage() {
                   <select
                     value={selectedCourt}
                     onChange={(e) => setSelectedCourt(e.target.value)}
-                    className="w-full appearance-none rounded-xl border border-line bg-white px-4 py-3 text-sm text-text outline-none focus:border-blue focus:ring-2 focus:ring-blue/10"
+                    disabled={loadingCourts || courts.length === 0}
+                    className="w-full appearance-none rounded-xl border border-line bg-white px-4 py-3 text-sm text-text outline-none focus:border-blue focus:ring-2 focus:ring-blue/10 disabled:opacity-50"
                   >
-                    {COURTS.map((court) => (
-                      <option key={court.id} value={court.id}>
-                        {court.name} — {court.sport}
-                      </option>
-                    ))}
+                    {loadingCourts ? (
+                      <option>Loading courts…</option>
+                    ) : courts.length === 0 ? (
+                      <option>No courts available</option>
+                    ) : (
+                      courts.map((court) => (
+                        <option key={court.id} value={court.id}>
+                          {court.name} — {court.sport}
+                        </option>
+                      ))
+                    )}
                   </select>
                   <ChevronDown
                     size={17}
@@ -468,7 +523,7 @@ export default function FrontDeskPage() {
               {/* BUTTONS */}
               <button
                 type="button"
-                disabled={isLoading}
+                disabled={isLoading || !currentCourt}
                 onClick={handleBooking}
                 className="flex w-full items-center justify-center gap-2 rounded-xl bg-blue px-5 py-4 text-sm font-black text-white transition hover:bg-blueHover disabled:cursor-not-allowed disabled:opacity-50"
               >
@@ -503,9 +558,7 @@ export default function FrontDeskPage() {
                   <p className="text-xs font-bold uppercase tracking-[0.2em] text-muted">
                     Operations
                   </p>
-                  <h2 className="mt-1 text-xl font-bold text-navy">
-                    Club Management Grid
-                  </h2>
+                  <h2 className="mt-1 text-xl font-bold text-navy">Club Management Grid</h2>
                 </div>
 
                 <div className="flex rounded-xl bg-page p-1">
@@ -538,103 +591,105 @@ export default function FrontDeskPage() {
             {/* TIMELINE */}
             {activeTab === "TIMELINE" && (
               <div className="p-5">
-                {/* SUMMARY CARDS */}
                 <div className="mb-5 grid grid-cols-2 gap-3 lg:grid-cols-4">
                   <div className="rounded-xl border border-line bg-white p-4">
                     <p className="text-xs text-muted">Total Courts</p>
-                    <p className="mt-1 text-2xl font-black text-navy">04</p>
+                    <p className="mt-1 text-2xl font-black text-navy">{courts.length}</p>
                   </div>
                   <div className="rounded-xl border border-line bg-white p-4">
                     <p className="text-xs text-muted">Active Bookings</p>
-                    <p className="mt-1 text-2xl font-black text-navy">{BOOKINGS.length}</p>
+                    <p className="mt-1 text-2xl font-black text-navy">{bookings.length}</p>
                   </div>
                   <div className="rounded-xl border border-line bg-white p-4">
                     <p className="text-xs text-muted">Walk-Ins</p>
-                    <p className="mt-1 text-2xl font-black text-amber-600">
-                      {BOOKINGS.filter((b) => b.type === "GUEST").length}
-                    </p>
+                    <p className="mt-1 text-2xl font-black text-amber-600">{walkInCount}</p>
                   </div>
                   <div className="rounded-xl border border-line bg-white p-4">
                     <p className="text-xs text-muted">Checked In</p>
-                    <p className="mt-1 text-2xl font-black text-emerald-600">
-                      {BOOKINGS.filter((b) => b.status === "CHECKED IN").length}
-                    </p>
+                    <p className="mt-1 text-2xl font-black text-emerald-600">{checkedInCount}</p>
                   </div>
                 </div>
 
-                {/* TIMELINE GRID */}
-                <div className="overflow-x-auto rounded-xl border border-line">
-                  <div className="min-w-[1000px]">
-                    {/* TIME HEADER */}
-                    <div className="grid grid-cols-[150px_repeat(10,minmax(75px,1fr))] bg-[#F4F8FD]">
-                      <div className="border-r border-line p-3 text-xs font-bold text-navy">
-                        COURT
-                      </div>
-                      {TIME_SLOTS.map((time) => (
-                        <div
-                          key={time}
-                          className="border-r border-line p-3 text-center text-[10px] font-bold text-navy"
-                        >
-                          {time}
+                {loadingTimeline ? (
+                  <div className="rounded-xl border border-line bg-white p-10 text-center text-sm text-muted">
+                    Loading timeline…
+                  </div>
+                ) : courts.length === 0 ? (
+                  <div className="rounded-xl border border-dashed border-line bg-white p-10 text-center text-sm text-muted">
+                    No courts configured for this club yet.
+                  </div>
+                ) : (
+                  <div className="overflow-x-auto rounded-xl border border-line">
+                    <div className="min-w-[1000px]">
+                      <div className="grid grid-cols-[150px_repeat(10,minmax(75px,1fr))] bg-[#F4F8FD]">
+                        <div className="border-r border-line p-3 text-xs font-bold text-navy">
+                          COURT
                         </div>
-                      ))}
-
-                      {/* COURT ROWS */}
-                      {COURTS.map((court) => (
-                        <div key={court.id} className="contents">
-                          <div className="border-r border-t border-line bg-white p-4">
-                            <p className="text-sm font-bold text-navy">{court.name}</p>
-                            <p className="mt-1 text-[10px] uppercase text-muted">
-                              {court.sport}
-                            </p>
+                        {TIME_SLOTS.map((time) => (
+                          <div
+                            key={time}
+                            className="border-r border-line p-3 text-center text-[10px] font-bold text-navy"
+                          >
+                            {time}
                           </div>
+                        ))}
 
-                          {TIME_SLOTS.map((time) => {
-                            const booking = BOOKINGS.find(
-                              (item) =>
-                                item.court === court.name &&
-                                isBookingActive(item, time)
-                            );
+                        {courts.map((court) => (
+                          <div key={court.id} className="contents">
+                            <div className="border-r border-t border-line bg-white p-4">
+                              <p className="text-sm font-bold text-navy">{court.name}</p>
+                              <p className="mt-1 text-[10px] uppercase text-muted">
+                                {court.sport}
+                              </p>
+                            </div>
 
-                            return (
-                              <div
-                                key={`${court.id}-${time}`}
-                                className="border-r border-t border-line p-1"
-                              >
-                                {booking ? (
-                                  <div
-                                    className={`min-h-[72px] rounded-lg p-2 ${
-                                      booking.type === "GUEST"
-                                        ? "bg-amber-50 ring-1 ring-inset ring-amber-200"
-                                        : "bg-emerald-50 ring-1 ring-inset ring-emerald-200"
-                                    }`}
-                                  >
-                                    <p
-                                      className={`truncate text-[10px] font-bold ${
+                            {TIME_SLOTS.map((time) => {
+                              const booking = bookings.find(
+                                (item) =>
+                                  item.courtId === court.id &&
+                                  isBookingActive(item, time)
+                              );
+
+                              return (
+                                <div
+                                  key={`${court.id}-${time}`}
+                                  className="border-r border-t border-line p-1"
+                                >
+                                  {booking ? (
+                                    <div
+                                      className={`min-h-[72px] rounded-lg p-2 ${
                                         booking.type === "GUEST"
-                                          ? "text-amber-800"
-                                          : "text-emerald-800"
+                                          ? "bg-amber-50 ring-1 ring-inset ring-amber-200"
+                                          : "bg-emerald-50 ring-1 ring-inset ring-emerald-200"
                                       }`}
                                     >
-                                      {booking.customer}
-                                    </p>
-                                    <p className="mt-1 text-[9px] text-muted">
-                                      {booking.status}
-                                    </p>
-                                  </div>
-                                ) : (
-                                  <div className="flex min-h-[72px] items-center justify-center rounded-lg bg-page">
-                                    <span className="text-[9px] text-muted">OPEN</span>
-                                  </div>
-                                )}
-                              </div>
-                            );
-                          })}
-                        </div>
-                      ))}
+                                      <p
+                                        className={`truncate text-[10px] font-bold ${
+                                          booking.type === "GUEST"
+                                            ? "text-amber-800"
+                                            : "text-emerald-800"
+                                        }`}
+                                      >
+                                        {booking.customer}
+                                      </p>
+                                      <p className="mt-1 text-[9px] text-muted">
+                                        {toDisplayStatus(booking.status)}
+                                      </p>
+                                    </div>
+                                  ) : (
+                                    <div className="flex min-h-[72px] items-center justify-center rounded-lg bg-page">
+                                      <span className="text-[9px] text-muted">OPEN</span>
+                                    </div>
+                                  )}
+                                </div>
+                              );
+                            })}
+                          </div>
+                        ))}
+                      </div>
                     </div>
                   </div>
-                </div>
+                )}
               </div>
             )}
 
@@ -655,57 +710,67 @@ export default function FrontDeskPage() {
                   </div>
                 </div>
 
-                <div className="space-y-3">
-                  {STAFF.map((staff) => (
-                    <div
-                      key={staff.id}
-                      className={`rounded-2xl border p-5 ${
-                        staff.active
-                          ? "border-emerald-200 bg-emerald-50"
-                          : "border-line bg-white"
-                      }`}
-                    >
-                      <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
-                        <div className="flex items-center gap-4">
-                          <div
-                            className={`flex h-12 w-12 items-center justify-center rounded-xl ${
-                              staff.active
-                                ? "bg-emerald-500 text-white"
-                                : "bg-page text-muted"
-                            }`}
-                          >
-                            <UserRound size={21} />
-                          </div>
-                          <div>
-                            <div className="flex items-center gap-2">
-                              <p className="font-bold text-navy">{staff.name}</p>
-                              {staff.active && (
-                                <span className="flex items-center gap-1 rounded-full bg-emerald-100 px-2 py-1 text-[9px] font-black uppercase text-emerald-700">
-                                  <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-emerald-500" />
-                                  Active
-                                </span>
-                              )}
+                {loadingStaff ? (
+                  <div className="rounded-xl border border-line bg-white p-10 text-center text-sm text-muted">
+                    Loading staff…
+                  </div>
+                ) : staff.length === 0 ? (
+                  <div className="rounded-xl border border-dashed border-line bg-white p-10 text-center text-sm text-muted">
+                    No staff scheduled for today.
+                  </div>
+                ) : (
+                  <div className="space-y-3">
+                    {staff.map((s) => (
+                      <div
+                        key={s.id}
+                        className={`rounded-2xl border p-5 ${
+                          s.active
+                            ? "border-emerald-200 bg-emerald-50"
+                            : "border-line bg-white"
+                        }`}
+                      >
+                        <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+                          <div className="flex items-center gap-4">
+                            <div
+                              className={`flex h-12 w-12 items-center justify-center rounded-xl ${
+                                s.active
+                                  ? "bg-emerald-500 text-white"
+                                  : "bg-page text-muted"
+                              }`}
+                            >
+                              <UserRound size={21} />
                             </div>
-                            <p className="mt-1 text-xs text-muted">{staff.role}</p>
+                            <div>
+                              <div className="flex items-center gap-2">
+                                <p className="font-bold text-navy">{s.name}</p>
+                                {s.active && (
+                                  <span className="flex items-center gap-1 rounded-full bg-emerald-100 px-2 py-1 text-[9px] font-black uppercase text-emerald-700">
+                                    <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-emerald-500" />
+                                    Active
+                                  </span>
+                                )}
+                              </div>
+                              <p className="mt-1 text-xs text-muted">{s.role}</p>
+                            </div>
                           </div>
-                        </div>
 
-                        <div className="flex items-center gap-2 rounded-xl border border-line bg-page px-4 py-3">
-                          <Clock3 size={15} className="text-muted" />
-                          <span className="text-sm font-semibold text-navy">
-                            {staff.start} — {staff.end}
-                          </span>
+                          <div className="flex items-center gap-2 rounded-xl border border-line bg-page px-4 py-3">
+                            <Clock3 size={15} className="text-muted" />
+                            <span className="text-sm font-semibold text-navy">
+                              {s.start} — {s.end}
+                            </span>
+                          </div>
                         </div>
                       </div>
-                    </div>
-                  ))}
-                </div>
+                    ))}
+                  </div>
+                )}
               </div>
             )}
           </section>
         </div>
 
-        {/* SECURITY FOOTER */}
+        {/* FOOTER */}
         <div className="mt-5 flex flex-col gap-3 rounded-xl border border-line bg-white p-4 shadow-card sm:flex-row sm:items-center sm:justify-between">
           <div className="flex items-center gap-3">
             <ShieldCheck size={17} className="text-blue" />
@@ -728,9 +793,7 @@ export default function FrontDeskPage() {
         <div className="fixed bottom-5 right-5 z-50 w-[calc(100%-40px)] max-w-md">
           <div
             className={`flex items-start gap-3 rounded-2xl border p-4 shadow-popover ${
-              toast.type === "success"
-                ? "border-emerald-200 bg-white"
-                : "border-rose-200 bg-white"
+              toast.type === "success" ? "border-emerald-200 bg-white" : "border-rose-200 bg-white"
             }`}
           >
             {toast.type === "success" ? (
