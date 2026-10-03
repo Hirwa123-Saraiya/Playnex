@@ -12,7 +12,18 @@ dotenv.config();
 export const config = {
   port: process.env.PORT || 8000,
   corsOrigin: process.env.CORS_ORIGIN || 'http://localhost:3000',
-  environment: process.env.NODE_ENV || 'development'
+  environment: process.env.NODE_ENV || 'development',
+  jwtSecret: process.env.JWT_SECRET || 'hackathon-playnex-access-secret-2026',
+  jwtRefreshSecret: process.env.JWT_REFRESH_SECRET || 'hackathon-playnex-refresh-secret-2026',
+  accessExpiresIn: process.env.JWT_ACCESS_EXPIRES_IN || '15m',
+  refreshExpiresIn: process.env.JWT_REFRESH_EXPIRES_IN || '7d',
+};
+
+export const cookieOptions = {
+  httpOnly: true,
+  secure: config.environment === 'production',
+  sameSite: 'lax',
+  path: '/',
 };
 
 export default config;

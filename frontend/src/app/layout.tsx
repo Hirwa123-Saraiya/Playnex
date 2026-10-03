@@ -1,5 +1,9 @@
 import type { Metadata, Viewport } from 'next'; 
 import './globals.css';
+import { AuthProvider } from '../context/AuthContext';
+import { ClubProvider } from '../context/ClubContext';
+import { Inter } from 'next/font/google';
+const inter = Inter({ subsets: ['latin'], display: 'swap' });
 
 
 
@@ -31,8 +35,12 @@ export default function RootLayout({
 }) {
   return (
     <html lang="en">
-      <body className="bg-slate-950 text-slate-100 antialiased min-h-screen">
-        {children}
+      <body className="min-h-screen bg-sand text-text antialiased">
+        <AuthProvider>
+          <ClubProvider>
+            {children}
+          </ClubProvider>
+        </AuthProvider>
       </body>
     </html>
   );
