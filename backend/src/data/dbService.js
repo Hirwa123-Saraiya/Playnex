@@ -1,0 +1,1279 @@
+import { pool } from '../config/database.js';
+import { db as memoryDb } from './db.js';
+
+let isPgAvailable = false;
+
+// Check once if PostgreSQL is accessible and ensure schema is up to date
+async function checkPg() {
+  try {
+    const res = await pool.query('SELECT 1');
+    isPgAvailable = !!res;
+    if (isPgAvailable) {
+      await pool.query(`
+        ALTER TABLE tenants ADD COLUMN IF NOT EXISTS sport VARCHAR(100) DEFAULT 'Multi-Sport';
+        ALTER TABLE tenants ADD COLUMN IF NOT EXISTS location VARCHAR(255) DEFAULT 'India';
+        ALTER TABLE tenants ADD COLUMN IF NOT EXISTS address TEXT;
+        ALTER TABLE tenants ADD COLUMN IF NOT EXISTS phone VARCHAR(50);
+      `);
+    }
+  } catch {
+    isPgAvailable = false;
+  }
+  return isPgAvailable;
+}
+
+checkPg();
+
+export const dbService = {
+  /**
+   * Find user by email (checks PostgreSQL, falls back to memory if DB is starting)
+   */
+  async findUserByEmail(email) {
+    if (await checkPg()) {
+      const { rows } = await pool.query(
+        `SELECT u.*, t.club_name as tenant_name, r.name as role_name, r.role_id as dynamic_role_id
+         FROM users u
+         LEFT JOIN tenants t ON u.tenant_id = t.tenant_id
+         LEFT JOIN user_roles ur ON u.user_id = ur.user_id
+         LEFT JOIN roles r ON ur.role_id = r.role_id
+         WHERE LOWER(u.email) = LOWER($1) AND u.is_active = TRUE`,
+        [email]
+      );
+      return rows[0] || null;
+    }
+    return memoryDb.users.find((u) => u.email.toLowerCase() === email.toLowerCase()) || null;
+  },
+
+  /**
+   * Find user by ID
+   */
+  async findUserById(userId) {
+    if (await checkPg()) {
+      const { rows } = await pool.query(
+        `SELECT u.*, t.club_name as tenant_name, r.name as role_name, r.role_id as dynamic_role_id
+         FROM users u
+         LEFT JOIN tenants t ON u.tenant_id = t.tenant_id
+         LEFT JOIN user_roles ur ON u.user_id = ur.user_id
+         LEFT JOIN roles r ON ur.role_id = r.role_id
+         WHERE u.user_id = $1 AND u.is_active = TRUE`,
+        [userId]
+      );
+      return rows[0] || null;
+    }
+    return memoryDb.users.find((u) => u.user_id === userId) || null;
+  },
+
+  /**
+   * Get dynamic permissions for a user
+   */
+  async getUserPermissions(userId, systemRole) {
+    if (systemRole === 'SUPER_ADMIN' || systemRole === 'CLUB_OWNER') {
+      if (await checkPg()) {
+        const { rows } = await pool.query('SELECT permission_id FROM permissions');
+        return rows.map((r) => r.permission_id);
+      }
+      return memoryDb.permissions.map((p) => p.permission_id);
+    }
+
+    if (systemRole === 'MEMBER') {
+      return ['courts:view', 'courts:book', 'shop:view', 'bar:view'];
+    }
+
+    if (await checkPg()) {
+      const { rows } = await pool.query(
+        `SELECT DISTINCT rp.permission_id
+         FROM user_roles ur
+         JOIN role_permissions rp ON ur.role_id = rp.role_id
+         WHERE ur.user_id = $1`,
+        [userId]
+      );
+      return rows.map((r) => r.permission_id);
+    }
+
+    const u = memoryDb.users.find((usr) => usr.user_id === userId);
+    if (u && u.role_id) {
+      const role = memoryDb.roles.find((r) => r.role_id === u.role_id);
+      return role?.permissions || [];
+    }
+    return [];
+  },
+
+  /**
+   * Get all Tenants (Clubs) with their main Admin info directly from database
+   */
+  async getTenants() {
+    if (await checkPg()) {
+      const { rows } = await pool.query(
+        `SELECT t.tenant_id as id,
+                t.club_name as name,
+                COALESCE(t.sport, 'Multi-Sport') as sport,
+                COALESCE(t.location, 'India') as location,
+                CASE 
+                  WHEN LOWER(t.status) = 'active' THEN 'Active'
+                  WHEN LOWER(t.status) = 'suspended' THEN 'Suspended'
+                  ELSE 'Pending'
+                END as status,
+                t.subscription_plan as "subscriptionPlan",
+                t.subdomain,
+                COALESCE(u.name, 'Unassigned') as admin,
+                COALESCE(u.email, '') as "adminEmail",
+                COALESCE((SELECT COUNT(*) FROM users WHERE tenant_id = t.tenant_id AND system_role = 'MEMBER'), 0)::int as members,
+                COALESCE((SELECT COUNT(*) FROM bookings WHERE tenant_id = t.tenant_id AND booking_date = CURRENT_DATE), 0)::int as "bookingsToday",
+                COALESCE((SELECT SUM(total_amount) FROM bookings WHERE tenant_id = t.tenant_id), 0)::numeric as revenue
+         FROM tenants t
+         LEFT JOIN users u ON u.tenant_id = t.tenant_id AND u.system_role = 'CLUB_OWNER'
+         ORDER BY t.created_at DESC`
+      );
+      return rows;
+    }
+    return memoryDb.tenants.map((t) => {
+      const admin = memoryDb.users.find((u) => u.tenant_id === t.tenant_id && u.system_role === 'CLUB_OWNER');
+      const count = memoryDb.users.filter((u) => u.tenant_id === t.tenant_id && u.system_role === 'MEMBER').length;
+      return {
+        id: t.tenant_id,
+        name: t.club_name,
+        sport: t.sport || 'Multi-Sport',
+        location: t.location || 'India',
+        status: t.status || 'Active',
+        subscriptionPlan: t.subscription_plan || 'Standard',
+        subdomain: t.subdomain,
+        admin: admin ? admin.name : 'Unassigned',
+        adminEmail: admin ? admin.email : '',
+        members: count,
+        bookingsToday: 0,
+        revenue: 0,
+      };
+    });
+  },
+
+  /**
+   * Create dynamic Tenant (Club) in database
+   */
+  async createTenant({ tenantId, clubName, subdomain, subscriptionPlan, sport, location, address, phone }) {
+    if (await checkPg()) {
+      await pool.query(
+        `INSERT INTO tenants (tenant_id, club_name, subdomain, status, subscription_plan, sport, location, address, phone)
+         VALUES ($1, $2, $3, 'active', $4, $5, $6, $7, $8)
+         ON CONFLICT (tenant_id) DO NOTHING`,
+        [
+          tenantId,
+          clubName,
+          subdomain,
+          subscriptionPlan || 'Standard',
+          sport || 'Multi-Sport',
+          location || 'India',
+          address || null,
+          phone || null,
+        ]
+      );
+    }
+    memoryDb.tenants.push({
+      tenant_id: tenantId,
+      club_name: clubName,
+      subdomain,
+      status: 'active',
+      subscription_plan: subscriptionPlan || 'Standard',
+      sport: sport || 'Multi-Sport',
+      location: location || 'India',
+      address: address || '',
+      phone: phone || '',
+      created_at: new Date().toISOString(),
+    });
+  },
+
+  /**
+   * Update Tenant (Club)
+   */
+  async updateTenant(tenantId, updates) {
+    const { clubName, sport, location, address, phone, status, subscriptionPlan } = updates;
+    if (await checkPg()) {
+      const { rows } = await pool.query(
+        `UPDATE tenants
+         SET 
+           club_name = COALESCE($2, club_name),
+           sport = COALESCE($3, sport),
+           location = COALESCE($4, location),
+           address = COALESCE($5, address),
+           phone = COALESCE($6, phone),
+           status = COALESCE($7, status),
+           subscription_plan = COALESCE($8, subscription_plan)
+         WHERE tenant_id = $1
+         RETURNING *`,
+        [tenantId, clubName || null, sport || null, location || null, address || null, phone || null, status || null, subscriptionPlan || null]
+      );
+      return rows[0] || null;
+    }
+
+    const t = memoryDb.tenants.find((item) => item.tenant_id === tenantId);
+    if (t) {
+      if (clubName) t.club_name = clubName;
+      if (sport) t.sport = sport;
+      if (location) t.location = location;
+      if (address !== undefined) t.address = address;
+      if (phone !== undefined) t.phone = phone;
+      if (status) t.status = status;
+      if (subscriptionPlan) t.subscription_plan = subscriptionPlan;
+      return t;
+    }
+    return null;
+  },
+
+  /**
+   * Delete Tenant (Club) along with associated records
+   */
+  async deleteTenant(tenantId) {
+    if (await checkPg()) {
+      const client = await pool.connect();
+      try {
+        await client.query('BEGIN');
+        await client.query('DELETE FROM bookings WHERE tenant_id = $1', [tenantId]);
+        await client.query('DELETE FROM facilities WHERE tenant_id = $1', [tenantId]);
+        await client.query('DELETE FROM user_roles WHERE user_id IN (SELECT user_id FROM users WHERE tenant_id = $1)', [tenantId]);
+        await client.query('DELETE FROM role_permissions WHERE role_id IN (SELECT role_id FROM roles WHERE tenant_id = $1)', [tenantId]);
+        await client.query('DELETE FROM users WHERE tenant_id = $1 AND system_role != $2', [tenantId, 'SUPER_ADMIN']);
+        await client.query('DELETE FROM roles WHERE tenant_id = $1', [tenantId]);
+        await client.query('DELETE FROM departments WHERE tenant_id = $1', [tenantId]);
+        const res = await client.query('DELETE FROM tenants WHERE tenant_id = $1 RETURNING tenant_id', [tenantId]);
+        await client.query('COMMIT');
+        return res.rowCount > 0;
+      } catch (err) {
+        await client.query('ROLLBACK');
+        throw err;
+      } finally {
+        client.release();
+      }
+    }
+
+    const idx = memoryDb.tenants.findIndex((t) => t.tenant_id === tenantId);
+    if (idx !== -1) {
+      memoryDb.tenants.splice(idx, 1);
+      memoryDb.users = memoryDb.users.filter((u) => u.tenant_id !== tenantId);
+      memoryDb.departments = memoryDb.departments.filter((d) => d.tenant_id !== tenantId);
+      memoryDb.roles = memoryDb.roles.filter((r) => r.tenant_id !== tenantId);
+      memoryDb.facilities = memoryDb.facilities.filter((f) => f.tenant_id !== tenantId);
+      memoryDb.bookings = memoryDb.bookings.filter((b) => b.tenant_id !== tenantId);
+      return true;
+    }
+    return false;
+  },
+
+  /**
+   * Get Platform-Wide Aggregated Statistics for Super Admin directly from DB
+   */
+  async getPlatformStats() {
+    if (await checkPg()) {
+      const { rows } = await pool.query(`
+        SELECT 
+          (SELECT COUNT(*) FROM tenants)::int as total_clubs,
+          (SELECT COUNT(*) FROM users WHERE system_role = 'MEMBER')::int as total_members,
+          (SELECT COUNT(*) FROM users WHERE system_role IN ('CLUB_OWNER', 'STAFF'))::int as total_admins,
+          (SELECT COUNT(*) FROM bookings WHERE booking_date = CURRENT_DATE)::int as today_bookings,
+          COALESCE((SELECT SUM(total_amount) FROM bookings WHERE booking_date = CURRENT_DATE), 0)::numeric as today_revenue,
+          (SELECT COUNT(*) FROM facilities WHERE is_active = TRUE)::int as active_facilities,
+          (SELECT COUNT(*) FROM facilities)::int as total_facilities
+      `);
+      const s = rows[0] || {};
+      return {
+        total_clubs: Number(s.total_clubs || 0),
+        total_members: Number(s.total_members || 0),
+        total_admins: Number(s.total_admins || 0),
+        today_bookings: Number(s.today_bookings || 0),
+        today_revenue: Number(s.today_revenue || 0),
+        active_facilities: Number(s.active_facilities || 0),
+        total_facilities: Number(s.total_facilities || 0),
+      };
+    }
+    return {
+      total_clubs: memoryDb.tenants.length,
+      total_members: memoryDb.users.filter(u => u.system_role === 'MEMBER').length,
+      total_admins: memoryDb.users.filter(u => u.system_role === 'CLUB_OWNER' || u.system_role === 'STAFF').length,
+      today_bookings: 0,
+      today_revenue: 0,
+      active_facilities: memoryDb.facilities.length,
+      total_facilities: memoryDb.facilities.length,
+    };
+  },
+
+  /**
+   * Get all Club Admins directly from database
+   */
+  async getAdmins() {
+    if (await checkPg()) {
+      const { rows } = await pool.query(`
+        SELECT 
+          u.user_id as id,
+          u.name,
+          u.email,
+          COALESCE(t.club_name, 'Unassigned') as club,
+          CASE 
+            WHEN u.system_role = 'CLUB_OWNER' THEN 'Owner'
+            WHEN u.system_role = 'STAFF' THEN 'Staff'
+            ELSE 'Manager'
+          END as role,
+          CASE 
+            WHEN u.is_active = TRUE THEN 'Active' 
+            ELSE 'Disabled' 
+          END as status,
+          COALESCE(TO_CHAR(u.created_at, 'DD Mon YYYY'), 'Recently') as "lastLogin"
+        FROM users u
+        LEFT JOIN tenants t ON u.tenant_id = t.tenant_id
+        WHERE u.system_role IN ('CLUB_OWNER', 'STAFF')
+        ORDER BY u.created_at DESC
+      `);
+      return rows;
+    }
+    return memoryDb.users
+      .filter((u) => u.system_role === 'CLUB_OWNER' || u.system_role === 'STAFF')
+      .map((u) => {
+        const tenant = memoryDb.tenants.find((t) => t.tenant_id === u.tenant_id);
+        return {
+          id: u.user_id,
+          name: u.name,
+          email: u.email,
+          club: tenant ? tenant.club_name : 'Unassigned',
+          role: u.system_role === 'CLUB_OWNER' ? 'Owner' : 'Staff',
+          status: u.is_active ? 'Active' : 'Disabled',
+          lastLogin: 'Recently',
+        };
+      });
+  },
+
+  /**
+   * Get all End Users / Members directly from database
+   */
+  async getClubUsers() {
+    if (await checkPg()) {
+      const { rows } = await pool.query(`
+        SELECT 
+          u.user_id as id,
+          u.name,
+          u.email,
+          COALESCE(t.club_name, 'Unassigned') as club,
+          COALESCE(u.tier, 'Annual') as plan,
+          COALESCE(TO_CHAR(u.created_at, 'DD Mon YYYY'), 'Recently') as joined,
+          u.is_active as active
+        FROM users u
+        LEFT JOIN tenants t ON u.tenant_id = t.tenant_id
+        WHERE u.system_role = 'MEMBER'
+        ORDER BY u.created_at DESC
+      `);
+      return rows;
+    }
+    return memoryDb.users
+      .filter((u) => u.system_role === 'MEMBER')
+      .map((u) => {
+        const tenant = memoryDb.tenants.find((t) => t.tenant_id === u.tenant_id);
+        return {
+          id: u.user_id,
+          name: u.name,
+          email: u.email,
+          club: tenant ? tenant.club_name : 'Unassigned',
+          plan: u.tier || 'Annual',
+          joined: 'Recently',
+          active: u.is_active,
+        };
+      });
+  },
+
+  /**
+   * Get Revenue data by Club directly from database
+   */
+  async getRevenueData() {
+    if (await checkPg()) {
+      const { rows } = await pool.query(`
+        SELECT 
+          t.tenant_id as id,
+          t.club_name as club,
+          COALESCE((SELECT SUM(total_amount) FROM bookings WHERE tenant_id = t.tenant_id AND booking_date >= CURRENT_DATE - INTERVAL '30 days'), 0)::numeric as month,
+          COALESCE((SELECT SUM(total_amount) FROM bookings WHERE tenant_id = t.tenant_id AND booking_date >= CURRENT_DATE - INTERVAL '7 days'), 0)::numeric as week,
+          COALESCE((SELECT SUM(total_amount) FROM bookings WHERE tenant_id = t.tenant_id AND booking_date = CURRENT_DATE), 0)::numeric as today,
+          0 as growth
+        FROM tenants t
+        ORDER BY month DESC
+      `);
+      return rows;
+    }
+    return memoryDb.tenants.map((t) => ({
+      id: t.tenant_id,
+      club: t.club_name,
+      month: 0,
+      week: 0,
+      today: 0,
+      growth: 0,
+    }));
+  },
+
+  /**
+   * Get dynamic Club details by tenant ID
+   */
+  async getClubDetails(tenantId) {
+    if (await checkPg()) {
+      const { rows } = await pool.query(`
+        SELECT 
+          t.tenant_id as id,
+          t.club_name as name,
+          COALESCE(t.sport, 'Multi-Sport') as sport,
+          COALESCE(t.location, 'India') as location,
+          t.address,
+          t.phone,
+          t.status,
+          t.subscription_plan as "subscriptionPlan",
+          t.subdomain,
+          t.created_at as "createdAt"
+        FROM tenants t
+        WHERE t.tenant_id = $1
+      `, [tenantId]);
+
+      if (!rows[0]) return null;
+      const club = rows[0];
+
+      const { rows: depts } = await pool.query(
+        'SELECT department_id as id, name, description FROM departments WHERE tenant_id = $1',
+        [tenantId]
+      );
+      const { rows: facilities } = await pool.query(
+        'SELECT facility_id as id, name, type, is_active as "isActive" FROM facilities WHERE tenant_id = $1',
+        [tenantId]
+      );
+      const { rows: adminRows } = await pool.query(
+        `SELECT user_id as id, name, email, system_role as role FROM users WHERE tenant_id = $1 AND system_role = 'CLUB_OWNER'`,
+        [tenantId]
+      );
+
+      return {
+        ...club,
+        admin: adminRows[0] || null,
+        departments: depts,
+        facilities: facilities,
+      };
+    }
+
+    const t = memoryDb.tenants.find((item) => item.tenant_id === tenantId);
+    if (!t) return null;
+    return {
+      id: t.tenant_id,
+      name: t.club_name,
+      sport: t.sport || 'Multi-Sport',
+      location: t.location || 'India',
+      status: t.status,
+      departments: memoryDb.departments.filter(d => d.tenant_id === tenantId),
+      facilities: memoryDb.facilities.filter(f => f.tenant_id === tenantId),
+      admin: memoryDb.users.find(u => u.tenant_id === tenantId && u.system_role === 'CLUB_OWNER') || null,
+    };
+  },
+
+  /**
+   * Create dynamic User
+   */
+  async createUser({ userId, tenantId, name, email, passwordHash, systemRole, tier }) {
+    if (await checkPg()) {
+      await pool.query(
+        `INSERT INTO users (user_id, tenant_id, name, email, password_hash, system_role, tier, is_active)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, TRUE)`,
+        [userId, tenantId || null, name, email.toLowerCase(), passwordHash, systemRole, tier || null]
+      );
+    }
+    memoryDb.users.push({
+      user_id: userId,
+      tenant_id: tenantId || null,
+      name,
+      email: email.toLowerCase(),
+      password_hash: passwordHash,
+      system_role: systemRole,
+      role_id: null,
+      tier: tier || null,
+      is_active: true,
+      created_at: new Date().toISOString(),
+    });
+  },
+
+  /**
+   * Get Departments for a Tenant
+   */
+  async getDepartments(tenantId) {
+    if (await checkPg()) {
+      const { rows } = await pool.query(
+        'SELECT * FROM departments WHERE tenant_id = $1 ORDER BY created_at ASC',
+        [tenantId]
+      );
+      return rows;
+    }
+    return memoryDb.departments.filter((d) => d.tenant_id === tenantId);
+  },
+
+  /**
+   * Create Dynamic Department
+   */
+  async createDepartment({ departmentId, tenantId, name, description }) {
+    if (await checkPg()) {
+      await pool.query(
+        `INSERT INTO departments (department_id, tenant_id, name, description)
+         VALUES ($1, $2, $3, $4)`,
+        [departmentId, tenantId, name, description || null]
+      );
+    }
+    const newDept = { department_id: departmentId, tenant_id: tenantId, name, description: description || '' };
+    memoryDb.departments.push(newDept);
+    return newDept;
+  },
+
+  /**
+   * Get Dynamic Roles for a Tenant
+   */
+  async getRoles(tenantId) {
+    if (await checkPg()) {
+      const { rows: roleRows } = await pool.query(
+        'SELECT * FROM roles WHERE tenant_id = $1 AND is_active = TRUE',
+        [tenantId]
+      );
+
+      const rolesWithPerms = await Promise.all(
+        roleRows.map(async (r) => {
+          const { rows: permRows } = await pool.query(
+            'SELECT permission_id FROM role_permissions WHERE role_id = $1',
+            [r.role_id]
+          );
+          return {
+            ...r,
+            permissions: permRows.map((p) => p.permission_id),
+          };
+        })
+      );
+      return rolesWithPerms;
+    }
+    return memoryDb.roles.filter((r) => r.tenant_id === tenantId);
+  },
+
+  /**
+   * Create Dynamic Role with Permissions
+   */
+  async createRole({ roleId, tenantId, departmentId, name, description, permissions }) {
+    if (await checkPg()) {
+      const client = await pool.connect();
+      try {
+        await client.query('BEGIN');
+        await client.query(
+          `INSERT INTO roles (role_id, tenant_id, department_id, name, description, is_active)
+           VALUES ($1, $2, $3, $4, $5, TRUE)`,
+          [roleId, tenantId, departmentId || null, name, description || null]
+        );
+
+        if (Array.isArray(permissions)) {
+          for (const permId of permissions) {
+            await client.query(
+              `INSERT INTO role_permissions (role_id, permission_id)
+               VALUES ($1, $2) ON CONFLICT DO NOTHING`,
+              [roleId, permId]
+            );
+          }
+        }
+        await client.query('COMMIT');
+      } catch (e) {
+        await client.query('ROLLBACK');
+        throw e;
+      } finally {
+        client.release();
+      }
+    }
+
+    const newRole = {
+      role_id: roleId,
+      tenant_id: tenantId,
+      department_id: departmentId || null,
+      name,
+      description: description || '',
+      is_active: true,
+      permissions: permissions || [],
+    };
+    memoryDb.roles.push(newRole);
+    return newRole;
+  },
+
+  /**
+   * Get System Permissions Catalog
+   */
+  async getPermissionsCatalog() {
+    if (await checkPg()) {
+      const { rows } = await pool.query('SELECT * FROM permissions ORDER BY module, action');
+      return rows;
+    }
+    return memoryDb.permissions;
+  },
+  /**
+   * FACILITIES MODULE
+   */
+  async getFacilitiesByTenant(tenantId) {
+    if (await checkPg()) {
+      const { rows } = await pool.query(
+        `SELECT f.facility_id as id, f.name, f.type, f.hourly_rate as "hourlyRate",
+                f.surface, f.open_time as "openTime", f.close_time as "closeTime",
+                f.is_active as "isActive", d.name as department
+         FROM facilities f
+         LEFT JOIN departments d ON f.department_id = d.department_id
+         WHERE f.tenant_id = $1
+         ORDER BY f.created_at DESC`,
+        [tenantId]
+      );
+      return rows;
+    }
+    return [];
+  },
+
+  async createFacility({ facilityId, tenantId, departmentId, name, type, hourlyRate, surface, openTime, closeTime }) {
+    if (await checkPg()) {
+      const { rows } = await pool.query(
+        `INSERT INTO facilities (facility_id, tenant_id, department_id, name, type, hourly_rate, surface, open_time, close_time)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+         RETURNING facility_id as id, name, type, hourly_rate as "hourlyRate", surface, open_time as "openTime", close_time as "closeTime", is_active as "isActive"`,
+        [facilityId, tenantId, departmentId || null, name, type, hourlyRate || 500, surface || 'Synthetic', openTime || '06:00:00', closeTime || '23:00:00']
+      );
+      return rows[0];
+    }
+    return null;
+  },
+
+  async updateFacility(facilityId, tenantId, { name, type, hourlyRate, surface, openTime, closeTime, isActive }) {
+    if (await checkPg()) {
+      const { rows } = await pool.query(
+        `UPDATE facilities
+         SET name = COALESCE($3, name),
+             type = COALESCE($4, type),
+             hourly_rate = COALESCE($5, hourly_rate),
+             surface = COALESCE($6, surface),
+             open_time = COALESCE($7, open_time),
+             close_time = COALESCE($8, close_time),
+             is_active = COALESCE($9, is_active)
+         WHERE facility_id = $1 AND tenant_id = $2
+         RETURNING facility_id as id, name, type, hourly_rate as "hourlyRate", surface, open_time as "openTime", close_time as "closeTime", is_active as "isActive"`,
+        [facilityId, tenantId, name || null, type || null, hourlyRate || null, surface || null, openTime || null, closeTime || null, isActive !== undefined ? isActive : null]
+      );
+      return rows[0] || null;
+    }
+    return null;
+  },
+
+  async deleteFacility(facilityId, tenantId) {
+    if (await checkPg()) {
+      const { rowCount } = await pool.query(
+        `DELETE FROM facilities WHERE facility_id = $1 AND tenant_id = $2`,
+        [facilityId, tenantId]
+      );
+      return rowCount > 0;
+    }
+    return false;
+  },
+
+  /**
+   * BOOKINGS MODULE
+   */
+  async getBookingsByTenant(tenantId) {
+    if (await checkPg()) {
+      const { rows } = await pool.query(
+        `SELECT b.booking_id as id, b.facility_id as "facilityId", f.name as "facilityName",
+                f.type as "facilityType", b.user_id as "userId",
+                COALESCE(u.name, 'Club Guest') as "memberName",
+                COALESCE(u.email, '') as "memberEmail",
+                b.booking_date::text as "bookingDate",
+                b.start_time as "startTime", b.end_time as "endTime",
+                b.status, b.payment_status as "paymentStatus",
+                b.total_amount as "totalAmount", b.created_at as "createdAt"
+         FROM bookings b
+         JOIN facilities f ON b.facility_id = f.facility_id
+         LEFT JOIN users u ON b.user_id = u.user_id
+         WHERE b.tenant_id = $1
+         ORDER BY b.booking_date DESC, b.start_time DESC`,
+        [tenantId]
+      );
+      return rows;
+    }
+    return [];
+  },
+
+  async createBooking({ bookingId, tenantId, facilityId, userId, memberName, bookingDate, startTime, endTime, totalAmount, status, paymentStatus }) {
+    if (await checkPg()) {
+      // If userId is missing, fallback or find/create guest
+      let assignedUserId = userId;
+      if (!assignedUserId) {
+        const owner = await pool.query('SELECT user_id FROM users WHERE tenant_id = $1 AND system_role = $2 LIMIT 1', [tenantId, 'CLUB_OWNER']);
+        assignedUserId = owner.rows[0]?.user_id || 'usr_guest';
+      }
+      const { rows } = await pool.query(
+        `INSERT INTO bookings (booking_id, tenant_id, facility_id, user_id, booking_date, start_time, end_time, total_amount, status, payment_status)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+         RETURNING booking_id as id, facility_id as "facilityId", booking_date::text as "bookingDate", start_time as "startTime", end_time as "endTime", total_amount as "totalAmount", status, payment_status as "paymentStatus"`,
+        [bookingId, tenantId, facilityId, assignedUserId, bookingDate, startTime, endTime, totalAmount || 0, status || 'confirmed', paymentStatus || 'paid']
+      );
+      return rows[0];
+    }
+    return null;
+  },
+
+  async updateBooking(bookingId, tenantId, { status, paymentStatus, startTime, endTime }) {
+    if (await checkPg()) {
+      const { rows } = await pool.query(
+        `UPDATE bookings
+         SET status = COALESCE($3, status),
+             payment_status = COALESCE($4, payment_status),
+             start_time = COALESCE($5, start_time),
+             end_time = COALESCE($6, end_time)
+         WHERE booking_id = $1 AND tenant_id = $2
+         RETURNING booking_id as id, status, payment_status as "paymentStatus"`,
+        [bookingId, tenantId, status || null, paymentStatus || null, startTime || null, endTime || null]
+      );
+      return rows[0] || null;
+    }
+    return null;
+  },
+
+  async deleteBooking(bookingId, tenantId) {
+    if (await checkPg()) {
+      const { rowCount } = await pool.query(
+        `DELETE FROM bookings WHERE booking_id = $1 AND tenant_id = $2`,
+        [bookingId, tenantId]
+      );
+      return rowCount > 0;
+    }
+    return false;
+  },
+
+  /**
+   * MEMBERS MODULE
+   */
+  async getMembersByTenant(tenantId) {
+    if (await checkPg()) {
+      const { rows } = await pool.query(
+        `SELECT user_id as id, name, email, phone, COALESCE(tier, 'Standard') as tier,
+                COALESCE(status, 'active') as status, is_active as "isActive", created_at as "joinedAt"
+         FROM users
+         WHERE tenant_id = $1 AND system_role = 'MEMBER'
+         ORDER BY created_at DESC`,
+        [tenantId]
+      );
+      return rows;
+    }
+    return [];
+  },
+
+  async createMember({ userId, tenantId, name, email, phone, tier, passwordHash }) {
+    if (await checkPg()) {
+      const { rows } = await pool.query(
+        `INSERT INTO users (user_id, tenant_id, name, email, phone, tier, password_hash, system_role, is_active, status)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, 'MEMBER', TRUE, 'active')
+         RETURNING user_id as id, name, email, phone, tier, status, created_at as "joinedAt"`,
+        [userId, tenantId, name, email, phone || null, tier || 'Standard', passwordHash]
+      );
+      return rows[0];
+    }
+    return null;
+  },
+
+  async updateMember(userId, tenantId, { name, phone, tier, status }) {
+    if (await checkPg()) {
+      const { rows } = await pool.query(
+        `UPDATE users
+         SET name = COALESCE($3, name),
+             phone = COALESCE($4, phone),
+             tier = COALESCE($5, tier),
+             status = COALESCE($6, status)
+         WHERE user_id = $1 AND tenant_id = $2 AND system_role = 'MEMBER'
+         RETURNING user_id as id, name, email, phone, tier, status`,
+        [userId, tenantId, name || null, phone || null, tier || null, status || null]
+      );
+      return rows[0] || null;
+    }
+    return null;
+  },
+
+  async deleteMember(userId, tenantId) {
+    if (await checkPg()) {
+      const { rowCount } = await pool.query(
+        `DELETE FROM users WHERE user_id = $1 AND tenant_id = $2 AND system_role = 'MEMBER'`,
+        [userId, tenantId]
+      );
+      return rowCount > 0;
+    }
+    return false;
+  },
+
+  /**
+   * STAFF MANAGEMENT MODULE
+   */
+  async getStaffByTenant(tenantId) {
+    if (await checkPg()) {
+      const { rows } = await pool.query(
+        `SELECT u.user_id as id, u.name, u.email, u.phone,
+                COALESCE(u.status, 'active') as status, u.system_role as "systemRole",
+                COALESCE(d.name, 'Operations') as department,
+                COALESCE(r.name, 'Staff Member') as "roleName",
+                u.created_at as "createdAt"
+         FROM users u
+         LEFT JOIN departments d ON u.department_id = d.department_id
+         LEFT JOIN user_roles ur ON u.user_id = ur.user_id
+         LEFT JOIN roles r ON ur.role_id = r.role_id
+         WHERE u.tenant_id = $1 AND u.system_role = 'STAFF'
+         ORDER BY u.created_at ASC`,
+        [tenantId]
+      );
+      return rows;
+    }
+    return [];
+  },
+
+  async createStaff({ userId, tenantId, name, email, phone, departmentId, roleId, passwordHash }) {
+    if (await checkPg()) {
+      const client = await pool.connect();
+      try {
+        await client.query('BEGIN');
+        const { rows } = await client.query(
+          `INSERT INTO users (user_id, tenant_id, department_id, name, email, phone, password_hash, system_role, is_active, status)
+           VALUES ($1, $2, $3, $4, $5, $6, $7, 'STAFF', TRUE, 'active')
+           RETURNING user_id as id, name, email, phone, system_role as "systemRole"`,
+          [userId, tenantId, departmentId || null, name, email, phone || null, passwordHash]
+        );
+        if (roleId) {
+          await client.query(
+            `INSERT INTO user_roles (user_id, role_id) VALUES ($1, $2) ON CONFLICT DO NOTHING`,
+            [userId, roleId]
+          );
+        }
+        await client.query('COMMIT');
+        return rows[0];
+      } catch (err) {
+        await client.query('ROLLBACK');
+        throw err;
+      } finally {
+        client.release();
+      }
+    }
+    return null;
+  },
+
+  async updateStaff(userId, tenantId, { name, phone, departmentId, status }) {
+    if (await checkPg()) {
+      const { rows } = await pool.query(
+        `UPDATE users
+         SET name = COALESCE($3, name),
+             phone = COALESCE($4, phone),
+             department_id = COALESCE($5, department_id),
+             status = COALESCE($6, status)
+         WHERE user_id = $1 AND tenant_id = $2
+         RETURNING user_id as id, name, email, phone, status`,
+        [userId, tenantId, name || null, phone || null, departmentId || null, status || null]
+      );
+      return rows[0] || null;
+    }
+    return null;
+  },
+
+  async deleteStaff(userId, tenantId) {
+    if (await checkPg()) {
+      const { rowCount } = await pool.query(
+        `DELETE FROM users WHERE user_id = $1 AND tenant_id = $2 AND system_role = 'STAFF'`,
+        [userId, tenantId]
+      );
+      return rowCount > 0;
+    }
+    return false;
+  },
+
+  /**
+   * EVENTS & TOURNAMENTS MODULE
+   */
+  async getAllEvents() {
+    if (await checkPg()) {
+      const { rows } = await pool.query(
+        `SELECT e.event_id as id, e.title, e.description, e.sport,
+                e.event_date::text as "eventDate", e.start_time as "startTime", e.end_time as "endTime",
+                e.entry_fee as "entryFee", e.max_participants as "maxParticipants",
+                e.registered_count as "registeredCount", e.status, e.created_at as "createdAt",
+                t.club_name as club
+         FROM club_events e
+         JOIN tenants t ON e.tenant_id = t.tenant_id
+         ORDER BY e.event_date ASC`
+      );
+      return rows;
+    }
+    return [];
+  },
+
+  async getEventsByTenant(tenantId) {
+    if (await checkPg()) {
+      const { rows } = await pool.query(
+        `SELECT event_id as id, title, description, sport,
+                event_date::text as "eventDate", start_time as "startTime", end_time as "endTime",
+                entry_fee as "entryFee", max_participants as "maxParticipants",
+                registered_count as "registeredCount", status, created_at as "createdAt"
+         FROM club_events
+         WHERE tenant_id = $1
+         ORDER BY event_date ASC`,
+        [tenantId]
+      );
+      return rows;
+    }
+    return [];
+  },
+
+  async createEvent({ eventId, tenantId, title, description, sport, eventDate, startTime, endTime, entryFee, maxParticipants }) {
+    if (await checkPg()) {
+      const { rows } = await pool.query(
+        `INSERT INTO club_events (event_id, tenant_id, title, description, sport, event_date, start_time, end_time, entry_fee, max_participants, registered_count, status)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, 0, 'upcoming')
+         RETURNING event_id as id, title, description, sport, event_date::text as "eventDate", start_time as "startTime", end_time as "endTime", entry_fee as "entryFee", max_participants as "maxParticipants", registered_count as "registeredCount", status`,
+        [eventId, tenantId, title, description || '', sport || 'Multi-Sport', eventDate, startTime, endTime, entryFee || 0, maxParticipants || 32]
+      );
+      return rows[0];
+    }
+    return null;
+  },
+
+  async updateEvent(eventId, tenantId, { title, description, sport, eventDate, startTime, endTime, entryFee, maxParticipants, status }) {
+    if (await checkPg()) {
+      const { rows } = await pool.query(
+        `UPDATE club_events
+         SET title = COALESCE($3, title),
+             description = COALESCE($4, description),
+             sport = COALESCE($5, sport),
+             event_date = COALESCE($6, event_date),
+             start_time = COALESCE($7, start_time),
+             end_time = COALESCE($8, end_time),
+             entry_fee = COALESCE($9, entry_fee),
+             max_participants = COALESCE($10, max_participants),
+             status = COALESCE($11, status)
+         WHERE event_id = $1 AND tenant_id = $2
+         RETURNING event_id as id, title, sport, event_date::text as "eventDate", status`,
+        [eventId, tenantId, title || null, description || null, sport || null, eventDate || null, startTime || null, endTime || null, entryFee || null, maxParticipants || null, status || null]
+      );
+      return rows[0] || null;
+    }
+    return null;
+  },
+
+  async deleteEvent(eventId, tenantId) {
+    if (await checkPg()) {
+      const { rowCount } = await pool.query(
+        `DELETE FROM club_events WHERE event_id = $1 AND tenant_id = $2`,
+        [eventId, tenantId]
+      );
+      return rowCount > 0;
+    }
+    return false;
+  },
+
+  /**
+   * MEMBERSHIP PLANS MODULE
+   */
+  async getPlansByTenant(tenantId) {
+    if (await checkPg()) {
+      const { rows } = await pool.query(
+        `SELECT plan_id as id, name, price, billing_cycle as "billingCycle",
+                tier, features, is_active as "isActive", created_at as "createdAt"
+         FROM membership_plans
+         WHERE tenant_id = $1
+         ORDER BY price ASC`,
+        [tenantId]
+      );
+      return rows;
+    }
+    return [];
+  },
+
+  async createPlan({ planId, tenantId, name, price, billingCycle, tier, features }) {
+    if (await checkPg()) {
+      const { rows } = await pool.query(
+        `INSERT INTO membership_plans (plan_id, tenant_id, name, price, billing_cycle, tier, features, is_active)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, TRUE)
+         RETURNING plan_id as id, name, price, billing_cycle as "billingCycle", tier, features, is_active as "isActive"`,
+        [planId, tenantId, name, price || 0, billingCycle || 'monthly', tier || 'Standard', JSON.stringify(features || [])]
+      );
+      return rows[0];
+    }
+    return null;
+  },
+
+  async updatePlan(planId, tenantId, { name, price, billingCycle, tier, features, isActive }) {
+    if (await checkPg()) {
+      const { rows } = await pool.query(
+        `UPDATE membership_plans
+         SET name = COALESCE($3, name),
+             price = COALESCE($4, price),
+             billing_cycle = COALESCE($5, billing_cycle),
+             tier = COALESCE($6, tier),
+             features = COALESCE($7, features),
+             is_active = COALESCE($8, is_active)
+         WHERE plan_id = $1 AND tenant_id = $2
+         RETURNING plan_id as id, name, price, billing_cycle as "billingCycle", tier, is_active as "isActive"`,
+        [planId, tenantId, name || null, price || null, billingCycle || null, tier || null, features ? JSON.stringify(features) : null, isActive !== undefined ? isActive : null]
+      );
+      return rows[0] || null;
+    }
+    return null;
+  },
+
+  async deletePlan(planId, tenantId) {
+    if (await checkPg()) {
+      const { rowCount } = await pool.query(
+        `DELETE FROM membership_plans WHERE plan_id = $1 AND tenant_id = $2`,
+        [planId, tenantId]
+      );
+      return rowCount > 0;
+    }
+    return false;
+  },
+
+  /**
+   * RESTAURANT & BAR MODULE
+   */
+  async getRestaurantMenu(tenantId) {
+    if (await checkPg()) {
+      const { rows } = await pool.query(
+        `SELECT item_id as id, name, category, price, is_available as "isAvailable"
+         FROM restaurant_items
+         WHERE tenant_id = $1
+         ORDER BY category, name`,
+        [tenantId]
+      );
+      return rows;
+    }
+    return [];
+  },
+
+  async createMenuItem({ itemId, tenantId, name, category, price, isAvailable }) {
+    if (await checkPg()) {
+      const { rows } = await pool.query(
+        `INSERT INTO restaurant_items (item_id, tenant_id, name, category, price, is_available)
+         VALUES ($1, $2, $3, $4, $5, $6)
+         RETURNING item_id as id, name, category, price, is_available as "isAvailable"`,
+        [itemId, tenantId, name, category || 'Food', price || 0, isAvailable !== undefined ? isAvailable : true]
+      );
+      return rows[0];
+    }
+    return null;
+  },
+
+  async updateMenuItem(itemId, tenantId, { name, category, price, isAvailable }) {
+    if (await checkPg()) {
+      const { rows } = await pool.query(
+        `UPDATE restaurant_items
+         SET name = COALESCE($3, name),
+             category = COALESCE($4, category),
+             price = COALESCE($5, price),
+             is_available = COALESCE($6, is_available)
+         WHERE item_id = $1 AND tenant_id = $2
+         RETURNING item_id as id, name, category, price, is_available as "isAvailable"`,
+        [itemId, tenantId, name || null, category || null, price || null, isAvailable !== undefined ? isAvailable : null]
+      );
+      return rows[0] || null;
+    }
+    return null;
+  },
+
+  async deleteMenuItem(itemId, tenantId) {
+    if (await checkPg()) {
+      const { rowCount } = await pool.query(
+        `DELETE FROM restaurant_items WHERE item_id = $1 AND tenant_id = $2`,
+        [itemId, tenantId]
+      );
+      return rowCount > 0;
+    }
+    return false;
+  },
+
+  async getRestaurantOrders(tenantId) {
+    if (await checkPg()) {
+      const { rows } = await pool.query(
+        `SELECT order_id as id, member_name as "memberName", table_number as "tableNumber",
+                items, total_amount as "totalAmount", status, created_at as "createdAt"
+         FROM restaurant_orders
+         WHERE tenant_id = $1
+         ORDER BY created_at DESC`,
+        [tenantId]
+      );
+      return rows;
+    }
+    return [];
+  },
+
+  async createRestaurantOrder({ orderId, tenantId, userId, memberName, tableNumber, items, totalAmount, status }) {
+    if (await checkPg()) {
+      const { rows } = await pool.query(
+        `INSERT INTO restaurant_orders (order_id, tenant_id, user_id, member_name, table_number, items, total_amount, status)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+         RETURNING order_id as id, member_name as "memberName", table_number as "tableNumber", items, total_amount as "totalAmount", status, created_at as "createdAt"`,
+        [orderId, tenantId, userId || null, memberName, tableNumber || 'Counter', JSON.stringify(items || []), totalAmount || 0, status || 'completed']
+      );
+      return rows[0];
+    }
+    return null;
+  },
+
+  /**
+   * APPROVALS MODULE
+   */
+  async getApprovalsByTenant(tenantId) {
+    if (await checkPg()) {
+      const { rows } = await pool.query(
+        `SELECT approval_id as id, type, title, requester, details, amount, status, created_at as "createdAt"
+         FROM approvals
+         WHERE tenant_id = $1
+         ORDER BY created_at DESC`,
+        [tenantId]
+      );
+      return rows;
+    }
+    return [];
+  },
+
+  async createApproval({ approvalId, tenantId, type, title, requester, details, amount }) {
+    if (await checkPg()) {
+      const { rows } = await pool.query(
+        `INSERT INTO approvals (approval_id, tenant_id, type, title, requester, details, amount, status)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, 'pending')
+         RETURNING approval_id as id, type, title, requester, details, amount, status, created_at as "createdAt"`,
+        [approvalId, tenantId, type || 'Membership', title, requester, details || '', amount || 0]
+      );
+      return rows[0];
+    }
+    return null;
+  },
+
+  async updateApprovalStatus(approvalId, tenantId, status) {
+    if (await checkPg()) {
+      const { rows } = await pool.query(
+        `UPDATE approvals
+         SET status = $3
+         WHERE approval_id = $1 AND tenant_id = $2
+         RETURNING approval_id as id, type, title, requester, status`,
+        [approvalId, tenantId, status]
+      );
+      return rows[0] || null;
+    }
+    return null;
+  },
+
+  /**
+   * COMMUNICATIONS MODULE
+   */
+  async getAnnouncementsByTenant(tenantId) {
+    if (await checkPg()) {
+      const { rows } = await pool.query(
+        `SELECT announcement_id as id, title, message, target_audience as "targetAudience", created_at as "createdAt"
+         FROM announcements
+         WHERE tenant_id = $1
+         ORDER BY created_at DESC`,
+        [tenantId]
+      );
+      return rows;
+    }
+    return [];
+  },
+
+  async createAnnouncement({ announcementId, tenantId, title, message, targetAudience }) {
+    if (await checkPg()) {
+      const { rows } = await pool.query(
+        `INSERT INTO announcements (announcement_id, tenant_id, title, message, target_audience)
+         VALUES ($1, $2, $3, $4, $5)
+         RETURNING announcement_id as id, title, message, target_audience as "targetAudience", created_at as "createdAt"`,
+        [announcementId, tenantId, title, message, targetAudience || 'all']
+      );
+      return rows[0];
+    }
+    return null;
+  },
+
+  async deleteAnnouncement(announcementId, tenantId) {
+    if (await checkPg()) {
+      const { rowCount } = await pool.query(
+        `DELETE FROM announcements WHERE announcement_id = $1 AND tenant_id = $2`,
+        [announcementId, tenantId]
+      );
+      return rowCount > 0;
+    }
+    return false;
+  },
+
+  /**
+   * CLUB SETTINGS MODULE
+   */
+  async updateClubSettings(tenantId, { clubName, sport, location, address, phone }) {
+    if (await checkPg()) {
+      const { rows } = await pool.query(
+        `UPDATE tenants
+         SET club_name = COALESCE($2, club_name),
+             sport = COALESCE($3, sport),
+             location = COALESCE($4, location),
+             address = COALESCE($5, address),
+             phone = COALESCE($6, phone)
+         WHERE tenant_id = $1
+         RETURNING tenant_id as id, club_name as name, sport, location, address, phone`,
+        [tenantId, clubName || null, sport || null, location || null, address || null, phone || null]
+      );
+      return rows[0] || null;
+    }
+    return null;
+  },
+
+  /**
+   * FINANCE & SETTLEMENTS MODULE
+   */
+  async getFinanceData(tenantId) {
+    if (await checkPg()) {
+      const bookingsQuery = pool.query(
+        `SELECT booking_id as id,
+                created_at as "date",
+                member_name as member,
+                'Court Booking' as category,
+                'UPI (Online)' as mode,
+                total_price as amount,
+                ROUND((total_price * 0.18)::numeric, 2) as gst,
+                CASE WHEN status = 'cancelled' THEN 'Refunded' ELSE 'Settled' END as status
+         FROM bookings
+         WHERE tenant_id = $1
+         ORDER BY created_at DESC
+         LIMIT 20`,
+        [tenantId]
+      );
+
+      const ordersQuery = pool.query(
+        `SELECT order_id as id,
+                created_at as "date",
+                member_name as member,
+                'Restaurant Dining' as category,
+                'Member Tab' as mode,
+                total_amount as amount,
+                ROUND((total_amount * 0.05)::numeric, 2) as gst,
+                CASE WHEN status = 'settled' THEN 'Settled' ELSE 'Pending' END as status
+         FROM restaurant_orders
+         WHERE tenant_id = $1
+         ORDER BY created_at DESC
+         LIMIT 20`,
+        [tenantId]
+      );
+
+      const [bRes, oRes] = await Promise.all([bookingsQuery, ordersQuery]);
+      const txns = [...bRes.rows, ...oRes.rows].sort(
+        (a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()
+      );
+
+      const grossRevenue = txns.reduce((acc, t) => acc + (parseFloat(t.amount) || 0), 0);
+      const gstLiability = txns.reduce((acc, t) => acc + (parseFloat(t.gst) || 0), 0);
+      const pendingSettlement = txns
+        .filter((t) => t.status === 'Pending')
+        .reduce((acc, t) => acc + (parseFloat(t.amount) || 0), 0);
+
+      return {
+        summary: {
+          grossRevenue,
+          pendingSettlement,
+          gstLiability,
+        },
+        transactions: txns,
+      };
+    }
+    return {
+      summary: { grossRevenue: 0, pendingSettlement: 0, gstLiability: 0 },
+      transactions: [],
+    };
+  },
+};
+
+export default dbService;

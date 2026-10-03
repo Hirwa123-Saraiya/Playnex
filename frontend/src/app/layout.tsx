@@ -1,10 +1,17 @@
 import type { Metadata } from 'next';
+import { Inter } from 'next/font/google';
 import './globals.css';
+import { AuthProvider } from '../context/AuthContext';
 import { ClubProvider } from '../context/ClubContext';
 
+const inter = Inter({ subsets: ['latin'], display: 'swap' });
+
 export const metadata: Metadata = {
-  title: 'Playnex | Club Owner Portal - Multi-Tenant Club Management',
-  description: 'Enterprise-grade SaaS sports club management platform for facilities, bookings, memberships, finances, and departments.',
+  title: 'Playnex — The Champions Club',
+  description: 'Multi-tenant digital backbone with dynamic roles for modern sports clubs.',
+  icons: {
+    icon: '/odoo_logo.svg',
+  },
 };
 
 export default function RootLayout({
@@ -14,10 +21,12 @@ export default function RootLayout({
 }) {
   return (
     <html lang="en">
-      <body className="bg-[#F8FAFC] text-slate-900 antialiased min-h-screen">
-        <ClubProvider>
-          {children}
-        </ClubProvider>
+      <body className="min-h-screen bg-sand text-text antialiased">
+        <AuthProvider>
+          <ClubProvider>
+            {children}
+          </ClubProvider>
+        </AuthProvider>
       </body>
     </html>
   );

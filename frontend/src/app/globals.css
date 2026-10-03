@@ -2,11 +2,19 @@
 @tailwind components;
 @tailwind utilities;
 
+:root {
+  color-scheme: light;
+}
+
+html,
+body {
+  height: 100%;
+}
+
 @layer base {
   body {
     background-color: #F8FAFC;
     color: #0F172A;
-    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
   }
@@ -34,4 +42,28 @@
 /* Subtle transitions */
 .transition-smooth {
   transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* Prevent horizontal overflow on mobile */
+body {
+  overflow-x: hidden;
+}
+
+/* Thin scrollbars */
+.scrollbar-thin::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+.scrollbar-thin::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.15);
+  border-radius: 999px;
+}
+
+/* Hide scrollbar on the mobile horizontal sidebar */
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+.no-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
 }

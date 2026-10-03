@@ -1,6 +1,8 @@
 'use client';
 
 import React, { useState, useRef, useEffect } from 'react';
+import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import {
   Calendar,
   MapPin,
@@ -15,10 +17,14 @@ import {
   Menu,
   Check,
   Building,
+  Shield,
 } from 'lucide-react';
 import { useClub } from '../../context/ClubContext';
+import { useAuth } from '@/context/AuthContext';
 
 export const ClubHeader: React.FC = () => {
+  const router = useRouter();
+  const { user: authUser, logout: authLogout, isSuperAdmin } = useAuth();
   const {
     club,
     selectedBranchId,
@@ -257,7 +263,7 @@ export const ClubHeader: React.FC = () => {
                     }}
                   />
                   <span className="text-xs font-bold text-white uppercase">
-                    {user.name.slice(0, 2)}
+                    {(authUser?.name || user.name).slice(0, 2)}
                   </span>
                 </div>
               </div>
@@ -265,10 +271,10 @@ export const ClubHeader: React.FC = () => {
             </div>
             <div className="hidden md:flex flex-col text-left">
               <span className="text-xs font-bold text-slate-800 leading-tight">
-                {user.name}
+                {authUser?.name || user.name}
               </span>
               <span className="text-[11px] text-slate-500 font-medium">
-                {user.role}
+                {authUser?.roleName || authUser?.systemRole || user.role}
               </span>
             </div>
             <ChevronDown
@@ -279,15 +285,25 @@ export const ClubHeader: React.FC = () => {
           </button>
 
           {profileDropdownOpen && (
-            <div className="absolute right-0 mt-2 w-56 bg-white rounded-2xl shadow-xl border border-slate-100 py-1.5 z-50 animate-in fade-in zoom-in-95 duration-100">
+            <div className="absolute right-0 mt-2 w-60 bg-white rounded-2xl shadow-xl border border-slate-100 py-1.5 z-50 animate-in fade-in zoom-in-95 duration-100">
               <div className="px-4 py-2 border-b border-slate-100">
-                <p className="text-xs font-bold text-slate-800">{user.name}</p>
-                <p className="text-[11px] text-slate-500 truncate">{user.email}</p>
+                <p className="text-xs font-bold text-slate-800">{authUser?.name || user.name}</p>
+                <p className="text-[11px] text-slate-500 truncate">{authUser?.email || user.email}</p>
                 <div className="mt-1 inline-flex items-center px-2 py-0.5 rounded text-[10px] font-semibold bg-blue-50 text-blue-700">
-                  {user.role}
+                  {authUser?.roleName || authUser?.systemRole || user.role}
                 </div>
               </div>
               <div className="py-1">
+                {isSuperAdmin && (
+                  <Link
+                    href="/super-admin/dashboard"
+                    onClick={() => setProfileDropdownOpen(false)}
+                    className="w-full px-4 py-2 text-left text-xs font-semibold text-emerald-700 bg-emerald-50/70 hover:bg-emerald-100/70 flex items-center gap-2.5 transition-colors"
+                  >
+                    <Shield className="w-4 h-4 text-emerald-600" />
+                    Super Admin Dashboard
+                  </Link>
+                )}
                 <button
                   onClick={() => {
                     setActiveModal('profile');
@@ -321,9 +337,10 @@ export const ClubHeader: React.FC = () => {
               </div>
               <div className="pt-1 border-t border-slate-100">
                 <button
-                  onClick={() => {
+                  onClick={async () => {
                     setProfileDropdownOpen(false);
-                    alert('Logging out of Playnex portal...');
+                    await authLogout();
+                    router.push('/login');
                   }}
                   className="w-full px-4 py-2 text-left text-xs font-medium text-rose-600 hover:bg-rose-50 flex items-center gap-2.5"
                 >
