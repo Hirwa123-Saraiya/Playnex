@@ -13,7 +13,6 @@ import {
   ArrowRight,
   Check,
   Star,
-  ShieldCheck,
   Sparkles,
   User,
   Building2,
@@ -211,12 +210,6 @@ export default function LandingPage() {
             >
               Explore Memberships
             </Link>
-            <Link
-              href="/login"
-              className="inline-flex w-full items-center justify-center gap-2 rounded-xl border border-[#D9E6F5] bg-white/80 px-5 py-3.5 text-sm font-semibold text-[#1E293B] hover:bg-white hover:border-[#1565D8]/40 sm:w-auto transition-all"
-            >
-              Club Admin Login
-            </Link>
           </div>
 
           <div className="mt-6 flex flex-wrap items-center justify-center gap-x-5 gap-y-2 text-xs text-[#64748B]">
@@ -229,17 +222,6 @@ export default function LandingPage() {
             <span className="inline-flex items-center gap-1.5 font-medium">
               <Check size={14} className="text-emerald-600" /> Free for small clubs
             </span>
-          </div>
-
-          {/* Super Admin Shortcut */}
-          <div className="mt-8">
-            <Link
-              href="/super-admin/dashboard"
-              className="inline-flex items-center gap-1.5 rounded-full border border-dashed border-[#1565D8]/30 bg-blue-50/60 px-3.5 py-1.5 text-xs font-semibold text-[#1565D8] hover:bg-blue-50 transition-colors"
-            >
-              <ShieldCheck size={13} />
-              <span>Open Super Admin Dashboard →</span>
-            </Link>
           </div>
         </div>
       </section>
