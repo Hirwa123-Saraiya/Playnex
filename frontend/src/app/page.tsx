@@ -1,17 +1,14 @@
 import Navbar from "@/components/layout/Navbar";
 import Link from "next/link";
-import { ArrowRight } from "lucide-react"; // Reusing the icons you already installed
+import { ArrowRight } from "lucide-react"; 
+import PWAInstallButton from "@/components/layout/PWAInstallButton"; // 1. Import the new button
 
 export default function Home() {
   return (
     <div className="min-h-screen flex flex-col bg-slate-950 text-slate-100">
-      {/* 1. Global Navigation */}
       <Navbar />
 
-      {/* 2. Main Content */}
       <main className="flex-1 flex flex-col items-center justify-center p-6 relative overflow-hidden">
-        
-        {/* Background Visual Effect (matches your membership page style) */}
         <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[500px] h-[500px] bg-emerald-500/10 blur-[100px] rounded-full pointer-events-none" />
         
         <div className="text-center space-y-6 relative z-10">
@@ -22,7 +19,6 @@ export default function Home() {
             Playnex Sports Club Management Platform
           </p>
 
-          {/* 3. Route Links (Passing your routes here) */}
           <div className="flex flex-col sm:flex-row items-center justify-center gap-4 pt-8">
             <Link 
               href="/memberships"
@@ -38,22 +34,12 @@ export default function Home() {
             >
               Member Login
             </Link>
+
+            {/* 2. Added the PWA button right here */}
+            <PWAInstallButton /> 
           </div>
         </div>
       </main>
     </div>
   );
-} 
-
-
-
-//export default function Home() {
-//   return (
-//     <main className="min-h-screen flex items-center justify-center p-6">
-//       <div className="text-center space-y-4">
-//         <h1 className="text-3xl font-bold">The Champions Club</h1>
-//         <p className="text-slate-400">Playnex Sports Club Management Platform</p>
-//       </div>
-//     </main>
-//   );
-// }
+}
