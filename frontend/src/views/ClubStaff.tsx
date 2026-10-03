@@ -1,146 +1,321 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { useClub } from '../context/ClubContext';
+import { staffService, ClubStaffItem } from '../services/staff.service';
 import {
   Users,
   UserPlus,
   Search,
-  Filter,
-  Shield,
   Phone,
   Mail,
-  Clock,
-  MoreVertical,
+  Shield,
+  Loader2,
+  Trash2,
+  X,
+  Info,
 } from 'lucide-react';
 
 export const ClubStaff: React.FC = () => {
   const { selectedBranch } = useClub();
+  const [staff, setStaff] = useState<ClubStaffItem[]>([]);
+  const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
 
-  const staffMembers = [
-    {
-      id: 'STF-01',
-      name: 'Coach Anand Iyer',
-      role: 'Head Tennis Coach & Academy Director',
-      dept: 'Racquet Sports',
-      shift: '06:00 AM - 12:00 PM / 04:00 PM - 08:00 PM',
-      phone: '+91 98250 99881',
-      email: 'anand.coach@playnex.club',
-      status: 'On Duty',
-    },
-    {
-      id: 'STF-02',
-      name: 'Chef Manish Joshi',
-      role: 'Executive Chef',
-      dept: 'Food & Beverage',
-      shift: '11:00 AM - 11:00 PM',
-      phone: '+91 98250 66772',
-      email: 'chef.manish@playnex.club',
-      status: 'On Duty',
-    },
-    {
-      id: 'STF-03',
-      name: 'Sneha Vyas',
-      role: 'Front Desk Lead Concierge',
-      dept: 'Front Desk & Guest Services',
-      shift: '08:00 AM - 04:00 PM',
-      phone: '+91 97240 33441',
-      email: 'sneha.v@playnex.club',
-      status: 'On Duty',
-    },
-    {
-      id: 'STF-04',
-      name: 'Rajesh Parmar',
-      role: 'Chief Facility Engineer & Court Curator',
-      dept: 'Facilities & Maintenance',
-      shift: '06:00 AM - 02:00 PM',
-      phone: '+91 98240 22119',
-      email: 'rajesh.p@playnex.club',
-      status: 'On Break',
-    },
-    {
-      id: 'STF-05',
-      name: 'Vikram Singh',
-      role: 'Senior Lifeguard (Red Cross Certified)',
-      dept: 'Aquatics & Swimming Pool',
-      shift: '06:00 AM - 02:00 PM',
-      phone: '+91 99090 88221',
-      email: 'vikram.pool@playnex.club',
-      status: 'On Duty',
-    },
-  ];
+  // Modal State
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  // Form State
+  const [name, setName] = useState('');
+  const [email, setEmail] = useState('');
+  const [phone, setPhone] = useState('');
+  const [password, setPassword] = useState('password123');
+
+  const fetchStaff = async () => {
+    setLoading(true);
+    try {
+      const res = await staffService.getStaff();
+      if (res.success && Array.isArray(res.data)) {
+        setStaff(res.data);
+      } else {
+        setStaff([]);
+      }
+    } catch (err) {
+      console.error('Error loading staff:', err);
+      setStaff([]);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchStaff();
+  }, []);
+
+  const handleCreateStaff = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!name.trim() || !email.trim()) {
+      setError('Name and email are required');
+      return;
+    }
+    setSubmitting(true);
+    setError(null);
+    try {
+      const res = await staffService.createStaff({
+        name: name.trim(),
+        email: email.trim(),
+        phone: phone.trim() || undefined,
+        password,
+      });
+      if (res.success) {
+        setIsModalOpen(false);
+        setName('');
+        setEmail('');
+        setPhone('');
+        await fetchStaff();
+      } else {
+        setError(res.message || 'Failed to add staff member');
+      }
+    } catch (err: any) {
+      setError(err.response?.data?.message || err.message || 'Failed to onboard staff');
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const handleDeleteStaff = async (id: string) => {
+    if (!confirm('Are you sure you want to remove this staff member?')) return;
+    try {
+      await staffService.deleteStaff(id);
+      await fetchStaff();
+    } catch (err) {
+      console.error('Failed to remove staff:', err);
+    }
+  };
+
+  const filteredStaff = useMemo(() => {
+    return staff.filter((s) => {
+      if (
+        searchTerm &&
+        !((s.name || '') + (s.email || '') + (s.roleName || '') + (s.department || ''))
+          .toLowerCase()
+          .includes(searchTerm.toLowerCase())
+      ) {
+        return false;
+      }
+      return true;
+    });
+  }, [staff, searchTerm]);
 
   return (
     <div className="space-y-6 pb-12">
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <div>
-          <h1 className="text-xl sm:text-2xl font-extrabold text-slate-900 tracking-tight">
-            Staff & Workforce Management
-          </h1>
+          <div className="flex items-center gap-2">
+            <h1 className="text-xl sm:text-2xl font-extrabold text-slate-900 tracking-tight">
+              Staff &amp; Workforce Management
+            </h1>
+            <span className="px-2.5 py-0.5 rounded-full text-xs font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200">
+              Live Database
+            </span>
+          </div>
           <p className="text-xs sm:text-sm text-slate-500 mt-0.5">
-            Shift scheduling, coach rosters and department personnel at{' '}
+            Operational personnel and coaching roster for{' '}
             <span className="font-semibold text-slate-700">{selectedBranch.name}</span>
           </p>
         </div>
-        <button className="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold rounded-xl shadow-sm transition-colors self-start sm:self-auto">
+
+        <button
+          onClick={() => {
+            setError(null);
+            setIsModalOpen(true);
+          }}
+          className="inline-flex items-center gap-2 px-4 py-2.5 bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold rounded-xl shadow-sm transition-colors self-start sm:self-auto"
+        >
           <UserPlus className="w-4 h-4" />
           Onboard Staff Member
         </button>
       </div>
 
-      {/* TanStack-like Table */}
-      <div className="bg-white rounded-2xl border border-slate-200/90 shadow-sm overflow-hidden">
-        <div className="overflow-x-auto">
-          <table className="w-full text-left text-xs">
-            <thead className="bg-slate-50/80 border-b border-slate-200/80 text-[11px] font-bold text-slate-500 uppercase tracking-wider">
-              <tr>
-                <th className="px-4 py-3">Staff ID</th>
-                <th className="px-4 py-3">Staff Name</th>
-                <th className="px-4 py-3">Designation & Dept</th>
-                <th className="px-4 py-3">Shift Timing</th>
-                <th className="px-4 py-3">Contact</th>
-                <th className="px-4 py-3">Duty Status</th>
-                <th className="px-4 py-3 text-right">Actions</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-slate-100 font-medium text-slate-700">
-              {staffMembers.map((s) => (
-                <tr key={s.id} className="hover:bg-slate-50/70 transition-colors">
-                  <td className="px-4 py-3 font-semibold text-slate-900">{s.id}</td>
-                  <td className="px-4 py-3 font-bold text-slate-900">{s.name}</td>
-                  <td className="px-4 py-3">
-                    <p className="font-semibold text-slate-800">{s.role}</p>
-                    <span className="text-[10px] text-slate-400">{s.dept}</span>
-                  </td>
-                  <td className="px-4 py-3 text-slate-600">{s.shift}</td>
-                  <td className="px-4 py-3">
-                    <p className="text-slate-800">{s.phone}</p>
-                    <span className="text-[10px] text-slate-400">{s.email}</span>
-                  </td>
-                  <td className="px-4 py-3">
-                    <span
-                      className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold ${
-                        s.status === 'On Duty'
-                          ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
-                          : 'bg-amber-50 text-amber-700 border border-amber-200'
-                      }`}
-                    >
-                      {s.status}
-                    </span>
-                  </td>
-                  <td className="px-4 py-3 text-right">
-                    <button className="p-1 hover:bg-slate-100 rounded text-slate-400 hover:text-slate-700">
-                      <MoreVertical className="w-4 h-4" />
-                    </button>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+      {/* Search Bar */}
+      <div className="bg-white p-3.5 rounded-2xl border border-slate-200 shadow-xs flex items-center gap-3">
+        <Search className="w-4 h-4 text-slate-400" />
+        <input
+          type="text"
+          value={searchTerm}
+          onChange={(e) => setSearchTerm(e.target.value)}
+          placeholder="Search staff by name, email, or department..."
+          className="w-full text-xs bg-transparent outline-none text-slate-800 placeholder-slate-400"
+        />
       </div>
+
+      {/* Staff Table */}
+      <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
+        {loading ? (
+          <div className="flex h-64 items-center justify-center text-sm text-slate-500 gap-2">
+            <Loader2 className="w-5 h-5 animate-spin text-blue-600" />
+            <span>Loading personnel from database...</span>
+          </div>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="w-full text-left text-xs">
+              <thead className="bg-slate-50/80 border-b border-slate-200 text-[10px] font-bold text-slate-500 uppercase tracking-wider">
+                <tr>
+                  <th className="px-4 py-3">Staff Name</th>
+                  <th className="px-4 py-3">Role &amp; System</th>
+                  <th className="px-4 py-3">Department</th>
+                  <th className="px-4 py-3">Contact</th>
+                  <th className="px-4 py-3">Status</th>
+                  <th className="px-4 py-3 text-right">Actions</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-100">
+                {filteredStaff.map((s) => (
+                  <tr key={s.id} className="hover:bg-slate-50/60 transition-colors">
+                    <td className="px-4 py-3">
+                      <div className="font-semibold text-slate-900">{s.name}</div>
+                      <div className="text-[10px] text-slate-400 font-mono">ID: {s.id}</div>
+                    </td>
+                    <td className="px-4 py-3">
+                      <span className="font-medium text-slate-800">{s.roleName || s.systemRole}</span>
+                    </td>
+                    <td className="px-4 py-3 text-slate-600">{s.department || 'Operations'}</td>
+                    <td className="px-4 py-3">
+                      <div className="flex items-center gap-1.5 text-slate-700">
+                        <Mail className="w-3 h-3 text-slate-400" /> {s.email}
+                      </div>
+                      {s.phone && (
+                        <div className="flex items-center gap-1.5 text-slate-500 text-[11px] mt-0.5">
+                          <Phone className="w-3 h-3 text-slate-400" /> {s.phone}
+                        </div>
+                      )}
+                    </td>
+                    <td className="px-4 py-3">
+                      <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200">
+                        <Shield className="w-3 h-3" />
+                        {s.status || 'Active'}
+                      </span>
+                    </td>
+                    <td className="px-4 py-3 text-right">
+                      {s.systemRole !== 'CLUB_OWNER' && (
+                        <button
+                          onClick={() => handleDeleteStaff(s.id)}
+                          className="inline-flex items-center gap-1 text-xs text-rose-600 hover:text-rose-700 font-semibold"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" /> Remove
+                        </button>
+                      )}
+                    </td>
+                  </tr>
+                ))}
+
+                {filteredStaff.length === 0 && (
+                  <tr>
+                    <td colSpan={6} className="py-12 text-center text-slate-500">
+                      <Users className="w-8 h-8 text-slate-300 mx-auto mb-2" />
+                      <p className="font-semibold text-slate-700">No Personnel Found</p>
+                      <p className="text-xs text-slate-400 mt-0.5">
+                        Onboard staff members to assign departmental roles.
+                      </p>
+                    </td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </div>
+
+      {/* Onboard Staff Modal */}
+      {isModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm animate-in fade-in duration-150">
+          <div className="w-full max-w-md rounded-2xl border border-slate-200 bg-white p-6 shadow-2xl space-y-4">
+            <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+              <h3 className="text-base font-bold text-slate-900">Onboard Staff Member</h3>
+              <button
+                onClick={() => setIsModalOpen(false)}
+                className="text-slate-400 hover:text-slate-600"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            {error && (
+              <div className="rounded-xl border border-rose-200 bg-rose-50 p-3 text-xs text-rose-700 flex items-center gap-2">
+                <Info className="w-4 h-4 text-rose-500 shrink-0" />
+                <span>{error}</span>
+              </div>
+            )}
+
+            <form onSubmit={handleCreateStaff} className="space-y-3.5 text-xs">
+              <div>
+                <label className="block font-medium text-slate-700 mb-1">Full Name</label>
+                <input
+                  required
+                  value={name}
+                  onChange={(e) => setName(e.target.value)}
+                  placeholder="e.g. Coach Anand Iyer"
+                  className="w-full rounded-xl border border-slate-200 px-3 py-2 outline-none focus:border-blue-500"
+                />
+              </div>
+
+              <div>
+                <label className="block font-medium text-slate-700 mb-1">Staff Work Email</label>
+                <input
+                  type="email"
+                  required
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  placeholder="e.g. anand.coach@example.com"
+                  className="w-full rounded-xl border border-slate-200 px-3 py-2 outline-none focus:border-blue-500"
+                />
+              </div>
+
+              <div>
+                <label className="block font-medium text-slate-700 mb-1">Phone Number</label>
+                <input
+                  value={phone}
+                  onChange={(e) => setPhone(e.target.value)}
+                  placeholder="+91 98765 43210"
+                  className="w-full rounded-xl border border-slate-200 px-3 py-2 outline-none focus:border-blue-500"
+                />
+              </div>
+
+              <div>
+                <label className="block font-medium text-slate-700 mb-1">Initial Password</label>
+                <input
+                  type="password"
+                  required
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  className="w-full rounded-xl border border-slate-200 px-3 py-2 outline-none focus:border-blue-500"
+                />
+              </div>
+
+              <div className="flex items-center justify-end gap-2 pt-3 border-t border-slate-100">
+                <button
+                  type="button"
+                  onClick={() => setIsModalOpen(false)}
+                  className="px-4 py-2 rounded-xl border border-slate-200 text-slate-600 hover:bg-slate-50 font-medium"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={submitting}
+                  className="px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-bold inline-flex items-center gap-2"
+                >
+                  {submitting && <Loader2 className="w-4 h-4 animate-spin" />}
+                  <span>Save Staff Member</span>
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

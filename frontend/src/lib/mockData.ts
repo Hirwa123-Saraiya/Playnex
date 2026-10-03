@@ -11,6 +11,7 @@ export type Club = {
   bookingsToday: number;
   revenue: number;
   status: ClubStatus;
+  subscriptionPlan?: string;
 };
 
 export const initialClubs: Club[] = [];
