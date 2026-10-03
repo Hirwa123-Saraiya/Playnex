@@ -210,9 +210,9 @@ export default function LandingPage() {
       </section>
 
       {/* ============ PROBLEM → SOLUTION ============ */}
-      <section className="border-y border-line bg-white">
+      {/* <section className="border-y border-line bg-white">
         <div className="mx-auto grid max-w-6xl gap-8 px-4 py-12 sm:px-6 md:grid-cols-2 md:gap-12 md:py-16">
-          <div>
+          {/* <div>
             <h2 className="text-2xl font-bold sm:text-3xl">
               Sound familiar?
             </h2>
@@ -239,7 +239,7 @@ export default function LandingPage() {
               </li>
             </ul>
           </div>
-          <div className="rounded-2xl bg-sand p-6 sm:p-8">
+          {/* <div className="rounded-2xl bg-sand p-6 sm:p-8">
             <h2 className="text-2xl font-bold text-moss sm:text-3xl">
               …meet Playnex.
             </h2>
@@ -267,7 +267,7 @@ export default function LandingPage() {
             </ul>
           </div>
         </div>
-      </section>
+      </section> */}
 
       {/* ============ FEATURES ============ */}
       <section id="features" className="mx-auto max-w-6xl px-4 py-16 sm:px-6 md:py-24">
@@ -301,7 +301,7 @@ export default function LandingPage() {
       </section>
 
       {/* ============ HOW IT WORKS ============ */}
-      <section id="how" className="border-y border-line bg-white">
+      {/* <section id="how" className="border-y border-line bg-white">
         <div className="mx-auto max-w-6xl px-4 py-16 sm:px-6 md:py-24">
           <div className="mx-auto max-w-2xl text-center">
             <h2 className="text-3xl font-bold tracking-tight sm:text-4xl">
@@ -323,7 +323,7 @@ export default function LandingPage() {
             ))}
           </div>
         </div>
-      </section>
+      </section> */}
 
       {/* ============ TESTIMONIALS ============ */}
       <section id="stories" className="mx-auto max-w-6xl px-4 py-16 sm:px-6 md:py-24">
@@ -360,7 +360,7 @@ export default function LandingPage() {
       </section>
 
       {/* ============ PRICING ============ */}
-      <section id="pricing" className="border-y border-line bg-white">
+      {/* <section id="pricing" className="border-y border-line bg-white">
         <div className="mx-auto max-w-6xl px-4 py-16 sm:px-6 md:py-24">
           <div className="mx-auto max-w-2xl text-center">
             <h2 className="text-3xl font-bold tracking-tight sm:text-4xl">
@@ -416,7 +416,7 @@ export default function LandingPage() {
             ))}
           </div>
         </div>
-      </section>
+      </section> */}
 
       {/* ============ FINAL CTA ============ */}
       <section className="mx-auto max-w-6xl px-4 py-16 sm:px-6 md:py-20">
