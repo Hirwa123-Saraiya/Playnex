@@ -413,9 +413,8 @@ export default function AdminsPage() {
                   onChange={(e) => setEditRole(e.target.value as any)}
                   className="h-10 w-full rounded-xl border border-line bg-white px-3 text-sm font-medium text-navy cursor-pointer"
                 >
-                  <option value="Owner">Owner (Full Operations Access)</option>
-                  <option value="Manager">Manager (Facilities &amp; Shifts)</option>
-                  <option value="Staff">Staff (POS &amp; Front Desk)</option>
+                  <option value="Owner">Club Owner (Full Operations Access)</option>
+                  <option value="Manager">General Manager (Governance &amp; Approvals)</option>
                 </select>
               </div>
 

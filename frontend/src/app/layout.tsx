@@ -1,16 +1,15 @@
 import type { Metadata, Viewport } from 'next'; 
+import Script from 'next/script';
 import './globals.css';
 import { AuthProvider } from '../context/AuthContext';
 import { ClubProvider } from '../context/ClubContext';
 import { Inter } from 'next/font/google';
 const inter = Inter({ subsets: ['latin'], display: 'swap' });
 
-
-
 // 1. This replaces your old metadata block completely
 export const metadata: Metadata = {
-  title: 'The Champions Club - Sports Club Management',
-  description: 'Digital backbone of a modern sports club that has outgrown WhatsApp and Excel.',
+  title: 'Playnex - Premier Sports Club Management Platform',
+  description: 'Digital operating system for modern sports clubs, courts, inventory, and point of sale.',
   manifest: '/manifest.json',
   icons: {
     icon: '/odoo_logo.svg',
@@ -18,7 +17,7 @@ export const metadata: Metadata = {
   appleWebApp: {
     capable: true,
     statusBarStyle: 'default',
-    title: 'Champions Club',
+    title: 'Playnex Sports Club',
   },
 };
 
@@ -36,6 +35,10 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body className="min-h-screen bg-sand text-text antialiased">
+        <Script
+          src="https://checkout.razorpay.com/v1/checkout.js"
+          strategy="afterInteractive"
+        />
         <AuthProvider>
           <ClubProvider>
             {children}

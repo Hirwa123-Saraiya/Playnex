@@ -107,6 +107,7 @@ export const deletePlan = async (req, res) => {
 export const createOrder = async (req, res) => {
   try {
     const { planId, billingCycle, tenantId } = req.body;
+    const resolvedTenantId = tenantId || req.user?.tenantId || req.user?.tenant_id;
     if (!planId) {
       return res.status(400).json({
         success: false,
@@ -195,7 +196,8 @@ export const createOrder = async (req, res) => {
 export const processPayment = async (req, res) => {
   try {
     const { tenantId, planId, billingCycle, razorpayPaymentId, razorpayOrderId, razorpaySignature } = req.body;
-    if (!tenantId || !planId) {
+    const resolvedTenantId = tenantId || req.user?.tenantId || req.user?.tenant_id;
+    if (!resolvedTenantId || !planId) {
       return res.status(400).json({
         success: false,
         message: 'tenantId and planId are required for checkout payment',
@@ -216,7 +218,7 @@ export const processPayment = async (req, res) => {
     }
 
     const result = await dbService.processPlanPayment({
-      tenantId,
+      tenantId: resolvedTenantId,
       planId,
       billingCycle: billingCycle || 'Monthly',
       razorpayPaymentId: razorpayPaymentId || `pay_${Date.now().toString(36)}`,

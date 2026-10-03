@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useEffect } from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter, usePathname } from 'next/navigation';
 import { useAuth } from '../context/AuthContext';
 import { useClub } from '../context/ClubContext';
 import { ClubSidebar } from '../components/club/ClubSidebar';
@@ -36,8 +36,13 @@ interface ClubLayoutProps {
 
 export const ClubLayout: React.FC<ClubLayoutProps> = ({ children }) => {
   const router = useRouter();
+  const pathname = usePathname();
   const { user, isLoading } = useAuth();
   const { activeNav, sidebarCollapsed } = useClub();
+
+  useEffect(() => {
+    window.scrollTo({ top: 0, behavior: 'instant' });
+  }, [pathname, activeNav]);
 
   useEffect(() => {
     if (!isLoading && !user) {

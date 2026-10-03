@@ -48,108 +48,149 @@ export const ClubSubscription: React.FC = () => {
   };
 
   useEffect(() => {
+    window.scrollTo({ top: 0, behavior: 'instant' });
     fetchPlans();
   }, []);
 
   // Current club subscription details
-  const currentPlanName = club?.subscriptionPlan || 'Enterprise';
+  const currentPlanName = club?.subscriptionPlan || 'Free Trial';
+  const isFreeTrial = currentPlanName.toLowerCase().includes('trial') || currentPlanName === 'Free Trial';
 
-  const handleInitiateRazorpay = (plan: PlatformPlan) => {
-    setSelectedPlanForPayment(plan);
+  const handleInitiateRazorpay = async (plan: PlatformPlan) => {
     setErrorMessage(null);
+    setSelectedPlanForPayment(plan);
+    // Directly open Razorpay — no intermediate modal
+    await handleExecuteRazorpayPayment(plan);
   };
 
-  const handleExecuteRazorpayPayment = async () => {
-    if (!selectedPlanForPayment) return;
+  const handleExecuteRazorpayPayment = async (planOverride?: PlatformPlan) => {
+    const activePlan = planOverride ?? selectedPlanForPayment;
+    if (!activePlan) return;
     setProcessingPayment(true);
     setErrorMessage(null);
 
     const isAnnual = billingCycle === 'Annual';
     const basePrice = isAnnual
-      ? Number(selectedPlanForPayment.annualPrice)
-      : Number(selectedPlanForPayment.monthlyPrice);
+      ? Number(activePlan.annualPrice)
+      : Number(activePlan.monthlyPrice);
     const gst = Math.round(basePrice * 0.18 * 100) / 100;
     const total = basePrice + gst;
 
     try {
-      // 1. Create live Razorpay order via backend
-      let orderId = '';
+      // 1. Create Razorpay order via backend
+      setProcessingPayment(true);
+      let orderId: string | undefined = undefined; // undefined = don't pass order_id to Razorpay
       let keyId = 'rzp_test_TjZWl4KibRZy5o';
       let amountInPaise = Math.round(total * 100);
+      let orderCreatedOnRazorpay = false;
 
       try {
         const orderRes = await plansService.createOrder({
-          planId: selectedPlanForPayment.id,
+          planId: activePlan.id,
           billingCycle,
           tenantId: club.tenantId,
         });
         if (orderRes.success && orderRes.data) {
-          orderId = orderRes.data.orderId;
-          keyId = orderRes.data.keyId || keyId;
-          amountInPaise = orderRes.data.amountInPaise || amountInPaise;
+          const { orderId: oid, keyId: kid, amountInPaise: amt } = orderRes.data;
+          // Only use orderId if it looks like a real Razorpay order (starts with 'order_' and len > 15)
+          if (oid && oid.startsWith('order_') && oid.length > 15) {
+            orderId = oid;
+            orderCreatedOnRazorpay = true;
+          }
+          if (kid) keyId = kid;
+          if (amt) amountInPaise = amt;
         }
-      } catch (orderErr) {
-        console.warn('Backend order creation warning, continuing with client checkout:', orderErr);
+      } catch (orderErr: any) {
+        console.warn('Backend order creation warning, will open Razorpay without pre-created order:', orderErr?.message);
       }
 
-      // 2. Load Razorpay standard SDK if available
-      const loadRazorpayScript = () => {
+      console.log('[Razorpay] Key:', keyId, '| Amount (paise):', amountInPaise, '| OrderId:', orderId || '(none - direct checkout)');
+
+      // 2. Ensure Razorpay SDK is loaded
+      const ensureRazorpayLoaded = () => {
         return new Promise<boolean>((resolve) => {
           if (typeof window !== 'undefined' && (window as any).Razorpay) {
             resolve(true);
             return;
           }
-          const script = document.createElement('script');
-          script.src = 'https://checkout.razorpay.com/v1/checkout.js';
-          script.onload = () => resolve(true);
-          script.onerror = () => resolve(false);
-          document.body.appendChild(script);
+          // Script might still be loading - wait up to 5 seconds
+          let attempts = 0;
+          const interval = setInterval(() => {
+            attempts++;
+            if ((window as any).Razorpay) {
+              clearInterval(interval);
+              resolve(true);
+            } else if (attempts >= 50) { // 5 seconds
+              clearInterval(interval);
+              // Last attempt: inject script manually
+              const script = document.createElement('script');
+              script.src = 'https://checkout.razorpay.com/v1/checkout.js';
+              script.onload = () => resolve(true);
+              script.onerror = () => resolve(false);
+              document.body.appendChild(script);
+            }
+          }, 100);
         });
       };
 
-      const scriptLoaded = await loadRazorpayScript();
+      const scriptLoaded = await ensureRazorpayLoaded();
+      console.log('[Razorpay] Script loaded:', scriptLoaded, '| window.Razorpay:', !!(window as any).Razorpay);
+
+      // Clean 10-digit Indian phone number strictly required by Razorpay
+      const cleanPhone = (club.phone || '9876543210').replace(/[^0-9]/g, '').slice(-10).padStart(10, '9');
 
       if (scriptLoaded && (window as any).Razorpay) {
-        const options = {
+        const options: Record<string, any> = {
           key: keyId,
           amount: amountInPaise,
           currency: 'INR',
           name: 'Playnex SaaS Platform',
-          description: `${selectedPlanForPayment.name} (${billingCycle}) for ${club.name}`,
-          order_id: orderId || undefined,
-          handler: async function (response: any) {
-            const payId = response.razorpay_payment_id;
-            const ordId = response.razorpay_order_id || orderId;
-            const sig = response.razorpay_signature;
-            await completeCheckout(payId, ordId, sig);
-          },
+          description: `${activePlan.name} (${billingCycle}) for ${club.name}`,
           prefill: {
             name: club.adminName || 'Club Administrator',
             email: club.adminEmail || 'owner@playnex.club',
-            contact: club.phone || '+91 9876543210',
+            contact: cleanPhone,
           },
           theme: {
             color: '#1565D8',
           },
           modal: {
             ondismiss: function () {
+              console.log('[Razorpay] Modal dismissed by user');
               setProcessingPayment(false);
             },
           },
+          handler: async function (response: any) {
+            console.log('[Razorpay] Payment success:', response);
+            const payId = response.razorpay_payment_id;
+            const ordId = response.razorpay_order_id || orderId || `order_${Date.now().toString(36)}`;
+            const sig = response.razorpay_signature;
+            // Pass activePlan.id directly to avoid stale closure on selectedPlanForPayment state
+            await completeCheckout(payId, ordId, activePlan.id, sig);
+          },
         };
+
+        // Only pass order_id if we have a real Razorpay order
+        if (orderCreatedOnRazorpay && orderId) {
+          options.order_id = orderId;
+        }
+
+        console.log('[Razorpay] Opening checkout with options:', { ...options, key: '[hidden]' });
 
         const rzp = new (window as any).Razorpay(options);
         rzp.on('payment.failed', function (resp: any) {
+          console.error('[Razorpay] Payment failed:', resp.error);
           setProcessingPayment(false);
           setErrorMessage(resp.error?.description || 'Razorpay payment failed or cancelled');
         });
         rzp.open();
       } else {
-        // Fallback realistic sandbox simulation if razorpay script blocked by adblock
+        console.warn('[Razorpay] Script not available. Falling back to simulation.');
+        // Fallback realistic sandbox simulation if razorpay script blocked by adblock/CSP
         setTimeout(async () => {
           const fakePaymentId = 'pay_' + Math.random().toString(36).substring(2, 10).toUpperCase();
           const fakeOrderId = orderId || ('order_' + Math.random().toString(36).substring(2, 10));
-          await completeCheckout(fakePaymentId, fakeOrderId);
+          await completeCheckout(fakePaymentId, fakeOrderId, activePlan.id);
         }, 1200);
       }
     } catch (err: any) {
@@ -158,11 +199,12 @@ export const ClubSubscription: React.FC = () => {
     }
   };
 
-  const completeCheckout = async (paymentId: string, orderId: string, signature?: string) => {
+
+  const completeCheckout = async (paymentId: string, orderId: string, planId: string, signature?: string) => {
     try {
       const res = await plansService.checkout({
         tenantId: club.tenantId,
-        planId: selectedPlanForPayment!.id,
+        planId: planId,
         billingCycle,
         razorpayPaymentId: paymentId,
         razorpayOrderId: orderId,
@@ -172,15 +214,15 @@ export const ClubSubscription: React.FC = () => {
       if (res.success && res.data) {
         setPaymentSuccessData(res.data);
         setSelectedPlanForPayment(null);
-        // Update local context
+        // Update local context so sidebar/header reflects new plan
         if (club) {
           club.subscriptionPlan = res.data.plan;
         }
       } else {
-        setErrorMessage(res.message || 'Payment confirmation failed');
+        setErrorMessage(res.message || 'Payment confirmation failed. Contact support with payment ID: ' + paymentId);
       }
     } catch (err: any) {
-      setErrorMessage(err.message || 'Payment confirmation failed');
+      setErrorMessage((err.message || 'Payment confirmation failed') + ' — Payment ID: ' + paymentId);
     } finally {
       setProcessingPayment(false);
     }
@@ -205,33 +247,50 @@ export const ClubSubscription: React.FC = () => {
         </div>
       </div>
 
-      {/* Current Active Plan Banner */}
-      <div className="rounded-2xl border border-blue-200 bg-gradient-to-r from-blue-900 via-blue-800 to-[#071A3D] p-6 text-white shadow-md relative overflow-hidden">
-        <div className="absolute right-0 top-0 translate-x-8 -translate-y-8 w-48 h-48 bg-blue-500/10 rounded-full blur-2xl pointer-events-none" />
-        <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-4">
-          <div>
-            <div className="flex items-center gap-2">
-              <span className="px-2.5 py-0.5 rounded-full bg-emerald-400 text-slate-950 text-[10px] font-extrabold uppercase tracking-wider">
-                Current Active Tier
+      {/* 7-DAY FREE TRIAL & SUBSCRIPTION BANNER */}
+      <div className={`rounded-2xl border p-6 shadow-lg relative overflow-hidden ${
+        isFreeTrial
+          ? 'bg-[#071A3D] text-white border-amber-400/50'
+          : 'bg-[#071A3D] text-white border-emerald-400/50'
+      }`}>
+        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6 relative z-10">
+          <div className="space-y-2">
+            <div className="flex flex-wrap items-center gap-2">
+              <span className={`px-3 py-1 rounded-full text-xs font-black uppercase tracking-wider flex items-center gap-1.5 shadow-sm ${
+                isFreeTrial ? 'bg-amber-400 text-slate-950' : 'bg-emerald-400 text-slate-950'
+              }`}>
+                {isFreeTrial ? '🎁 7 Days Free Trial Active' : 'Paid Operating License'}
               </span>
-              <span className="text-xs text-blue-200 flex items-center gap-1">
-                <ShieldCheck size={14} className="text-emerald-400" /> Tenant ID: {club.tenantId}
+              <span className="px-2.5 py-0.5 rounded-full text-xs font-semibold bg-white/10 text-blue-200 border border-white/20">
+                Tenant: {club.tenantId}
               </span>
             </div>
-            <h2 className="text-2xl font-black mt-2 text-white flex items-center gap-2">
-              {currentPlanName} Plan
+
+            <h2 className="text-2xl sm:text-3xl font-black text-white tracking-tight">
+              {isFreeTrial ? '7 Days Free Access — Then Pay to Use' : `${currentPlanName} Plan Active`}
             </h2>
-            <p className="text-xs text-blue-100 max-w-xl mt-1">
-              Your club operating license is active with full access to facility booking, POS inventory, kitchen KDS, and financial accounting.
+
+            <p className="text-xs sm:text-sm text-blue-100 max-w-2xl leading-relaxed">
+              {isFreeTrial
+                ? 'Your club operating system is 100% free for the first 7 days! Explore all courts, POS, front desk, and workstations without upfront charges. After the 7-day free trial, select any plan below and pay via Razorpay to continue using Playnex.'
+                : 'Your club operating license is active with full access to facility booking, POS inventory, kitchen KDS, and financial accounting.'}
             </p>
           </div>
 
-          <div className="flex flex-col sm:flex-row md:flex-col items-start md:items-end gap-2 shrink-0">
-            <div className="text-right">
-              <span className="text-[11px] text-blue-200 uppercase tracking-wider font-semibold">Payment Status</span>
-              <div className="text-base font-extrabold text-emerald-400 flex items-center gap-1.5 justify-end">
-                <CheckCircle2 size={16} /> Auto-Renewing Active
-              </div>
+          <div className="flex flex-row lg:flex-col items-center lg:items-end justify-between lg:justify-center gap-2 p-4 rounded-xl bg-white/10 backdrop-blur-md border border-white/20 min-w-[240px]">
+            <div className="text-left lg:text-right">
+              <span className="text-[11px] font-bold uppercase tracking-wider text-amber-300 block">
+                Billing Rule
+              </span>
+              <span className="text-sm font-extrabold text-white block mt-0.5">
+                {isFreeTrial ? '7 Days Free • Then Pay to Use' : 'Razorpay Verified Paid'}
+              </span>
+            </div>
+            <div className={`px-3 py-1 rounded-lg text-xs font-bold flex items-center gap-1.5 ${
+              isFreeTrial ? 'bg-amber-400/20 text-amber-300 border border-amber-400/30' : 'bg-emerald-400/20 text-emerald-300 border border-emerald-400/30'
+            }`}>
+              <CheckCircle2 size={14} />
+              <span>{isFreeTrial ? '7 Days Free Trial Active' : 'Paid Active License'}</span>
             </div>
           </div>
         </div>
@@ -295,9 +354,10 @@ export const ClubSubscription: React.FC = () => {
       {!loading && (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {plans.map((p) => {
-            const isCurrent =
+            const isCurrent = !isFreeTrial && (
               currentPlanName.toLowerCase().includes(p.name.toLowerCase()) ||
-              p.name.toLowerCase().includes(currentPlanName.toLowerCase());
+              p.name.toLowerCase().includes(currentPlanName.toLowerCase())
+            );
 
             const monthly = Number(p.monthlyPrice);
             const annual = Number(p.annualPrice);
@@ -387,15 +447,25 @@ export const ClubSubscription: React.FC = () => {
                   ) : (
                     <button
                       type="button"
+                      disabled={processingPayment}
                       onClick={() => handleInitiateRazorpay(p)}
-                      className={`w-full py-2.5 rounded-xl text-xs font-bold transition-all shadow-xs flex items-center justify-center gap-2 cursor-pointer ${
+                      className={`w-full py-2.5 rounded-xl text-xs font-bold transition-all shadow-xs flex items-center justify-center gap-2 cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed ${
                         p.isPopular
                           ? 'bg-blue-600 text-white hover:bg-blue-700'
                           : 'bg-slate-900 text-white hover:bg-slate-800'
                       }`}
                     >
-                      <CreditCard size={14} />
-                      <span>Pay with Razorpay</span>
+                      {processingPayment && selectedPlanForPayment?.id === p.id ? (
+                        <>
+                          <Loader2 size={14} className="animate-spin" />
+                          <span>Opening Razorpay...</span>
+                        </>
+                      ) : (
+                        <>
+                          <CreditCard size={14} />
+                          <span>{isFreeTrial ? 'Subscribe & Pay via Razorpay' : 'Pay with Razorpay'}</span>
+                        </>
+                      )}
                     </button>
                   )}
                 </div>
@@ -405,117 +475,16 @@ export const ClubSubscription: React.FC = () => {
         </div>
       )}
 
-      {/* ========================================================
-          RAZORPAY CHECKOUT MODAL PREVIEW & CONFIRMATION
-          ======================================================== */}
-      {selectedPlanForPayment && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/60 backdrop-blur-sm animate-in fade-in duration-200">
-          <div className="w-full max-w-md rounded-2xl border border-slate-200 bg-white shadow-2xl overflow-hidden animate-in zoom-in-95 duration-200">
-            {/* Modal Brand Header */}
-            <div className="bg-[#071A3D] text-white p-5 flex items-center justify-between border-b border-[#0B1F4D]">
-              <div className="flex items-center gap-2.5">
-                <span className="grid h-9 w-9 place-items-center rounded-xl bg-blue-600 text-white shadow-sm">
-                  <Zap size={18} strokeWidth={2.5} />
-                </span>
-                <div>
-                  <h3 className="text-sm font-bold">Razorpay Secure Checkout</h3>
-                  <p className="text-[11px] text-blue-200">Playnex Sports SaaS Platform</p>
-                </div>
-              </div>
-              <button
-                type="button"
-                onClick={() => setSelectedPlanForPayment(null)}
-                className="grid h-7 w-7 place-items-center rounded-lg text-slate-400 hover:text-white hover:bg-white/10 transition-colors"
-              >
-                ✕
-              </button>
+      {/* Loading overlay while Razorpay is initializing */}
+      {processingPayment && (
+        <div className="fixed inset-0 z-50 flex flex-col items-center justify-center bg-slate-950/70 backdrop-blur-sm animate-in fade-in duration-150">
+          <div className="flex flex-col items-center gap-4 p-8 rounded-2xl bg-white shadow-2xl border border-slate-200 max-w-xs w-full text-center">
+            <div className="grid h-14 w-14 place-items-center rounded-full bg-blue-50 border-2 border-blue-200">
+              <Loader2 size={28} className="animate-spin text-blue-600" />
             </div>
-
-            {/* Modal Body: Invoice Breakdown */}
-            <div className="p-6 space-y-4 text-xs">
-              <div className="p-3.5 rounded-xl bg-blue-50/60 border border-blue-100 flex items-center justify-between">
-                <div>
-                  <div className="font-bold text-slate-900 text-sm">
-                    {selectedPlanForPayment.name}
-                  </div>
-                  <div className="text-slate-500 text-[11px]">
-                    {billingCycle} SaaS Platform Subscription
-                  </div>
-                </div>
-                <span className="px-2.5 py-1 rounded-lg bg-blue-600 text-white font-extrabold text-xs">
-                  {billingCycle}
-                </span>
-              </div>
-
-              {/* Order Calculations */}
-              {(() => {
-                const isAnnual = billingCycle === 'Annual';
-                const base = isAnnual
-                  ? Number(selectedPlanForPayment.annualPrice)
-                  : Number(selectedPlanForPayment.monthlyPrice);
-                const gst = Math.round(base * 0.18 * 100) / 100;
-                const total = Math.round((base + gst) * 100) / 100;
-
-                return (
-                  <div className="space-y-2 py-2 border-y border-slate-100 text-slate-600">
-                    <div className="flex justify-between">
-                      <span>Subscription Base Fee:</span>
-                      <span className="font-semibold text-slate-900">{inr(base)}</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span>GST (18% B2B Invoicing):</span>
-                      <span className="font-semibold text-slate-900">{inr(gst)}</span>
-                    </div>
-                    <div className="flex justify-between pt-2 border-t border-slate-100 text-sm font-extrabold text-slate-900">
-                      <span>Total Amount Payable:</span>
-                      <span className="text-blue-600 text-base">{inr(total)}</span>
-                    </div>
-                  </div>
-                );
-              })()}
-
-              {/* Club prefill */}
-              <div className="rounded-xl bg-slate-50 p-3 border border-slate-200 text-slate-600 space-y-1">
-                <div className="font-semibold text-slate-900 text-[11px] uppercase tracking-wider">
-                  Billed To
-                </div>
-                <div className="flex justify-between">
-                  <span>Club:</span>
-                  <span className="font-medium text-slate-900">{club.name}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span>Contact:</span>
-                  <span className="font-medium text-slate-900">{club.adminEmail || 'owner@playnex.club'}</span>
-                </div>
-              </div>
-
-              {/* Razorpay Badging */}
-              <div className="flex items-center justify-center gap-2 text-[11px] text-slate-400 pt-1">
-                <Lock size={12} className="text-emerald-500" />
-                <span>256-Bit SSL Encrypted Razorpay Gateway</span>
-              </div>
-
-              {/* Submit Payment Button */}
-              <div className="pt-2">
-                <button
-                  type="button"
-                  disabled={processingPayment}
-                  onClick={handleExecuteRazorpayPayment}
-                  className="w-full py-3 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-bold text-sm shadow-md transition-all flex items-center justify-center gap-2 disabled:opacity-50 cursor-pointer"
-                >
-                  {processingPayment ? (
-                    <>
-                      <Loader2 size={16} className="animate-spin" />
-                      <span>Connecting to Razorpay...</span>
-                    </>
-                  ) : (
-                    <>
-                      <CreditCard size={16} />
-                      <span>Proceed to Razorpay Checkout</span>
-                    </>
-                  )}
-                </button>
-              </div>
+            <div>
+              <p className="font-bold text-slate-900 text-sm">Opening Razorpay...</p>
+              <p className="text-xs text-slate-500 mt-1">Secure payment gateway is loading</p>
             </div>
           </div>
         </div>

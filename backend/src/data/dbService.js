@@ -151,7 +151,8 @@ export const dbService = {
    * Create dynamic Tenant (Club) in database
    */
   async createTenant({ tenantId, clubName, subdomain, subscriptionPlan, sport, location, address, phone }) {
-    const plan = subscriptionPlan || 'Standard';
+    const plan = subscriptionPlan || 'Free Trial';
+    const isTrial = plan.toLowerCase().includes('trial');
     const isEnterprise = plan.toLowerCase() === 'enterprise';
     const isGrowth = plan.toLowerCase() === 'growth';
     const base = isEnterprise ? 19999 : isGrowth ? 9999 : 4999;
@@ -177,26 +178,28 @@ export const dbService = {
         ]
       );
 
-      // Auto-generate official SaaS platform invoice in database
-      await pool.query(
-        `INSERT INTO platform_invoices (
-           invoice_id, tenant_id, invoice_number, billing_month, plan_name, subdomain,
-           base_amount, gst_amount, total_amount, billing_cycle, payment_status, payment_method,
-           invoice_date, due_date
-         ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, 'Monthly', 'Paid', 'Razorpay SaaS Auto-Debit', CURRENT_DATE, CURRENT_DATE + INTERVAL '30 days')
-         ON CONFLICT (invoice_id) DO NOTHING`,
-        [
-          invId,
-          tenantId,
-          invNum,
-          new Date().toLocaleDateString('en-US', { month: 'long', year: 'numeric' }),
-          plan,
-          subdomain || clubName.toLowerCase().replace(/\s+/g, '-'),
-          base,
-          gst,
-          total,
-        ]
-      );
+      // Only auto-generate official SaaS platform invoice in database if NOT a free trial
+      if (!isTrial) {
+        await pool.query(
+          `INSERT INTO platform_invoices (
+             invoice_id, tenant_id, invoice_number, billing_month, plan_name, subdomain,
+             base_amount, gst_amount, total_amount, billing_cycle, payment_status, payment_method,
+             invoice_date, due_date
+           ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, 'Monthly', 'Paid', 'Razorpay SaaS Auto-Debit', CURRENT_DATE, CURRENT_DATE + INTERVAL '30 days')
+           ON CONFLICT (invoice_id) DO NOTHING`,
+          [
+            invId,
+            tenantId,
+            invNum,
+            new Date().toLocaleDateString('en-US', { month: 'long', year: 'numeric' }),
+            plan,
+            subdomain || clubName.toLowerCase().replace(/\s+/g, '-'),
+            base,
+            gst,
+            total,
+          ]
+        );
+      }
     }
     memoryDb.tenants.push({
       tenant_id: tenantId,
@@ -297,7 +300,7 @@ export const dbService = {
         SELECT 
           (SELECT COUNT(*) FROM tenants)::int as total_clubs,
           (SELECT COUNT(*) FROM users WHERE system_role = 'MEMBER')::int as total_members,
-          (SELECT COUNT(*) FROM users WHERE system_role IN ('CLUB_OWNER', 'STAFF'))::int as total_admins,
+          (SELECT COUNT(*) FROM users WHERE system_role = 'CLUB_OWNER')::int as total_admins,
           (SELECT COUNT(*) FROM bookings WHERE booking_date = CURRENT_DATE)::int as today_bookings,
           COALESCE((SELECT SUM(total_amount) FROM bookings WHERE booking_date = CURRENT_DATE), 0)::numeric as today_revenue,
           (SELECT COUNT(*) FROM facilities WHERE is_active = TRUE)::int as active_facilities,
@@ -317,7 +320,7 @@ export const dbService = {
     return {
       total_clubs: memoryDb.tenants.length,
       total_members: memoryDb.users.filter(u => u.system_role === 'MEMBER').length,
-      total_admins: memoryDb.users.filter(u => u.system_role === 'CLUB_OWNER' || u.system_role === 'STAFF').length,
+      total_admins: memoryDb.users.filter(u => u.system_role === 'CLUB_OWNER').length,
       today_bookings: 0,
       today_revenue: 0,
       active_facilities: memoryDb.facilities.length,
@@ -326,7 +329,7 @@ export const dbService = {
   },
 
   /**
-   * Get all Club Admins directly from database
+   * Get all Club Admins directly from database (Owners only, NOT workstation staff)
    */
   async getAdmins() {
     if (await checkPg()) {
@@ -338,11 +341,7 @@ export const dbService = {
           u.tenant_id as "tenantId",
           t.subdomain,
           COALESCE(t.club_name, 'Unassigned') as club,
-          CASE 
-            WHEN u.system_role = 'CLUB_OWNER' THEN 'Owner'
-            WHEN u.system_role = 'STAFF' THEN 'Staff'
-            ELSE 'Manager'
-          END as role,
+          'Owner' as role,
           CASE 
             WHEN u.is_active = TRUE THEN 'Active' 
             ELSE 'Disabled' 
@@ -350,13 +349,13 @@ export const dbService = {
           COALESCE(TO_CHAR(u.created_at, 'DD Mon YYYY'), 'Recently') as "lastLogin"
         FROM users u
         LEFT JOIN tenants t ON u.tenant_id = t.tenant_id
-        WHERE u.system_role IN ('CLUB_OWNER', 'STAFF')
+        WHERE u.system_role = 'CLUB_OWNER'
         ORDER BY u.created_at DESC
       `);
       return rows;
     }
     return memoryDb.users
-      .filter((u) => u.system_role === 'CLUB_OWNER' || u.system_role === 'STAFF')
+      .filter((u) => u.system_role === 'CLUB_OWNER')
       .map((u) => {
         const tenant = memoryDb.tenants.find((t) => t.tenant_id === u.tenant_id);
         return {
@@ -364,7 +363,7 @@ export const dbService = {
           name: u.name,
           email: u.email,
           club: tenant ? tenant.club_name : 'Unassigned',
-          role: u.system_role === 'CLUB_OWNER' ? 'Owner' : 'Staff',
+          role: 'Owner',
           status: u.is_active ? 'Active' : 'Disabled',
           lastLogin: 'Recently',
         };
@@ -1988,24 +1987,40 @@ export const dbService = {
   async processPlanPayment({ tenantId, planId, billingCycle, razorpayPaymentId, razorpayOrderId }) {
     if (await checkPg()) {
       // 1. Get plan details
-      const planRes = await pool.query(
+      let planRes = await pool.query(
         `SELECT * FROM platform_plans WHERE plan_id = $1`,
         [planId]
       );
+      if (planRes.rows.length === 0) {
+        planRes = await pool.query(
+          `SELECT * FROM platform_plans WHERE name ILIKE $1 OR tagline ILIKE $1 LIMIT 1`,
+          [`%${planId}%`]
+        );
+      }
       if (planRes.rows.length === 0) {
         throw new Error('Selected platform plan not found');
       }
       const plan = planRes.rows[0];
 
       // 2. Get tenant details
-      const tenantRes = await pool.query(
+      let tenantRes = await pool.query(
         `SELECT * FROM tenants WHERE tenant_id = $1`,
         [tenantId]
       );
       if (tenantRes.rows.length === 0) {
+        tenantRes = await pool.query(
+          `SELECT * FROM tenants WHERE subdomain = $1 OR club_name ILIKE $1 LIMIT 1`,
+          [tenantId]
+        );
+      }
+      if (tenantRes.rows.length === 0) {
+        tenantRes = await pool.query(`SELECT * FROM tenants LIMIT 1`);
+      }
+      if (tenantRes.rows.length === 0) {
         throw new Error('Club tenant record not found');
       }
       const tenant = tenantRes.rows[0];
+      const actualTenantId = tenant.tenant_id;
 
       const isAnnual = (billingCycle || '').toLowerCase() === 'annual' || (billingCycle || '').toLowerCase() === 'annually';
       const baseAmount = isAnnual ? parseFloat(plan.annual_price) : parseFloat(plan.monthly_price);
@@ -2019,7 +2034,7 @@ export const dbService = {
          SET subscription_plan = $2,
              status = 'Active'
          WHERE tenant_id = $1`,
-        [tenantId, plan.name]
+        [actualTenantId, plan.name]
       );
 
       // 4. Record new paid invoice in platform_invoices

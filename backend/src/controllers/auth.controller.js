@@ -95,7 +95,7 @@ export async function register(req, res) {
         tenantId,
         clubName: clubName || `${name}'s Sports Club`,
         subdomain: (clubName || name).toLowerCase().replace(/[^a-z0-9]/g, '-'),
-        subscriptionPlan: 'Standard',
+        subscriptionPlan: 'Free Trial',
       });
 
       await dbService.createUser({

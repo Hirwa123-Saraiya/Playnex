@@ -87,7 +87,7 @@ export function ClubProvider({ children }: { children: React.ReactNode }) {
 
   const club: Club = useMemo(() => {
     const clubName = liveClubDetails?.name || authUser?.tenantName || 'Sports Club';
-    const tenantId = authUser?.tenantId || 'tenant_main';
+    const tenantId = authUser?.tenantId || liveClubDetails?.id || 'tenant_main';
     const location = liveClubDetails?.location || 'Local';
     const address = liveClubDetails?.address || `${location} Sports Complex`;
     const phone = liveClubDetails?.phone || '+91 98765 43210';
@@ -96,6 +96,10 @@ export function ClubProvider({ children }: { children: React.ReactNode }) {
       name: clubName,
       tagline: `${authUser?.roleName || (authUser?.systemRole === 'CLUB_OWNER' ? 'Club Owner' : 'Club')} Dashboard`,
       tenantId: tenantId,
+      subscriptionPlan: liveClubDetails?.subscriptionPlan || liveClubDetails?.subscription_plan || 'Free Trial',
+      adminName: authUser?.name,
+      adminEmail: authUser?.email,
+      phone: phone,
       branches: [
         {
           id: `${tenantId}_branch_main`,
