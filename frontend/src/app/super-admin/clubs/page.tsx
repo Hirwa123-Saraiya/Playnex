@@ -9,7 +9,7 @@ import { inr, type Club, type ClubStatus } from "@/lib/mockData";
 import { clubsService } from "@/services/clubs.service";
 
 const STATUS_STYLE: Record<ClubStatus, string> = {
-  Active:    "bg-lime text-ink",
+  Active:    "bg-blue text-white",
   Pending:   "bg-amber-100 text-amber-800",
   Suspended: "bg-red-100 text-red-800",
 };
@@ -154,10 +154,7 @@ export default function ClubsPage() {
       {/* Filter and Search Bar */}
       <div className="flex flex-wrap items-center gap-2">
         <div className="relative w-full min-w-0 md:max-w-sm md:flex-1">
-          <Search
-            size={15}
-            className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-muted"
-          />
+          <Search size={15} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-muted" />
           <input
             value={query}
             onChange={(e) => setQuery(e.target.value)}
@@ -168,7 +165,7 @@ export default function ClubsPage() {
         <select
           value={status}
           onChange={(e) => setStatus(e.target.value as "All" | ClubStatus)}
-          className="h-10 rounded-lg border border-line bg-white px-3 text-sm"
+          className="h-10 rounded-lg border border-line bg-white px-3 text-sm text-navy"
         >
           <option>All</option>
           <option>Active</option>

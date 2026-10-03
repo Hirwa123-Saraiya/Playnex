@@ -44,12 +44,12 @@ export default function RevenuePage() {
     <div className="space-y-5 md:space-y-6">
       <header className="flex flex-wrap items-end justify-between gap-3">
         <div className="min-w-0">
-          <h1 className="text-xl font-bold sm:text-2xl md:text-3xl">Revenue</h1>
+          <h1 className="text-xl font-bold text-navy sm:text-2xl md:text-3xl">Revenue</h1>
           <p className="text-xs text-muted sm:text-sm">
             Platform-wide revenue across all clubs (Live PostgreSQL sync)
           </p>
         </div>
-        <button className="inline-flex items-center gap-2 rounded-lg border border-line bg-white px-4 py-2.5 text-sm font-semibold text-text hover:border-moss/40">
+        <button className="inline-flex items-center gap-2 rounded-lg border border-line bg-white px-4 py-2.5 text-sm font-semibold text-navy hover:border-blue/40">
           <Download size={15} /> <span className="hidden sm:inline">Export CSV</span>
           <span className="sm:hidden">Export</span>
         </button>
@@ -61,24 +61,25 @@ export default function RevenuePage() {
         <Stat label="Today"       value={inr(todayTotal)} note="Live as of now" />
       </div>
 
-      <section className="rounded-xl border border-line bg-card p-6 text-center">
+      <section className="rounded-2xl border border-line bg-card p-6 shadow-card text-center">
         <div className="mx-auto max-w-md">
-          <div className="mx-auto mb-3 grid h-12 w-12 place-items-center rounded-full bg-lime/30 text-moss">
+          <div className="mx-auto mb-3 grid h-12 w-12 place-items-center rounded-full bg-blueSoft text-blue">
             <DollarSign size={24} />
           </div>
-          <h2 className="text-base font-bold">Live Transaction Tracking</h2>
+          <h2 className="text-base font-bold text-navy">Live Transaction Tracking</h2>
           <p className="mt-1 text-xs text-muted">
             All member court bookings, equipment rentals, tabs, and subscription plans across all tenants are automatically tracked in the PostgreSQL database.
           </p>
         </div>
       </section>
-      <section className="rounded-xl border border-line bg-card p-4 md:p-5">
-        <h2 className="mb-4 text-base font-bold">Revenue by club</h2>
+
+      <section className="rounded-2xl border border-line bg-card p-4 shadow-card md:p-5">
+        <h2 className="mb-4 text-base font-bold text-navy">Revenue by club</h2>
         <div className="-mx-4 overflow-x-auto md:mx-0">
           <table className="w-full min-w-[640px] text-left text-sm">
-            <thead className="border-b border-line text-muted">
+            <thead className="border-b border-line bg-[#F4F8FD] text-navy">
               <tr>
-                <th className="px-4 py-2 font-medium md:px-0">Club</th>
+                <th className="px-4 py-2 font-medium md:px-0 md:bg-transparent md:pl-2">Club</th>
                 <th className="px-4 py-2 text-right font-medium md:px-0">Today</th>
                 <th className="px-4 py-2 text-right font-medium md:px-0">Last 7 days</th>
                 <th className="px-4 py-2 text-right font-medium md:px-0">This month</th>
@@ -89,11 +90,14 @@ export default function RevenuePage() {
               {revenueList.map((r) => {
                 const up = r.growth >= 0;
                 return (
-                  <tr key={r.id} className="border-b border-line last:border-0">
-                    <td className="px-4 py-3 font-medium md:px-0">{r.club}</td>
-                    <td className="px-4 py-3 text-right md:px-0">{inr(Number(r.today || 0))}</td>
-                    <td className="px-4 py-3 text-right md:px-0">{inr(Number(r.week || 0))}</td>
-                    <td className="px-4 py-3 text-right font-semibold md:px-0">
+                  <tr
+                    key={r.id}
+                    className="border-b border-line last:border-0 hover:bg-[#F8FBFF] transition-colors"
+                  >
+                    <td className="px-4 py-3 font-medium text-navy md:px-0 md:pl-2">{r.club}</td>
+                    <td className="px-4 py-3 text-right text-text md:px-0">{inr(Number(r.today || 0))}</td>
+                    <td className="px-4 py-3 text-right text-text md:px-0">{inr(Number(r.week || 0))}</td>
+                    <td className="px-4 py-3 text-right font-semibold text-navy md:px-0">
                       {inr(Number(r.month || 0))}
                     </td>
                     <td className="px-4 py-3 text-right md:px-0">
@@ -103,8 +107,7 @@ export default function RevenuePage() {
                         }`}
                       >
                         {up ? <TrendingUp size={12} /> : <TrendingDown size={12} />}
-                        {up ? "+" : ""}
-                        {r.growth}%
+                        {up ? "+" : ""}{r.growth}%
                       </span>
                     </td>
                   </tr>
@@ -127,11 +130,9 @@ export default function RevenuePage() {
 
 function Stat({ label, value, note }: { label: string; value: string; note: string }) {
   return (
-    <div className="rounded-xl border border-line bg-card p-4 md:p-5">
-      <div className="text-[11px] font-semibold uppercase tracking-wide text-muted">
-        {label}
-      </div>
-      <div className="mt-1 text-xl font-bold md:text-2xl">{value}</div>
+    <div className="rounded-2xl border border-line bg-card p-4 shadow-card md:p-5">
+      <div className="text-[11px] font-semibold uppercase tracking-wide text-muted">{label}</div>
+      <div className="mt-1 text-xl font-bold text-navy md:text-2xl">{value}</div>
       <div className="mt-1 text-xs text-muted">{note}</div>
     </div>
   );
