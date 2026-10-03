@@ -9,6 +9,7 @@ export interface AuthUser {
   tenantName: string;
   roleId: string | null;
   roleName: string;
+  targetModule?: string | null;
   tier: 'Gold' | 'Silver' | 'Junior' | null;
   permissions: string[];
 }

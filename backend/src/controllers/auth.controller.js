@@ -50,6 +50,9 @@ function clearAuthCookies(res) {
 // Helper to build sanitized user profile
 async function buildUserProfile(user) {
   const permissions = await dbService.getUserPermissions(user.user_id, user.system_role);
+  const effectivePermissions = Array.isArray(user.role_permissions) && user.role_permissions.length > 0
+    ? user.role_permissions
+    : permissions;
 
   return {
     userId: user.user_id,
@@ -60,8 +63,9 @@ async function buildUserProfile(user) {
     tenantName: user.tenant_name || (user.tenant_id ? 'Sports Club' : 'Platform Wide'),
     roleId: user.dynamic_role_id || user.role_id || null,
     roleName: user.role_name || (user.system_role === 'SUPER_ADMIN' ? 'Super Administrator' : user.system_role === 'CLUB_OWNER' ? 'Club Owner' : user.system_role),
+    targetModule: user.target_module || null,
     tier: user.tier,
-    permissions,
+    permissions: effectivePermissions,
   };
 }
 

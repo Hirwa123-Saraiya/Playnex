@@ -129,7 +129,7 @@ export const ClubSidebar: React.FC = () => {
           {navItems.map((item) => {
             const Icon = item.icon;
             const isPathActive = pathname === item.href || (item.href !== '/club/dashboard' && pathname.startsWith(item.href));
-            const isActive = isPathActive || activeNav === item.id;
+            const isActive = pathname ? isPathActive : activeNav === item.id;
             const badgeValue = item.id === 'Approvals' ? pendingApprovalTotal : item.badge;
 
             return (

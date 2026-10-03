@@ -9,7 +9,9 @@ export interface ClubStaffItem {
   systemRole: string;
   department: string;
   roleName: string;
-  subAccountType: 'Pro Shop' | 'Bar & Kitchen' | 'Front Desk' | 'Finance' | 'Coaching' | 'Administration';
+  targetModule?: string;
+  password?: string;
+  subAccountType: 'Pro Shop' | 'Bar & Kitchen' | 'Front Desk' | 'Finance' | 'Coaching' | 'HR' | 'Groundskeeper' | 'Administration';
   permissions: string[];
   createdAt: string;
 }
@@ -22,142 +24,189 @@ export interface CreateStaffPayload {
   department?: string;
   roleId?: string;
   roleName?: string;
-  subAccountType?: 'Pro Shop' | 'Bar & Kitchen' | 'Front Desk' | 'Finance' | 'Coaching' | 'Administration';
+  targetModule?: string;
+  subAccountType?: 'Pro Shop' | 'Bar & Kitchen' | 'Front Desk' | 'Finance' | 'Coaching' | 'HR' | 'Groundskeeper' | 'Administration';
   permissions?: string[];
   password?: string;
 }
 
+export interface ClubRoleItem {
+  id: string;
+  roleId: string;
+  tenantId: string;
+  name: string;
+  description: string;
+  targetModule: string;
+  permissions: string[];
+  isActive: boolean;
+  createdAt?: string;
+}
+
+export interface CreateRolePayload {
+  name: string;
+  description?: string;
+  targetModule: string;
+  permissions: string[];
+  departmentId?: string;
+}
+
 export const DEFAULT_CLUB_SUBACCOUNTS: ClubStaffItem[] = [
   {
-    id: 'sub_proshop_01',
-    name: 'Vikram Mehta (Lead)',
-    email: 'proshop.manager@championsclub.com',
-    phone: '+91 98201 11223',
+    id: 'sub_shop_01',
+    name: 'Vikram Mehta (Shop Lead)',
+    email: 'shop.ananyashah@playnex.com',
+    phone: '+91 98201 11001',
     status: 'active',
     systemRole: 'STAFF',
     department: 'Pro Shop & Gear Inventory',
-    roleName: 'Pro Shop Manager',
+    roleName: 'Shop Manager',
+    targetModule: 'Pro Shop & Inventory',
     subAccountType: 'Pro Shop',
+    password: 'Playnex@2026',
     permissions: [
-      'Central Inventory Management',
-      'POS Counter Billing',
-      'Supplier Purchase Orders',
-      'Emergency Stringing Requests',
-      'Low Stock Reorders',
+      'shop:create',
+      'shop:read',
+      'shop:update',
+      'shop:stock',
+      'shop:sell',
+      'inventory:audit',
+      'gst:invoice',
     ],
     createdAt: '2026-01-10T08:00:00.000Z',
   },
   {
-    id: 'sub_proshop_02',
-    name: 'Arjun Patel',
-    email: 'proshop.pos@championsclub.com',
-    phone: '+91 98201 22334',
-    status: 'active',
-    systemRole: 'STAFF',
-    department: 'Pro Shop & Gear Inventory',
-    roleName: 'Pro Shop POS Cashier',
-    subAccountType: 'Pro Shop',
-    permissions: [
-      'POS Counter Billing & Barcode Scan',
-      'Member Discount Verification',
-      'Intake of Returns',
-      'Club Pickup Handoff',
-    ],
-    createdAt: '2026-01-15T09:30:00.000Z',
-  },
-  {
     id: 'sub_bar_01',
-    name: 'Chef Manish Joshi',
-    email: 'kitchen.head@championsclub.com',
-    phone: '+91 98201 33445',
+    name: 'Chef Manish Joshi (Bar Lead)',
+    email: 'bar.ananyashah@playnex.com',
+    phone: '+91 98201 11002',
     status: 'active',
     systemRole: 'STAFF',
     department: 'Food & Beverage (Restaurant & Bar)',
-    roleName: 'Kitchen Head & Chef',
+    roleName: 'Bar Manager',
+    targetModule: 'Restaurant & Bar',
     subAccountType: 'Bar & Kitchen',
+    password: 'Playnex@2026',
     permissions: [
-      'Kitchen Order Tickets (KOT)',
-      'Menu Recipe Management',
-      'Raw Material Inventory',
-      'Kitchen Display System (KDS)',
+      'bar:create',
+      'bar:read',
+      'bar:update',
+      'bar:settle',
+      'bar:void',
+      'report:read',
+      'kot:dispatch',
     ],
     createdAt: '2026-01-12T10:00:00.000Z',
   },
   {
-    id: 'sub_bar_02',
-    name: 'Rohan Deshmukh',
-    email: 'bar.pos@championsclub.com',
-    phone: '+91 98201 44556',
-    status: 'active',
-    systemRole: 'STAFF',
-    department: 'Food & Beverage (Restaurant & Bar)',
-    roleName: 'Bar POS & Table Captain',
-    subAccountType: 'Bar & Kitchen',
-    permissions: [
-      'Table Billing & Punch Orders',
-      'Member Tab Settlement',
-      'Card / UPI / Cash Payments',
-      'Closing Shift Reconciliations',
-    ],
-    createdAt: '2026-01-18T11:00:00.000Z',
-  },
-  {
-    id: 'sub_reception_01',
-    name: 'Sneha Vyas',
-    email: 'reception@championsclub.com',
-    phone: '+91 98201 55667',
+    id: 'sub_frontdesk_01',
+    name: 'Sneha Vyas (Front Desk)',
+    email: 'frontdesk.ananyashah@playnex.com',
+    phone: '+91 98201 11003',
     status: 'active',
     systemRole: 'STAFF',
     department: 'Front Desk & Reception',
-    roleName: 'Front Desk & Walk-in Receptionist',
+    roleName: 'Front Desk',
+    targetModule: 'Walk-in Front Desk',
     subAccountType: 'Front Desk',
+    password: 'Playnex@2026',
     permissions: [
-      'Walk-in Court Slot Booking',
-      'Member Check-in & RFID Issuance',
-      'Telephone Booking Inquiries',
-      'Visitor Trial Session Intake',
+      'booking:create',
+      'booking:read',
+      'booking:update',
+      'booking:cancel',
+      'member:create',
+      'member:read',
+      'member:update',
+      'walkin:checkin',
     ],
     createdAt: '2026-01-08T07:30:00.000Z',
   },
   {
+    id: 'sub_accountant_01',
+    name: 'Nirav Shah (CA & Tax Auditor)',
+    email: 'accountant.ananyashah@playnex.com',
+    phone: '+91 98201 11004',
+    status: 'active',
+    systemRole: 'STAFF',
+    department: 'Finance & Accounting',
+    roleName: 'Accountant',
+    targetModule: 'Finance & Payments',
+    subAccountType: 'Finance',
+    password: 'Playnex@2026',
+    permissions: [
+      'finance:read',
+      'finance:invoice',
+      'finance:payroll',
+      'finance:tax',
+      'report:read',
+      'report:export',
+      'gst:b2b',
+    ],
+    createdAt: '2026-01-02T09:00:00.000Z',
+  },
+  {
     id: 'sub_coach_01',
     name: 'Coach Anand Iyer',
-    email: 'coach.anand@championsclub.com',
-    phone: '+91 98201 66778',
+    email: 'coach.ananyashah@playnex.com',
+    phone: '+91 98201 11005',
     status: 'active',
     systemRole: 'STAFF',
     department: 'Sports Academy & Coaching',
-    roleName: 'Head Tennis Coach',
+    roleName: 'Coach',
+    targetModule: 'Bookings',
     subAccountType: 'Coaching',
+    password: 'Playnex@2026',
     permissions: [
-      'Court Training Clinics',
-      'Junior Academy Drills',
-      'Private Coaching Sessions',
-      'Weekend Tournaments',
+      'booking:read',
+      'member:read',
+      'event:read',
+      'clinic:schedule',
     ],
     createdAt: '2026-01-05T06:00:00.000Z',
   },
   {
-    id: 'sub_finance_01',
-    name: 'Nirav Shah (CA)',
-    email: 'finance.lead@championsclub.com',
-    phone: '+91 98201 77889',
+    id: 'sub_hr_01',
+    name: 'Pooja Nair (HR Lead)',
+    email: 'hr.ananyashah@playnex.com',
+    phone: '+91 98201 11006',
     status: 'active',
     systemRole: 'STAFF',
-    department: 'Finance & Accounting',
-    roleName: 'Club Accountant & Auditor',
-    subAccountType: 'Finance',
+    department: 'Human Resources & Personnel',
+    roleName: 'HR',
+    targetModule: 'Staff Management',
+    subAccountType: 'HR',
+    password: 'Playnex@2026',
     permissions: [
-      'Membership Invoicing',
-      'Corporate Accounts & B2B Billing',
-      'Staff Payroll & Leave Approvals',
-      'P&L Statements & GST Compliance',
+      'staff:read',
+      'staff:manage',
+      'staff:schedule',
+      'staff:approve_leave',
     ],
-    createdAt: '2026-01-02T09:00:00.000Z',
+    createdAt: '2026-01-04T09:00:00.000Z',
+  },
+  {
+    id: 'sub_grounds_01',
+    name: 'Ramesh Patel (Grounds & Courts)',
+    email: 'grounds.ananyashah@playnex.com',
+    phone: '+91 98201 11007',
+    status: 'active',
+    systemRole: 'STAFF',
+    department: 'Court & Facility Operations',
+    roleName: 'Groundskeeper',
+    targetModule: 'Facilities & Courts',
+    subAccountType: 'Groundskeeper',
+    password: 'Playnex@2026',
+    permissions: [
+      'facility:read',
+      'facility:update',
+      'court:toggle_availability',
+      'maintenance:log',
+    ],
+    createdAt: '2026-01-03T11:00:00.000Z',
   },
 ];
 
-const LOCAL_STORAGE_KEY = 'playnex_club_subaccounts_v1';
+const LOCAL_STORAGE_KEY = 'playnex_club_subaccounts_v2';
 
 function getStoredSubAccounts(): ClubStaffItem[] {
   if (typeof window === 'undefined') return DEFAULT_CLUB_SUBACCOUNTS;
@@ -297,6 +346,36 @@ export const staffService = {
     }
 
     return { success: true, data: { id }, message: 'Sub-account removed' };
+  },
+
+  async getRoles() {
+    try {
+      const res = await apiMethod<ClubRoleItem[]>({
+        method: 'GET',
+        url: '/club/staff/roles',
+      });
+      if (res.success && Array.isArray(res.data)) {
+        return res;
+      }
+    } catch {
+      // Fallback
+    }
+    return { success: true, data: [] as ClubRoleItem[], message: 'Loaded roles' };
+  },
+
+  async createRole(data: CreateRolePayload) {
+    return apiMethod<ClubRoleItem>({
+      method: 'POST',
+      url: '/club/staff/roles',
+      data,
+    });
+  },
+
+  async deleteRole(id: string) {
+    return apiMethod<{ id: string }>({
+      method: 'DELETE',
+      url: `/club/staff/roles/${id}`,
+    });
   },
 };
 

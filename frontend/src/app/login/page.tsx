@@ -54,21 +54,39 @@ export default function LoginPage() {
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
 
+  const resolveRedirectPath = (targetUser: any) => {
+    if (!targetUser) return '/club/dashboard';
+    if (targetUser.systemRole === 'SUPER_ADMIN') return '/super-admin/dashboard';
+    if (targetUser.systemRole === 'MEMBER') return '/user';
+
+    const tm = (targetUser.targetModule || '').toLowerCase();
+    const rn = (targetUser.roleName || '').toLowerCase();
+
+    if (tm.includes('pro shop') || tm.includes('inventory') || rn.includes('pro shop') || rn.includes('inventory')) {
+      return '/club/pro-shop';
+    }
+    if (tm.includes('restaurant') || tm.includes('bar') || tm.includes('kitchen') || rn.includes('restaurant') || rn.includes('bar') || rn.includes('kitchen')) {
+      return '/club/restaurant';
+    }
+    if (tm.includes('walk-in') || tm.includes('front desk') || tm.includes('reception') || rn.includes('front desk') || rn.includes('reception')) {
+      return '/club/walk-in';
+    }
+    if (tm.includes('finance') || tm.includes('account') || tm.includes('tax') || rn.includes('finance') || rn.includes('account') || rn.includes('auditor')) {
+      return '/club/finance';
+    }
+    if (tm.includes('booking') || tm.includes('coach') || rn.includes('coach')) {
+      return '/club/bookings';
+    }
+    if (tm.includes('report') || rn.includes('report')) {
+      return '/club/reports';
+    }
+
+    return '/club/dashboard';
+  };
+
   useEffect(() => {
     if (!isLoading && user) {
-      if (user.systemRole === 'SUPER_ADMIN') {
-        router.push('/super-admin/dashboard');
-      } else if (user.systemRole === 'MEMBER') {
-        router.push('/user');
-      } else if (user.roleName?.toLowerCase().includes('pro shop')) {
-        router.push('/pro-shop-inventory');
-      } else if (user.roleName?.toLowerCase().includes('bar') || user.roleName?.toLowerCase().includes('kitchen')) {
-        router.push('/bar-kitchen');
-      } else if (user.systemRole === 'CLUB_OWNER' || user.systemRole === 'STAFF') {
-        router.push('/club/dashboard');
-      } else {
-        router.push('/club/dashboard');
-      }
+      router.push(resolveRedirectPath(user));
     }
   }, [user, isLoading, router]);
 
@@ -80,19 +98,7 @@ export default function LoginPage() {
     try {
       const loggedInUser = await login(email.trim(), password);
       if (loggedInUser) {
-        if (loggedInUser.systemRole === 'SUPER_ADMIN') {
-          router.push('/super-admin/dashboard');
-        } else if (loggedInUser.systemRole === 'MEMBER') {
-          router.push('/user');
-        } else if (loggedInUser.roleName?.toLowerCase().includes('pro shop')) {
-          router.push('/pro-shop-inventory');
-        } else if (loggedInUser.roleName?.toLowerCase().includes('bar') || loggedInUser.roleName?.toLowerCase().includes('kitchen')) {
-          router.push('/bar-kitchen');
-        } else if (loggedInUser.systemRole === 'CLUB_OWNER' || loggedInUser.systemRole === 'STAFF') {
-          router.push('/club/dashboard');
-        } else {
-          router.push('/club/dashboard');
-        }
+        router.push(resolveRedirectPath(loggedInUser));
       } else {
         setError('Invalid email or password credentials');
       }

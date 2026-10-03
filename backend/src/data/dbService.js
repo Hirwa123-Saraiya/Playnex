@@ -32,7 +32,7 @@ export const dbService = {
   async findUserByEmail(email) {
     if (await checkPg()) {
       const { rows } = await pool.query(
-        `SELECT u.*, t.club_name as tenant_name, r.name as role_name, r.role_id as dynamic_role_id
+        `SELECT u.*, t.club_name as tenant_name, r.name as role_name, r.role_id as dynamic_role_id, r.target_module, r.permissions as role_permissions
          FROM users u
          LEFT JOIN tenants t ON u.tenant_id = t.tenant_id
          LEFT JOIN user_roles ur ON u.user_id = ur.user_id
@@ -51,7 +51,7 @@ export const dbService = {
   async findUserById(userId) {
     if (await checkPg()) {
       const { rows } = await pool.query(
-        `SELECT u.*, t.club_name as tenant_name, r.name as role_name, r.role_id as dynamic_role_id
+        `SELECT u.*, t.club_name as tenant_name, r.name as role_name, r.role_id as dynamic_role_id, r.target_module, r.permissions as role_permissions
          FROM users u
          LEFT JOIN tenants t ON u.tenant_id = t.tenant_id
          LEFT JOIN user_roles ur ON u.user_id = ur.user_id
@@ -955,6 +955,9 @@ export const dbService = {
                 COALESCE(u.status, 'active') as status, u.system_role as "systemRole",
                 COALESCE(d.name, 'Operations') as department,
                 COALESCE(r.name, 'Staff Member') as "roleName",
+                COALESCE(r.role_id, '') as "roleId",
+                COALESCE(r.target_module, 'Pro Shop & Inventory') as "targetModule",
+                COALESCE(r.permissions, '[]'::jsonb) as permissions,
                 u.created_at as "createdAt"
          FROM users u
          LEFT JOIN departments d ON u.department_id = d.department_id
@@ -967,6 +970,56 @@ export const dbService = {
       return rows;
     }
     return [];
+  },
+
+  async getRoles(tenantId) {
+    if (await checkPg()) {
+      const { rows } = await pool.query(
+        `SELECT role_id as "id", role_id as "roleId", tenant_id as "tenantId", name, description,
+                COALESCE(target_module, 'Pro Shop & Inventory') as "targetModule",
+                COALESCE(permissions, '[]'::jsonb) as permissions,
+                is_active as "isActive", created_at as "createdAt"
+         FROM roles
+         WHERE tenant_id = $1
+         ORDER BY created_at ASC`,
+        [tenantId]
+      );
+      return rows;
+    }
+    return [];
+  },
+
+  async createRole({ roleId, tenantId, departmentId, name, description, targetModule, permissions }) {
+    if (await checkPg()) {
+      const { rows } = await pool.query(
+        `INSERT INTO roles (role_id, tenant_id, department_id, name, description, target_module, permissions)
+         VALUES ($1, $2, $3, $4, $5, $6, $7)
+         RETURNING role_id as "id", role_id as "roleId", tenant_id as "tenantId", name, description,
+                   target_module as "targetModule", permissions, is_active as "isActive"`,
+        [
+          roleId,
+          tenantId,
+          departmentId || null,
+          name,
+          description || '',
+          targetModule || 'Pro Shop & Inventory',
+          JSON.stringify(Array.isArray(permissions) ? permissions : []),
+        ]
+      );
+      return rows[0];
+    }
+    return null;
+  },
+
+  async deleteRole(roleId, tenantId) {
+    if (await checkPg()) {
+      const { rowCount } = await pool.query(
+        `DELETE FROM roles WHERE role_id = $1 AND tenant_id = $2`,
+        [roleId, tenantId]
+      );
+      return rowCount > 0;
+    }
+    return false;
   },
 
   async createStaff({ userId, tenantId, name, email, phone, departmentId, roleId, passwordHash }) {
