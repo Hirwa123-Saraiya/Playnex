@@ -12,6 +12,13 @@ export interface AuthUser {
   targetModule?: string | null;
   tier: 'Gold' | 'Silver' | 'Junior' | null;
   permissions: string[];
+
+   /* ---- 7-day trial ---- */
+  trialStartedAt: string | null;
+  trialEndsAt:    string | null;
+  trialUsed:      boolean;
+  trialActive:    boolean;
+  trialDaysLeft:  number;
 }
 
 export interface AuthResponse {

@@ -4,6 +4,8 @@ import { UserHeader } from '../components/user/UserHeader';
 import { UserFooter } from '../components/user/UserFooter';
 import { UserBottomNav } from '../components/user/UserBottomNav';
 import { UserNotificationPanel } from '../components/user/UserNotificationPanel';
+import { TrialBanner } from '../components/user/TrialBanner';
+import { TrialExpiredModal } from '../components/user/TrialExpiredModal';
 
 // Views
 import { UserHome } from '../views/user/UserHome';
@@ -41,6 +43,8 @@ export const UserLayout: React.FC = () => {
     guestAuthModalOpen,
     closeGuestModal,
     fetchLiveData,
+    trialExpiredModalOpen,
+    closeTrialExpiredModal,
   } = useUserStore();
 
   React.useEffect(() => {
@@ -51,16 +55,18 @@ export const UserLayout: React.FC = () => {
   if (portalMode === 'club-owner') {
     return (
       <div className="relative">
-        <div className="sticky top-0 z-50 bg-blue-600 text-white text-xs py-2 px-4 shadow-md flex items-center justify-between">
+        <div className="sticky top-0 z-50 bg-navy text-white text-xs py-2 px-4 shadow-md flex items-center justify-between">
           <div className="flex items-center gap-2">
             <span className="font-bold bg-white/20 px-2 py-0.5 rounded text-[10px]">
               CLUB OWNER PORTAL
             </span>
-            <span className="hidden sm:inline">Viewing the Enterprise Sports Club Administration Portal</span>
+            <span className="hidden sm:inline">
+              Viewing the Enterprise Sports Club Administration Portal
+            </span>
           </div>
           <button
             onClick={() => setPortalMode('user')}
-            className="px-3 py-1 bg-white text-blue-700 font-bold rounded-lg hover:bg-blue-50 transition-colors flex items-center gap-1 shadow-xs"
+            className="px-3 py-1 bg-white text-navy font-bold rounded-lg hover:bg-blueSoft transition-colors flex items-center gap-1"
           >
             <Layers className="w-3.5 h-3.5" />
             <span>Switch to Customer / User Portal</span>
@@ -73,57 +79,38 @@ export const UserLayout: React.FC = () => {
 
   const renderActiveView = () => {
     switch (activeView) {
-      case 'home':
-        return <UserHome />;
-      case 'clubs':
-        return <UserClubs />;
-      case 'club-details':
-        return <UserClubDetails />;
-      case 'facilities':
-        return <UserFacilities />;
-      case 'facility-details':
-        return <UserFacilityDetails />;
-      case 'booking-create':
-        return <UserBookingCreate />;
-      case 'booking-confirmation':
-        return <UserBookingConfirmation />;
-      case 'bookings':
-        return <UserBookings />;
-      case 'memberships':
-        return <UserMemberships />;
-      case 'membership-purchase':
-        return <UserMembershipPurchase />;
-      case 'events':
-        return <UserEvents />;
-      case 'event-details':
-        return <UserEventDetails />;
-      case 'family':
-        return <UserFamilyMembers />;
-      case 'profile':
-        return <UserProfile />;
-      case 'payments':
-        return <UserPayments />;
-      case 'reviews':
-        return <UserReviews />;
-      case 'notifications':
-        return <UserNotifications />;
-      case 'favorites':
-        return <UserFavorites />;
-      case 'login':
-        return <UserLogin />;
-      case 'register':
-        return <UserRegister />;
-      case 'forgot-password':
-        return <UserForgotPassword />;
-      default:
-        return <UserHome />;
+      case 'home':                 return <UserHome />;
+      case 'clubs':                return <UserClubs />;
+      case 'club-details':         return <UserClubDetails />;
+      case 'facilities':           return <UserFacilities />;
+      case 'facility-details':     return <UserFacilityDetails />;
+      case 'booking-create':       return <UserBookingCreate />;
+      case 'booking-confirmation': return <UserBookingConfirmation />;
+      case 'bookings':             return <UserBookings />;
+      case 'memberships':          return <UserMemberships />;
+      case 'membership-purchase':  return <UserMembershipPurchase />;
+      case 'events':               return <UserEvents />;
+      case 'event-details':        return <UserEventDetails />;
+      case 'family':               return <UserFamilyMembers />;
+      case 'profile':              return <UserProfile />;
+      case 'payments':             return <UserPayments />;
+      case 'reviews':              return <UserReviews />;
+      case 'notifications':        return <UserNotifications />;
+      case 'favorites':            return <UserFavorites />;
+      case 'login':                return <UserLogin />;
+      case 'register':             return <UserRegister />;
+      case 'forgot-password':      return <UserForgotPassword />;
+      default:                     return <UserHome />;
     }
   };
 
   return (
-    <div className="min-h-screen bg-[#F8FAFC] text-slate-900 flex flex-col font-sans selection:bg-blue-600 selection:text-white">
+    <div className="min-h-screen bg-page text-text flex flex-col font-sans selection:bg-blue selection:text-white">
       {/* Header */}
       <UserHeader />
+
+      {/* 7-day trial countdown banner */}
+      <TrialBanner />
 
       {/* Main Content Area */}
       <main className="flex-1 pb-16 md:pb-0">{renderActiveView()}</main>
@@ -141,6 +128,12 @@ export const UserLayout: React.FC = () => {
       <UserAuthModal
         isOpen={guestAuthModalOpen}
         onClose={closeGuestModal}
+      />
+
+      {/* Trial expired blocking modal */}
+      <TrialExpiredModal
+        open={trialExpiredModalOpen}
+        onClose={closeTrialExpiredModal}
       />
     </div>
   );

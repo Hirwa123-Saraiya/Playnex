@@ -4,6 +4,8 @@ import { dbService } from '../data/dbService.js';
 import { buildDefaultStaff } from '../data/defaultWorkstations.js';
 import { config, cookieOptions } from '../config/appConfig.js';
 import { successResponse, errorResponse } from '../utils/apiResponse.js';
+//trail
+import { computeTrialWindow, buildTrialProfile, TRIAL_DURATION_DAYS } from '../services/trialService.js';
 
 // Helper to generate access and refresh tokens
 function generateTokens(user) {
@@ -49,8 +51,27 @@ function clearAuthCookies(res) {
 }
 
 // Helper to build sanitized user profile
+// async function buildUserProfile(user) {
+//   const permissions = await dbService.getUserPermissions(user.user_id, user.system_role);
+
+//   return {
+//     userId: user.user_id,
+//     email: user.email,
+//     name: user.name,
+//     systemRole: user.system_role,
+//     tenantId: user.tenant_id,
+//     tenantName: user.tenant_name || (user.tenant_id ? 'Sports Club' : 'Platform Wide'),
+//     roleId: user.dynamic_role_id || user.role_id || null,
+//     roleName: user.role_name || (user.system_role === 'SUPER_ADMIN' ? 'Super Administrator' : user.system_role === 'CLUB_OWNER' ? 'Club Owner' : user.system_role),
+//     tier: user.tier,
+//     permissions,
+//   };
+// }
+
+//with trial
 async function buildUserProfile(user) {
   const permissions = await dbService.getUserPermissions(user.user_id, user.system_role);
+  const trial = buildTrialProfile(user);
   const effectivePermissions = Array.isArray(user.role_permissions) && user.role_permissions.length > 0
     ? user.role_permissions
     : permissions;
@@ -67,6 +88,13 @@ async function buildUserProfile(user) {
     targetModule: user.target_module || null,
     tier: user.tier,
     permissions: effectivePermissions,
+
+    /* Trial fields */
+    trialStartedAt: trial.trialStartedAt,
+    trialEndsAt:    trial.trialEndsAt,
+    trialUsed:      trial.trialUsed,
+    trialActive:    trial.trialActive,
+    trialDaysLeft:  trial.trialDaysLeft,
   };
 }
 
@@ -117,6 +145,18 @@ export async function register(req, res) {
       });
     } else {
       // Member registration
+      // await dbService.createUser({
+      //   userId,
+      //   tenantId: null,
+      //   name,
+      //   email,
+      //   passwordHash,
+      //   systemRole: 'MEMBER',
+      //   tier: tier || 'Silver',
+      // });
+      //trail
+      const { startedAt, endsAt } = computeTrialWindow();
+
       await dbService.createUser({
         userId,
         tenantId: null,
@@ -125,6 +165,9 @@ export async function register(req, res) {
         passwordHash,
         systemRole: 'MEMBER',
         tier: tier || 'Silver',
+        trialStartedAt: startedAt,
+        trialEndsAt: endsAt,
+        trialUsed: true,
       });
     }
 

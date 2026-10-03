@@ -4,6 +4,10 @@ import React, { createContext, useContext, useEffect, useState, ReactNode } from
 import { AuthUser } from '../types/auth.types';
 import { authService, RegisterPayload } from '../services/auth.service';
 
+//trail
+import { trialIsActive, trialDaysRemaining, trialUrgency } from "../lib/trialRules";
+
+
 interface AuthContextType {
   user: AuthUser | null;
   isLoading: boolean;
@@ -15,6 +19,11 @@ interface AuthContextType {
   isClubOwner: boolean;
   isStaff: boolean;
   isMember: boolean;
+
+  /* ---- derived trial state ---- */
+  trialActive: boolean;
+  trialDaysLeft: number;
+  trialUrgency: "fresh" | "warning" | "critical" | "expired" | "paid";
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -136,6 +145,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const value: AuthContextType = {
     user,
     isLoading,
+
+     /* ---- derived trial state ---- */
+    trialActive:     trialIsActive(user),
+    trialDaysLeft:   trialDaysRemaining(user),
+    trialUrgency:    trialUrgency(user),
+
     login,
     register,
     logout,

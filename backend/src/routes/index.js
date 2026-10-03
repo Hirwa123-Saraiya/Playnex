@@ -24,6 +24,9 @@ import userMembershipsRoutes from './userMemberships.routes.js';
 import userEventsRoutes from './userEvents.routes.js';
 import userProfileRoutes from './userProfile.routes.js';
 
+//front desk
+import frontDeskRoutes from './frontDesk.routes.js';x
+
 const router = express.Router();
 
 router.get('/health', (req, res) => {
@@ -68,5 +71,8 @@ router.use('/user/bookings', userBookingsRoutes);
 router.use('/user/memberships', userMembershipsRoutes);
 router.use('/user/events', userEventsRoutes);
 router.use('/user/profile', userProfileRoutes);
+
+//front desk
+router.use(frontDeskRoutes);
 
 export default router;

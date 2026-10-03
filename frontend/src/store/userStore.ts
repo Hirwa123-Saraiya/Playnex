@@ -17,16 +17,6 @@ import {
 } from '../types/user.types';
 import {
   initialUserProfile,
-  mockClubs,
-  mockFacilities,
-  mockBookings,
-  mockMembershipPlans,
-  mockUserMemberships,
-  mockEvents,
-  mockFamilyMembers,
-  mockPaymentTransactions,
-  mockNotifications,
-  mockReviews,
   mockTimeSlots,
 } from '../mock/userMockData';
 import { userClubsService } from '../services/userClubs.service';
@@ -36,16 +26,53 @@ import { userEventsService } from '../services/userEvents.service';
 import { userProfileService } from '../services/userProfile.service';
 import { authService } from '../services/auth.service';
 
+/* ============================================================
+   Favorites — persisted to localStorage
+   ============================================================ */
+
+const FAVORITES_KEY = 'playnex.user.favorites.v1';
+
+interface PersistedFavorites {
+  clubs: string[];
+  facilities: string[];
+  events: string[];
+}
+
+function loadFavorites(): PersistedFavorites {
+  if (typeof window === 'undefined') return { clubs: [], facilities: [], events: [] };
+  try {
+    const raw = localStorage.getItem(FAVORITES_KEY);
+    if (!raw) return { clubs: [], facilities: [], events: [] };
+    const parsed = JSON.parse(raw);
+    return {
+      clubs: Array.isArray(parsed.clubs) ? parsed.clubs : [],
+      facilities: Array.isArray(parsed.facilities) ? parsed.facilities : [],
+      events: Array.isArray(parsed.events) ? parsed.events : [],
+    };
+  } catch {
+    return { clubs: [], facilities: [], events: [] };
+  }
+}
+
+function saveFavorites(favs: PersistedFavorites) {
+  if (typeof window === 'undefined') return;
+  try {
+    localStorage.setItem(FAVORITES_KEY, JSON.stringify(favs));
+  } catch {
+    /* quota errors — ignore */
+  }
+}
+
 export interface BookingWizardState {
   clubId: string;
   facilityId: string;
-  date: string; // e.g. "14 Oct 2025"
+  date: string;
   slot: TimeSlot | null;
   familyMemberId?: string;
   familyMemberName?: string;
   paymentMethod: 'Credit / Debit Card' | 'UPI' | 'Wallet' | 'Net Banking';
   notes?: string;
-  step: number; // 1 to 7
+  step: number;
 }
 
 export interface MembershipWizardState {
@@ -54,7 +81,7 @@ export interface MembershipWizardState {
   durationMonths: number;
   linkedFamilyNames: string[];
   paymentMethod: 'Credit / Debit Card' | 'UPI' | 'Wallet' | 'Net Banking';
-  step: number; // 1 to 6
+  step: number;
 }
 
 interface UserStoreState {
@@ -106,6 +133,9 @@ interface UserStoreState {
 
   // Notification UI
   isNotificationPanelOpen: boolean;
+
+  // Trial expired modal (blocking modal shown when trial ends)
+  trialExpiredModalOpen: boolean;
 
   // Actions
   setPortalMode: (mode: 'user' | 'club-owner') => void;
@@ -164,6 +194,10 @@ interface UserStoreState {
   markNotificationAsRead: (id: string) => void;
   markAllNotificationsAsRead: () => void;
 
+  // Trial
+  openTrialExpiredModal: () => void;
+  closeTrialExpiredModal: () => void;
+
   // Live data fetch
   fetchLiveData: () => Promise<void>;
 
@@ -194,17 +228,7 @@ export const useUserStore = create<UserStoreState>((set, get) => ({
 
   clubs: [],
   facilities: [],
-  timeSlots: [
-    { id: 'slot-1', time: '06:00 AM - 07:00 AM', period: 'Morning', isAvailable: true, price: 500 },
-    { id: 'slot-2', time: '07:00 AM - 08:00 AM', period: 'Morning', isAvailable: true, price: 500 },
-    { id: 'slot-3', time: '08:00 AM - 09:00 AM', period: 'Morning', isAvailable: true, price: 650 },
-    { id: 'slot-4', time: '09:00 AM - 10:00 AM', period: 'Morning', isAvailable: true, price: 650 },
-    { id: 'slot-5', time: '04:00 PM - 05:00 PM', period: 'Afternoon', isAvailable: true, price: 650 },
-    { id: 'slot-6', time: '05:00 PM - 06:00 PM', period: 'Evening', isAvailable: true, price: 800 },
-    { id: 'slot-7', time: '06:00 PM - 07:00 PM', period: 'Evening', isAvailable: true, price: 800 },
-    { id: 'slot-8', time: '07:00 PM - 08:00 PM', period: 'Evening', isAvailable: true, price: 800 },
-    { id: 'slot-9', time: '08:00 PM - 09:00 PM', period: 'Evening', isAvailable: true, price: 700 },
-  ],
+  timeSlots: mockTimeSlots,
   bookings: [],
   membershipPlans: [],
   userMemberships: [],
@@ -214,11 +238,15 @@ export const useUserStore = create<UserStoreState>((set, get) => ({
   notifications: [],
   reviews: [],
 
-  favoriteClubIds: [],
-  favoriteFacilityIds: [],
-  favoriteEventIds: [],
+  /* Favorites — hydrated from localStorage */
+  favoriteClubIds: loadFavorites().clubs,
+  favoriteFacilityIds: loadFavorites().facilities,
+  favoriteEventIds: loadFavorites().events,
 
   isNotificationPanelOpen: false,
+
+  /* Trial expired modal — off by default, opened by BookingWizard when trial ends */
+  trialExpiredModalOpen: false,
 
   bookingWizard: {
     clubId: '',
@@ -361,16 +389,16 @@ export const useUserStore = create<UserStoreState>((set, get) => ({
 
     const cId = clubId || get().selectedClubId || 'club-sunrise';
     const availableFacilities = get().facilities.filter((f) => f.clubId === cId);
-    const fId = facilityId || (availableFacilities.length > 0 ? availableFacilities[0].id : get().facilities[0].id);
+    const fId = facilityId || (availableFacilities.length > 0 ? availableFacilities[0].id : get().facilities[0]?.id);
 
     set({
       bookingWizard: {
         clubId: cId,
         facilityId: fId,
-        date: '14 Oct 2025',
-        slot: get().timeSlots[1],
+        date: new Date().toISOString().split('T')[0],
+        slot: get().timeSlots[1] || null,
         paymentMethod: 'Credit / Debit Card',
-        step: 3, // jumps to date & slot if club and facility are already set
+        step: 3,
       },
       activeView: 'booking-create',
     });
@@ -527,7 +555,7 @@ export const useUserStore = create<UserStoreState>((set, get) => ({
 
     const cId = clubId || get().selectedClubId || 'club-sunrise';
     const availablePlans = get().membershipPlans.filter((p) => p.clubId === cId);
-    const pId = planId || (availablePlans.length > 0 ? availablePlans[0].id : get().membershipPlans[0].id);
+    const pId = planId || (availablePlans.length > 0 ? availablePlans[0].id : get().membershipPlans[0]?.id);
 
     set({
       membershipWizard: {
@@ -730,38 +758,52 @@ export const useUserStore = create<UserStoreState>((set, get) => ({
         ...state.notifications,
       ],
     }));
+
+    userEventsService.registerForEvent(eventId).catch((err) => console.warn('Event register sync:', err));
   },
 
   toggleFavoriteClub: (clubId) => {
     set((state) => {
       const exists = state.favoriteClubIds.includes(clubId);
-      return {
-        favoriteClubIds: exists
-          ? state.favoriteClubIds.filter((id) => id !== clubId)
-          : [...state.favoriteClubIds, clubId],
-      };
+      const favoriteClubIds = exists
+        ? state.favoriteClubIds.filter((id) => id !== clubId)
+        : [...state.favoriteClubIds, clubId];
+      saveFavorites({
+        clubs: favoriteClubIds,
+        facilities: state.favoriteFacilityIds,
+        events: state.favoriteEventIds,
+      });
+      return { favoriteClubIds };
     });
   },
 
   toggleFavoriteFacility: (facilityId) => {
     set((state) => {
       const exists = state.favoriteFacilityIds.includes(facilityId);
-      return {
-        favoriteFacilityIds: exists
-          ? state.favoriteFacilityIds.filter((id) => id !== facilityId)
-          : [...state.favoriteFacilityIds, facilityId],
-      };
+      const favoriteFacilityIds = exists
+        ? state.favoriteFacilityIds.filter((id) => id !== facilityId)
+        : [...state.favoriteFacilityIds, facilityId];
+      saveFavorites({
+        clubs: state.favoriteClubIds,
+        facilities: favoriteFacilityIds,
+        events: state.favoriteEventIds,
+      });
+      return { favoriteFacilityIds };
     });
   },
 
   toggleFavoriteEvent: (eventId) => {
     set((state) => {
       const exists = state.favoriteEventIds.includes(eventId);
-      return {
-        favoriteEventIds: exists
-          ? state.favoriteEventIds.filter((id) => id !== eventId)
-          : [...state.favoriteEventIds, eventId],
-      };
+      const favoriteEventIds = exists
+        ? state.favoriteEventIds.filter((id) => id !== eventId)
+        : [...state.favoriteEventIds, eventId];
+      saveFavorites({
+        clubs: state.favoriteClubIds,
+        facilities: state.favoriteFacilityIds,
+        events: favoriteEventIds,
+      });
+      return { favoriteEventIds };
     });
   },
 
@@ -774,14 +816,17 @@ export const useUserStore = create<UserStoreState>((set, get) => ({
       return;
     }
     const { currentUser } = get();
+
+    const tempId = `rev-${Date.now()}`;
     const newRev: ReviewItem = {
-      id: `rev-${Date.now()}`,
+      id: tempId,
       userId: currentUser.id,
       userName: currentUser.name,
       userAvatar: currentUser.avatarUrl,
       date: 'Today',
       ...reviewData,
     };
+
     set((state) => ({
       reviews: [newRev, ...state.reviews],
       notifications: [
@@ -796,6 +841,30 @@ export const useUserStore = create<UserStoreState>((set, get) => ({
         ...state.notifications,
       ],
     }));
+
+    userProfileService
+      .submitReview({
+        clubId: reviewData.targetId,
+        userName: currentUser.name,
+        rating: reviewData.rating,
+        comment: reviewData.comment,
+        userId: currentUser.id,
+      })
+      .then((res) => {
+        if (res?.success && res.data?.id) {
+          set((state) => ({
+            reviews: state.reviews.map((r) =>
+              r.id === tempId ? { ...r, id: res.data.id } : r
+            ),
+          }));
+        }
+      })
+      .catch((err) => {
+        console.warn('Review submit failed:', err);
+        set((state) => ({
+          reviews: state.reviews.filter((r) => r.id !== tempId),
+        }));
+      });
   },
 
   toggleNotificationPanel: () => {
@@ -814,17 +883,23 @@ export const useUserStore = create<UserStoreState>((set, get) => ({
     }));
   },
 
+  /* ---------- Trial expired modal ---------- */
+  openTrialExpiredModal: () => set({ trialExpiredModalOpen: true }),
+  closeTrialExpiredModal: () => set({ trialExpiredModalOpen: false }),
+
   fetchLiveData: async () => {
     try {
-      const [clubsRes, facsRes, evtsRes, plansRes, bksRes, memsRes, famRes] = await Promise.allSettled([
-        userClubsService.getClubs(),
-        userClubsService.getFacilities(),
-        userEventsService.getEvents(),
-        userMembershipsService.getMembershipPlans(),
-        userBookingsService.getMyBookings(get().currentUser.id),
-        userMembershipsService.getMyMemberships(get().currentUser.id),
-        userProfileService.getFamilyMembers(get().currentUser.id),
-      ]);
+      const [clubsRes, facsRes, evtsRes, plansRes, bksRes, memsRes, famRes, reviewsRes] =
+        await Promise.allSettled([
+          userClubsService.getClubs(),
+          userClubsService.getFacilities(),
+          userEventsService.getEvents(),
+          userMembershipsService.getMembershipPlans(),
+          userBookingsService.getMyBookings(get().currentUser.id),
+          userMembershipsService.getMyMemberships(get().currentUser.id),
+          userProfileService.getFamilyMembers(get().currentUser.id),
+          userProfileService.getReviews({ userId: get().currentUser.id }),
+        ]);
 
       set((state) => {
         const updates: Partial<UserStoreState> = {};
@@ -993,6 +1068,35 @@ export const useUserStore = create<UserStoreState>((set, get) => ({
             sportsInterests: ['Tennis'],
           }));
           updates.familyMembers = liveFam;
+        }
+
+        if (
+          reviewsRes.status === 'fulfilled' &&
+          reviewsRes.value.success &&
+          Array.isArray(reviewsRes.value.data)
+        ) {
+          const liveReviews = reviewsRes.value.data.map((r: any) => ({
+            id: r.id,
+            userId: r.userId || state.currentUser.id,
+            userName: r.userName || state.currentUser.name,
+            userAvatar:
+              r.userAvatar ||
+              'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&w=150&q=80',
+            date: r.createdAt
+              ? new Date(r.createdAt).toLocaleDateString('en-GB', {
+                  day: 'numeric',
+                  month: 'short',
+                  year: 'numeric',
+                })
+              : 'Recently',
+            targetType: 'club' as const,
+            targetId: r.clubId,
+            targetName: r.clubName || 'Club',
+            rating: Number(r.rating) || 5,
+            comment: r.comment || '',
+            images: [],
+          }));
+          updates.reviews = liveReviews;
         }
 
         if (!state.selectedClubId && updates.clubs && updates.clubs.length > 0) {
