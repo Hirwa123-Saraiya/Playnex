@@ -16,7 +16,7 @@ import {
 } from "@/lib/mockData";
 
 const STATUS_STYLE: Record<ClubStatus, string> = {
-  Active:    "bg-lime text-ink",
+  Active:    "bg-blue text-white",
   Pending:   "bg-amber-100 text-amber-800",
   Suspended: "bg-red-100 text-red-800",
 };
@@ -78,22 +78,22 @@ export default function SuperAdminDashboard() {
       {/* Welcome header */}
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div className="min-w-0">
-          <h1 className="text-xl font-bold tracking-tight sm:text-2xl md:text-3xl">
+          <h1 className="text-xl font-bold tracking-tight text-navy sm:text-2xl md:text-3xl">
             Welcome, Super Admin!
           </h1>
           <div className="mt-1 flex flex-wrap items-center gap-2 text-xs text-muted sm:text-sm">
             <span>Here&apos;s what&apos;s happening across all Playnex clubs today.</span>
-            <span className="hidden items-center gap-1 rounded-full bg-lime/40 px-2 py-0.5 text-[11px] font-semibold text-moss sm:inline-flex">
+            <span className="hidden items-center gap-1 rounded-full bg-blueSoft px-2 py-0.5 text-[11px] font-semibold text-blue sm:inline-flex">
               <Sparkles size={12} /> Live multi-tenant sync
             </span>
           </div>
         </div>
-        <button className="rounded-lg bg-moss px-4 py-2.5 text-sm font-semibold text-white hover:bg-mossDark">
+        <button className="rounded-lg bg-blue px-4 py-2.5 text-sm font-semibold text-white hover:bg-blueHover">
           Add club
         </button>
       </div>
 
-      {/* KPI cards — 2 / 3 / 6 */}
+      {/* KPI cards */}
       <section className="grid grid-cols-2 gap-3 sm:gap-4 md:grid-cols-3 lg:grid-cols-6">
         {superAdminKpis.map((k, i) => {
           const Icon = KPI_ICONS[i % KPI_ICONS.length];
@@ -101,15 +101,15 @@ export default function SuperAdminDashboard() {
           return (
             <div
               key={k.label}
-              className="rounded-xl border border-line bg-card p-3 shadow-sm sm:p-4"
+              className="rounded-2xl border border-line bg-card p-3 shadow-card sm:p-4"
             >
               <div className="flex items-center gap-2 text-[10px] font-semibold uppercase tracking-wide text-muted sm:text-[11px]">
-                <span className="grid h-7 w-7 shrink-0 place-items-center rounded-md bg-lime/30 text-moss">
+                <span className="grid h-7 w-7 shrink-0 place-items-center rounded-md bg-blueSoft text-blue">
                   <Icon size={14} />
                 </span>
                 <span className="truncate">{k.label}</span>
               </div>
-              <div className="mt-2 text-xl font-bold leading-none sm:mt-3 sm:text-2xl">
+              <div className="mt-2 text-xl font-bold leading-none text-navy sm:mt-3 sm:text-2xl">
                 {k.value}
               </div>
               <div className="mt-2 flex items-center gap-1 text-[10px] sm:mt-3 sm:text-[11px]">
@@ -130,31 +130,29 @@ export default function SuperAdminDashboard() {
 
       {/* Chart + occupancy */}
       <div className="grid gap-4 md:gap-6 lg:grid-cols-3">
-        {/* Revenue chart */}
-        <section className="rounded-xl border border-line bg-card p-4 md:p-5 lg:col-span-2">
+        <section className="rounded-2xl border border-line bg-card p-4 shadow-card md:p-5 lg:col-span-2">
           <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
             <div>
-              <h2 className="text-base font-bold">Revenue Overview</h2>
+              <h2 className="text-base font-bold text-navy">Revenue Overview</h2>
               <p className="text-xs text-muted">
                 Real-time revenue across all Playnex clubs
               </p>
             </div>
             <div className="flex items-center gap-2">
-              <span className="hidden rounded-full bg-lime/30 px-2 py-0.5 text-[11px] font-semibold text-moss sm:inline-block">
+              <span className="hidden rounded-full bg-blueSoft px-2 py-0.5 text-[11px] font-semibold text-blue sm:inline-block">
                 +15% Growth
               </span>
-              <button className="flex items-center gap-1 rounded-lg border border-line px-3 py-1.5 text-xs text-muted hover:text-text">
+              <button className="flex items-center gap-1 rounded-lg border border-line px-3 py-1.5 text-xs text-muted hover:text-navy">
                 Last 30 Days
               </button>
             </div>
           </div>
 
           <div className="grid gap-4 md:grid-cols-3">
-            {/* Chart */}
             <div className="h-64 md:col-span-2 md:h-72">
               <ResponsiveContainer width="100%" height="100%">
                 <BarChart data={revenueStacked} barCategoryGap={18}>
-                  <CartesianGrid vertical={false} stroke="#EAECE6" />
+                  <CartesianGrid vertical={false} stroke="#D9E6F5" />
                   <XAxis dataKey="day" tickLine={false} axisLine={false} fontSize={11} />
                   <YAxis
                     tickFormatter={(v: number) => `₹${Math.round(v / 1000)}k`}
@@ -164,10 +162,10 @@ export default function SuperAdminDashboard() {
                     fontSize={11}
                   />
                   <Tooltip
-                    cursor={{ fill: "rgba(23,64,43,0.06)" }}
+                    cursor={{ fill: "rgba(21,101,216,0.06)" }}
                     contentStyle={{
                       borderRadius: 10,
-                      border: "1px solid #E5E7E1",
+                      border: "1px solid #D9E6F5",
                       fontSize: 12,
                     }}
                     formatter={(value: number, name: string) => [inr(value), name]}
@@ -185,12 +183,11 @@ export default function SuperAdminDashboard() {
               </ResponsiveContainer>
             </div>
 
-            {/* Legend panel */}
-            <div className="rounded-lg border border-line bg-sand/60 p-3 md:p-4">
+            <div className="rounded-lg border border-line bg-[#F4F8FD] p-3 md:p-4">
               <div className="text-[11px] font-semibold uppercase tracking-wide text-muted">
                 Revenue breakdown
               </div>
-              <div className="mt-1 text-lg font-bold md:text-xl">
+              <div className="mt-1 text-lg font-bold text-navy md:text-xl">
                 {inr(grandTotal)}
               </div>
               <ul className="mt-3 space-y-2 md:space-y-2.5">
@@ -201,10 +198,10 @@ export default function SuperAdminDashboard() {
                         className="h-2 w-2 shrink-0 rounded-full"
                         style={{ backgroundColor: revenueCategoryColors[c.label] }}
                       />
-                      <span className="flex-1 truncate">{c.label}</span>
+                      <span className="flex-1 truncate text-text">{c.label}</span>
                       <span className="text-muted">{c.pct}%</span>
                     </div>
-                    <div className="mt-0.5 pl-4 text-[11px] font-semibold text-text">
+                    <div className="mt-0.5 pl-4 text-[11px] font-semibold text-navy">
                       {inr(c.value)}
                     </div>
                   </li>
@@ -214,14 +211,13 @@ export default function SuperAdminDashboard() {
           </div>
         </section>
 
-        {/* Occupancy */}
-        <section className="rounded-xl border border-line bg-card p-4 md:p-5">
+        <section className="rounded-2xl border border-line bg-card p-4 shadow-card md:p-5">
           <div className="mb-4 flex items-center justify-between">
             <div>
-              <h2 className="text-base font-bold">Top Clubs by Bookings</h2>
+              <h2 className="text-base font-bold text-navy">Top Clubs by Bookings</h2>
               <p className="text-xs text-muted">Today&apos;s slot utilisation</p>
             </div>
-            <button className="flex items-center gap-1 text-xs font-medium text-moss hover:underline">
+            <button className="flex items-center gap-1 text-xs font-medium text-blue hover:underline">
               View all <ArrowRight size={12} />
             </button>
           </div>
@@ -232,7 +228,7 @@ export default function SuperAdminDashboard() {
               return (
                 <li key={row.id}>
                   <div className="mb-1 flex items-center justify-between text-xs">
-                    <span className="truncate pr-2 font-medium">{row.label}</span>
+                    <span className="truncate pr-2 font-medium text-text">{row.label}</span>
                     <span className="text-muted">
                       {row.used}/{row.total}
                     </span>
@@ -240,11 +236,11 @@ export default function SuperAdminDashboard() {
                   <div className="flex items-center gap-2">
                     <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-line">
                       <div
-                        className="h-full rounded-full bg-moss"
+                        className="h-full rounded-full bg-blue"
                         style={{ width: `${pct}%` }}
                       />
                     </div>
-                    <span className="w-9 text-right text-xs font-semibold">
+                    <span className="w-9 text-right text-xs font-semibold text-navy">
                       {pct}%
                     </span>
                   </div>
@@ -256,22 +252,22 @@ export default function SuperAdminDashboard() {
       </div>
 
       {/* Clubs table */}
-      <section className="rounded-xl border border-line bg-card p-4 md:p-5">
+      <section className="rounded-2xl border border-line bg-card p-4 shadow-card md:p-5">
         <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
-          <h2 className="text-base font-bold">Clubs</h2>
+          <h2 className="text-base font-bold text-navy">Clubs</h2>
           <div className="flex w-full flex-wrap gap-2 sm:w-auto">
             <input
               value={query}
               onChange={(e) => setQuery(e.target.value)}
               placeholder="Search club, admin or sport"
               aria-label="Search clubs"
-              className="h-10 w-full min-w-0 flex-1 rounded-lg border border-line bg-white px-3 text-sm outline-none placeholder:text-muted focus:border-moss/40 sm:w-64 sm:flex-none"
+              className="h-10 w-full min-w-0 flex-1 rounded-lg border border-line bg-white px-3 text-sm outline-none placeholder:text-muted focus:border-blue/40 sm:w-64 sm:flex-none"
             />
             <select
               value={status}
               onChange={(e) => setStatus(e.target.value as "All" | ClubStatus)}
               aria-label="Filter by status"
-              className="h-10 rounded-lg border border-line bg-white px-3 text-sm"
+              className="h-10 rounded-lg border border-line bg-white px-3 text-sm text-navy"
             >
               <option>All</option>
               <option>Active</option>
@@ -283,7 +279,7 @@ export default function SuperAdminDashboard() {
 
         <div className="-mx-4 overflow-x-auto md:mx-0">
           <table className="w-full min-w-[720px] text-left text-sm">
-            <thead className="border-b border-line text-muted">
+            <thead className="border-b border-line text-navy">
               <tr>
                 <th className="px-4 py-2 font-medium md:px-0">Club</th>
                 <th className="px-4 py-2 font-medium md:px-0">Club admin</th>
@@ -296,15 +292,18 @@ export default function SuperAdminDashboard() {
             </thead>
             <tbody>
               {filtered.map((c) => (
-                <tr key={c.id} className="border-b border-line last:border-0">
+                <tr
+                  key={c.id}
+                  className="border-b border-line last:border-0 hover:bg-[#F8FBFF] transition-colors"
+                >
                   <td className="px-4 py-3 md:px-0">
-                    <div className="font-medium">{c.name}</div>
+                    <div className="font-medium text-navy">{c.name}</div>
                     <div className="text-xs text-muted">{c.sport}</div>
                   </td>
-                  <td className="px-4 py-3 md:px-0">{c.admin}</td>
-                  <td className="px-4 py-3 text-right md:px-0">{c.members}</td>
-                  <td className="px-4 py-3 text-right md:px-0">{c.bookingsToday}</td>
-                  <td className="px-4 py-3 text-right md:px-0">{inr(c.revenue)}</td>
+                  <td className="px-4 py-3 text-text md:px-0">{c.admin}</td>
+                  <td className="px-4 py-3 text-right text-text md:px-0">{c.members}</td>
+                  <td className="px-4 py-3 text-right text-text md:px-0">{c.bookingsToday}</td>
+                  <td className="px-4 py-3 text-right text-text md:px-0">{inr(c.revenue)}</td>
                   <td className="px-4 py-3 pl-6 md:pl-6">
                     <span
                       className={`rounded-full px-2.5 py-0.5 text-xs font-medium ${STATUS_STYLE[c.status]}`}
@@ -313,7 +312,7 @@ export default function SuperAdminDashboard() {
                     </span>
                   </td>
                   <td className="px-4 py-3 text-right md:px-0">
-                    <button className="rounded-md border border-moss px-3 py-1 text-xs font-medium text-moss hover:bg-moss hover:text-white">
+                    <button className="rounded-md border border-blue px-3 py-1 text-xs font-medium text-blue hover:bg-blue hover:text-white">
                       {c.status === "Pending" ? "Review" : "Open"}
                     </button>
                   </td>
