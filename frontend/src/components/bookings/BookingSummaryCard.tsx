@@ -3,7 +3,6 @@
 import { CalendarDays, Clock, MapPin, User, Users } from "lucide-react";
 import type { BookingMode, Court, MemberTier, Slot } from "@/types/booking.types";
 import { priceForBooking, PRICING, refundFor } from "@/lib/bookingRules";
-
 interface Props {
   court?: Court;
   slot?: Slot;
@@ -59,7 +58,7 @@ export function BookingSummaryCard({
           <span className="text-xl font-bold">₹{amount}</span>
         </div>
         <p className="mt-2 text-[11px] text-muted">
-          {refundFor({} as any).reason /* placeholder — will compute per booking */}
+          Full refund up to 24h before · 50% up to 2h before · no refund within 2h.
         </p>
       </div>
     </div>

@@ -5,6 +5,7 @@ import { ArrowLeft, ArrowRight, CheckCircle2 } from "lucide-react";
 import { CourtGrid } from "./CourtGrid";
 import { SlotPicker } from "./SlotPicker";
 import { BookingSummaryCard } from "./BookingSummaryCard";
+import { SocialPlayParticipants } from "./SocialPlayParticipants";
 import {
   canUserBookOnDate,
   isSlotAvailable,
@@ -13,6 +14,7 @@ import {
 import {
   fetchCourts, fetchSlots, fetchMyBookings, createBooking,
 } from "@/services/bookingService";
+import { useAuth } from "@/context/AuthContext";
 import type {
   Booking, BookingMode, Court, MemberTier, Slot,
 } from "@/types/booking.types";
@@ -20,15 +22,14 @@ import type {
 const TODAY = new Date().toISOString().slice(0, 10);
 
 interface Props {
-  /** Called when the user finishes a booking successfully. */
   onBooked?: (booking: Booking) => void;
-  /** Called when the user clicks Close/Back at step 1. */
   onClose?: () => void;
-  /** Hide the "Back" link when inside a modal (close button handles it). */
   showBackLink?: boolean;
 }
 
 export function BookingWizard({ onBooked, onClose, showBackLink = false }: Props) {
+  const { user, isLoading: authLoading } = useAuth();
+
   const [step, setStep] = useState<1 | 2 | 3>(1);
   const [courts, setCourts] = useState<Court[]>([]);
   const [court, setCourt] = useState<Court | undefined>();
@@ -41,13 +42,26 @@ export function BookingWizard({ onBooked, onClose, showBackLink = false }: Props
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const tier: MemberTier = "Gold";
-  const userId = "u1";
+  /**
+   * Tier logic:
+   *  - MEMBER with a tier  → that tier (Gold / Silver / Junior)
+   *  - Everyone else       → WalkIn rate
+   *    (staff/owners booking on behalf of a walk-in guest)
+   */
+  const tier: MemberTier =
+    user?.systemRole === "MEMBER" && user.tier
+      ? (user.tier as MemberTier)
+      : "WalkIn";
+
+  // AuthUser uses `userId`, not `id`
+  const userId = user?.userId ?? "guest";
 
   useEffect(() => {
     fetchCourts().then(setCourts);
-    fetchMyBookings().then(setBookings);
-  }, []);
+    if (userId !== "guest") {
+      fetchMyBookings().then(setBookings);
+    }
+  }, [userId]);
 
   useEffect(() => {
     if (!court) return;
@@ -84,6 +98,22 @@ export function BookingWizard({ onBooked, onClose, showBackLink = false }: Props
     } finally {
       setSubmitting(false);
     }
+  }
+
+  if (authLoading) {
+    return (
+      <div className="rounded-xl border border-line bg-card p-8 text-center text-sm text-muted">
+        Loading your account…
+      </div>
+    );
+  }
+
+  if (!user) {
+    return (
+      <div className="rounded-xl border border-line bg-card p-8 text-center text-sm text-muted">
+        Please log in to book a court.
+      </div>
+    );
   }
 
   return (
@@ -178,14 +208,23 @@ export function BookingWizard({ onBooked, onClose, showBackLink = false }: Props
                 onSelect={(s) => {
                   setSlot(s);
                   setMode(
-                    isSocialPlaySlot(s.date, s.startTime) ? "SocialPlay" : "Standard"
+                    isSocialPlaySlot(s.date, s.startTime)
+                      ? "SocialPlay"
+                      : "Standard"
                   );
+                  setParticipants([]);
                 }}
               />
               {slot && isSocialPlaySlot(slot.date, slot.startTime) && (
-                <p className="mt-3 rounded-lg bg-lime/20 px-3 py-2 text-xs text-moss">
-                  Friday-night social play — multiple players share this court.
-                </p>
+                <div className="mt-3">
+                  <p className="rounded-lg bg-lime/20 px-3 py-2 text-xs text-moss">
+                    Friday-night social play — multiple players share this court.
+                  </p>
+                  <SocialPlayParticipants
+                    participants={participants}
+                    onChange={setParticipants}
+                  />
+                </div>
               )}
             </div>
             <div className="md:col-span-1">
@@ -250,6 +289,7 @@ export function BookingWizard({ onBooked, onClose, showBackLink = false }: Props
                 setStep(1);
                 setCourt(undefined);
                 setSlot(undefined);
+                setParticipants([]);
               }}
               className="rounded-lg border border-line bg-white px-4 py-2.5 text-sm font-medium"
             >
