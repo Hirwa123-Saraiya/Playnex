@@ -15,7 +15,7 @@ import { ClubNotificationPanel } from '../components/club/ClubNotificationPanel'
 import { Sparkles } from 'lucide-react';
 
 export const ClubDashboard: React.FC = () => {
-  const { kpis, club, selectedBranch } = useClub();
+  const { kpis, club, selectedBranch, user } = useClub();
 
   return (
     <div className="space-y-6 pb-12 w-full min-w-0 overflow-x-hidden">
@@ -24,11 +24,11 @@ export const ClubDashboard: React.FC = () => {
         <div className="min-w-0">
           <div className="flex items-center gap-2 flex-wrap">
             <h1 className="text-xl sm:text-2xl font-extrabold text-slate-900 tracking-tight">
-              Welcome, Club Owner!
+              Welcome, {user.name}!
             </h1>
             <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-blue-50 text-blue-700 border border-blue-200/60">
               <Sparkles className="w-3 h-3 text-blue-600 flex-shrink-0" />
-              Live Multi-Tenant Sync
+              {club.name}
             </span>
           </div>
           <p className="text-xs sm:text-sm text-slate-500 font-normal mt-1 break-words">

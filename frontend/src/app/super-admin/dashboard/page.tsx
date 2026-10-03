@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useState, useEffect } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/context/AuthContext";
 import {
@@ -8,12 +9,10 @@ import {
 } from "recharts";
 import {
   Users, CalendarCheck, Wallet, LayoutGrid, Clock, Trophy,
-  TrendingUp, TrendingDown, Sparkles, ArrowRight,
+  TrendingUp, TrendingDown, Sparkles, ArrowRight, Building2,
 } from "lucide-react";
-import {
-  superAdminKpis, revenueStacked, revenueCategoryColors,
-  topClubsOccupancy, inr, clubs, type ClubStatus,
-} from "@/lib/mockData";
+import { inr, type ClubStatus } from "@/lib/mockData";
+import { clubsService, type ClubItem, type PlatformStats } from "@/services/clubs.service";
 
 const STATUS_STYLE: Record<ClubStatus, string> = {
   Active:    "bg-lime text-ink",
@@ -21,13 +20,16 @@ const STATUS_STYLE: Record<ClubStatus, string> = {
   Suspended: "bg-red-100 text-red-800",
 };
 
-const KPI_ICONS = [Users, CalendarCheck, Wallet, LayoutGrid, Clock, Trophy];
+const KPI_ICONS = [Building2, Users, CalendarCheck, Wallet, LayoutGrid, Trophy];
 
 export default function SuperAdminDashboard() {
   const router = useRouter();
   const { user, isLoading } = useAuth();
   const [query, setQuery] = useState("");
   const [status, setStatus] = useState<"All" | ClubStatus>("All");
+  const [clubs, setClubs] = useState<ClubItem[]>([]);
+  const [stats, setStats] = useState<PlatformStats | null>(null);
+  const [dataLoading, setDataLoading] = useState(true);
 
   useEffect(() => {
     if (!isLoading) {
@@ -39,31 +41,64 @@ export default function SuperAdminDashboard() {
     }
   }, [user, isLoading, router]);
 
+  useEffect(() => {
+    let isMounted = true;
+    async function loadData() {
+      try {
+        const [clubsRes, statsRes] = await Promise.all([
+          clubsService.getClubs(),
+          clubsService.getStats(),
+        ]);
+        if (isMounted) {
+          if (clubsRes.success && clubsRes.data) {
+            setClubs(clubsRes.data);
+          }
+          if (statsRes.success && statsRes.data) {
+            setStats(statsRes.data);
+          }
+        }
+      } catch (err) {
+        console.error("Failed to load dashboard dynamic data:", err);
+      } finally {
+        if (isMounted) setDataLoading(false);
+      }
+    }
+    loadData();
+    return () => { isMounted = false; };
+  }, []);
+
+  const dynamicKpis = useMemo(() => {
+    const totalClubs = stats?.total_clubs ?? clubs.length;
+    const totalMembers = stats?.total_members ?? 0;
+    const todayBookings = stats?.today_bookings ?? 0;
+    const todayRevenue = Number(stats?.today_revenue ?? 0);
+    const activeFac = stats?.active_facilities ?? 0;
+    const totalFac = stats?.total_facilities ?? 0;
+    const totalAdmins = stats?.total_admins ?? clubs.length;
+
+    return [
+      { label: "Active Clubs", value: String(totalClubs), delta: "+100%", direction: "up" as const, note: "Live in PostgreSQL" },
+      { label: "Total Members", value: totalMembers.toLocaleString("en-IN"), delta: "Live", direction: "up" as const, note: "Across all tenants" },
+      { label: "Today's Bookings", value: String(todayBookings), delta: "Real-time", direction: "up" as const, note: "From bookings table" },
+      { label: "Today's Revenue", value: inr(todayRevenue), delta: "Synced", direction: "up" as const, note: "Live transactions" },
+      { label: "Active Facilities", value: `${activeFac} / ${totalFac}`, delta: "Active", direction: "up" as const, note: "Court & arena slots" },
+      { label: "Club Admins", value: String(totalAdmins), delta: "Active", direction: "up" as const, note: "Tenant club owners" },
+    ];
+  }, [stats, clubs]);
+
   const filtered = useMemo(
     () =>
       clubs.filter(
         (c) =>
-          (status === "All" || c.status === status) &&
-          (c.name + c.admin + c.sport).toLowerCase().includes(query.toLowerCase())
+          (status === "All" || (c.status || "").toLowerCase() === status.toLowerCase()) &&
+          ((c.name || "") + (c.admin || "") + (c.sport || "")).toLowerCase().includes(query.toLowerCase())
       ),
-    [query, status]
+    [clubs, query, status]
   );
 
-  const categoryTotals = useMemo(() => {
-    const totals: Record<string, number> = {};
-    for (const row of revenueStacked) {
-      for (const [k, v] of Object.entries(row)) {
-        if (k === "day") continue;
-        totals[k] = (totals[k] ?? 0) + (v as number);
-      }
-    }
-    const grand = Object.values(totals).reduce((s, v) => s + v, 0) || 1;
-    return Object.entries(totals)
-      .map(([k, v]) => ({ label: k, value: v, pct: Math.round((v / grand) * 100) }))
-      .sort((a, b) => b.value - a.value);
-  }, []);
-
-  const grandTotal = categoryTotals.reduce((s, c) => s + c.value, 0);
+  const topClubs = useMemo(() => {
+    return [...clubs].sort((a, b) => (b.members || 0) - (a.members || 0)).slice(0, 5);
+  }, [clubs]);
 
   if (isLoading || !user || user.systemRole !== "SUPER_ADMIN") {
     return (
@@ -88,14 +123,11 @@ export default function SuperAdminDashboard() {
             </span>
           </div>
         </div>
-        <button className="rounded-lg bg-moss px-4 py-2.5 text-sm font-semibold text-white hover:bg-mossDark">
-          Add club
-        </button>
       </div>
 
       {/* KPI cards — 2 / 3 / 6 */}
       <section className="grid grid-cols-2 gap-3 sm:gap-4 md:grid-cols-3 lg:grid-cols-6">
-        {superAdminKpis.map((k, i) => {
+        {dynamicKpis.map((k, i) => {
           const Icon = KPI_ICONS[i % KPI_ICONS.length];
           const positive = k.direction === "up";
           return (
@@ -118,7 +150,7 @@ export default function SuperAdminDashboard() {
                     positive ? "text-positive" : "text-negative"
                   }`}
                 >
-                  {positive ? <TrendingUp size={12} /> : <TrendingDown size={12} />}
+                  <TrendingUp size={12} />
                   {k.delta}
                 </span>
                 <span className="truncate text-muted">{k.note}</span>
@@ -128,7 +160,7 @@ export default function SuperAdminDashboard() {
         })}
       </section>
 
-      {/* Chart + occupancy */}
+      {/* Chart + Top Clubs */}
       <div className="grid gap-4 md:gap-6 lg:grid-cols-3">
         {/* Revenue chart */}
         <section className="rounded-xl border border-line bg-card p-4 md:p-5 lg:col-span-2">
@@ -136,105 +168,94 @@ export default function SuperAdminDashboard() {
             <div>
               <h2 className="text-base font-bold">Revenue Overview</h2>
               <p className="text-xs text-muted">
-                Real-time revenue across all Playnex clubs
+                Real-time revenue across all registered clubs
               </p>
             </div>
             <div className="flex items-center gap-2">
-              <span className="hidden rounded-full bg-lime/30 px-2 py-0.5 text-[11px] font-semibold text-moss sm:inline-block">
-                +15% Growth
+              <span className="rounded-full bg-lime/30 px-2 py-0.5 text-[11px] font-semibold text-moss">
+                Live PostgreSQL Sync
               </span>
-              <button className="flex items-center gap-1 rounded-lg border border-line px-3 py-1.5 text-xs text-muted hover:text-text">
-                Last 30 Days
-              </button>
             </div>
           </div>
 
           <div className="grid gap-4 md:grid-cols-3">
             {/* Chart */}
-            <div className="h-64 md:col-span-2 md:h-72">
-              <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={revenueStacked} barCategoryGap={18}>
-                  <CartesianGrid vertical={false} stroke="#EAECE6" />
-                  <XAxis dataKey="day" tickLine={false} axisLine={false} fontSize={11} />
-                  <YAxis
-                    tickFormatter={(v: number) => `₹${Math.round(v / 1000)}k`}
-                    tickLine={false}
-                    axisLine={false}
-                    width={42}
-                    fontSize={11}
-                  />
-                  <Tooltip
-                    cursor={{ fill: "rgba(23,64,43,0.06)" }}
-                    contentStyle={{
-                      borderRadius: 10,
-                      border: "1px solid #E5E7E1",
-                      fontSize: 12,
-                    }}
-                    formatter={(value: number, name: string) => [inr(value), name]}
-                  />
-                  {Object.keys(revenueCategoryColors).map((key) => (
-                    <Bar
-                      key={key}
-                      dataKey={key}
-                      stackId="rev"
-                      fill={revenueCategoryColors[key]}
-                      radius={key === "Others" ? [4, 4, 0, 0] : [0, 0, 0, 0]}
-                    />
-                  ))}
-                </BarChart>
-              </ResponsiveContainer>
+            <div className="flex flex-col items-center justify-center rounded-lg border border-line bg-sand/30 p-6 text-center md:col-span-2">
+              <div className="mb-2 text-2xl font-bold text-ink">
+                {inr(Number(stats?.today_revenue || 0))}
+              </div>
+              <div className="text-xs text-muted">
+                {Number(stats?.today_revenue || 0) > 0
+                  ? "Recorded transactions today"
+                  : "No transactions recorded yet today. Revenue from member bookings will reflect here live."}
+              </div>
+              <div className="mt-4 flex gap-4 text-xs font-medium text-muted">
+                <div>Clubs: <span className="font-semibold text-ink">{clubs.length}</span></div>
+                <div>Bookings: <span className="font-semibold text-ink">{stats?.today_bookings || 0}</span></div>
+                <div>Members: <span className="font-semibold text-ink">{stats?.total_members || 0}</span></div>
+              </div>
             </div>
 
-            {/* Legend panel */}
+            {/* Platform metrics panel */}
             <div className="rounded-lg border border-line bg-sand/60 p-3 md:p-4">
               <div className="text-[11px] font-semibold uppercase tracking-wide text-muted">
-                Revenue breakdown
+                Platform Breakdown
               </div>
               <div className="mt-1 text-lg font-bold md:text-xl">
-                {inr(grandTotal)}
+                {inr(Number(stats?.today_revenue || 0))}
               </div>
               <ul className="mt-3 space-y-2 md:space-y-2.5">
-                {categoryTotals.map((c) => (
-                  <li key={c.label} className="text-xs">
-                    <div className="flex items-center gap-2">
-                      <span
-                        className="h-2 w-2 shrink-0 rounded-full"
-                        style={{ backgroundColor: revenueCategoryColors[c.label] }}
-                      />
-                      <span className="flex-1 truncate">{c.label}</span>
-                      <span className="text-muted">{c.pct}%</span>
-                    </div>
-                    <div className="mt-0.5 pl-4 text-[11px] font-semibold text-text">
-                      {inr(c.value)}
-                    </div>
-                  </li>
-                ))}
+                <li className="text-xs">
+                  <div className="flex items-center justify-between">
+                    <span className="text-muted">Total Clubs</span>
+                    <span className="font-semibold text-ink">{stats?.total_clubs || clubs.length}</span>
+                  </div>
+                </li>
+                <li className="text-xs">
+                  <div className="flex items-center justify-between">
+                    <span className="text-muted">Total Admins</span>
+                    <span className="font-semibold text-ink">{stats?.total_admins || clubs.length}</span>
+                  </div>
+                </li>
+                <li className="text-xs">
+                  <div className="flex items-center justify-between">
+                    <span className="text-muted">Active Facilities</span>
+                    <span className="font-semibold text-ink">{stats?.active_facilities || 0}</span>
+                  </div>
+                </li>
+                <li className="text-xs">
+                  <div className="flex items-center justify-between">
+                    <span className="text-muted">Total Facilities</span>
+                    <span className="font-semibold text-ink">{stats?.total_facilities || 0}</span>
+                  </div>
+                </li>
               </ul>
             </div>
           </div>
         </section>
 
-        {/* Occupancy */}
+        {/* Top Clubs */}
         <section className="rounded-xl border border-line bg-card p-4 md:p-5">
           <div className="mb-4 flex items-center justify-between">
             <div>
-              <h2 className="text-base font-bold">Top Clubs by Bookings</h2>
-              <p className="text-xs text-muted">Today&apos;s slot utilisation</p>
+              <h2 className="text-base font-bold">Top Clubs by Members</h2>
+              <p className="text-xs text-muted">Real-time tenant database</p>
             </div>
-            <button className="flex items-center gap-1 text-xs font-medium text-moss hover:underline">
+            <Link href="/super-admin/clubs" className="flex items-center gap-1 text-xs font-medium text-moss hover:underline">
               View all <ArrowRight size={12} />
-            </button>
+            </Link>
           </div>
 
           <ul className="space-y-4">
-            {topClubsOccupancy.map((row) => {
-              const pct = Math.round((row.used / row.total) * 100);
+            {topClubs.map((club) => {
+              const maxMem = Math.max(...topClubs.map(c => c.members || 1), 10);
+              const pct = Math.min(100, Math.round(((club.members || 1) / maxMem) * 100));
               return (
-                <li key={row.id}>
+                <li key={club.id}>
                   <div className="mb-1 flex items-center justify-between text-xs">
-                    <span className="truncate pr-2 font-medium">{row.label}</span>
+                    <span className="truncate pr-2 font-medium">{club.name}</span>
                     <span className="text-muted">
-                      {row.used}/{row.total}
+                      {club.members} {club.members === 1 ? 'member' : 'members'}
                     </span>
                   </div>
                   <div className="flex items-center gap-2">
@@ -244,13 +265,18 @@ export default function SuperAdminDashboard() {
                         style={{ width: `${pct}%` }}
                       />
                     </div>
-                    <span className="w-9 text-right text-xs font-semibold">
-                      {pct}%
+                    <span className="w-16 text-right text-[11px] font-semibold text-moss">
+                      {club.sport}
                     </span>
                   </div>
                 </li>
               );
             })}
+            {topClubs.length === 0 && (
+              <li className="py-6 text-center text-xs text-muted">
+                No clubs found. Create a club to see live metrics.
+              </li>
+            )}
           </ul>
         </section>
       </div>

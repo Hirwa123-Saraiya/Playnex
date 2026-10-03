@@ -33,17 +33,17 @@ interface SidebarItem {
 
 const navItems: SidebarItem[] = [
   { name: 'Dashboard', icon: LayoutDashboard, id: 'Dashboard' },
-  { name: 'Bookings', icon: CalendarDays, badge: '186', badgeColor: 'bg-emerald-500/20 text-emerald-400', id: 'Bookings' },
+  { name: 'Bookings', icon: CalendarDays, id: 'Bookings' },
   { name: 'Members', icon: Users, id: 'Members' },
   { name: 'Facilities', icon: Building2, id: 'Facilities' },
   { name: 'Restaurant & Bar', icon: UtensilsCrossed, id: 'Restaurant & Bar' },
-  { name: 'Events & Tournaments', icon: Trophy, badge: '3', badgeColor: 'bg-blue-500/20 text-blue-400', id: 'Events & Tournaments' },
+  { name: 'Events & Tournaments', icon: Trophy, id: 'Events & Tournaments' },
   { name: 'Membership Plans', icon: CreditCard, id: 'Membership Plans' },
   { name: 'Staff Management', icon: Briefcase, id: 'Staff Management' },
   { name: 'Finance & Payments', icon: IndianRupee, id: 'Finance & Payments' },
   { name: 'Reports & Analytics', icon: BarChart3, id: 'Reports & Analytics' },
   { name: 'Communications', icon: MessageSquare, id: 'Communications' },
-  { name: 'Approvals', icon: CheckSquare, badge: '23', badgeColor: 'bg-rose-500 text-white', id: 'Approvals' },
+  { name: 'Approvals', icon: CheckSquare, id: 'Approvals' },
   { name: 'Settings', icon: Settings, id: 'Settings' },
 ];
 

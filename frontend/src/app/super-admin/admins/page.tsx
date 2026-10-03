@@ -1,8 +1,10 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo, useState, useEffect } from "react";
+import Link from "next/link";
 import { Plus, Search, Mail, MoreHorizontal } from "lucide-react";
-import { admins, type AdminStatus } from "@/lib/mockData";
+import { type AdminStatus } from "@/lib/mockData";
+import { clubsService, type AdminItem } from "@/services/clubs.service";
 
 const STATUS_STYLE: Record<AdminStatus, string> = {
   Active:   "bg-lime text-ink",
@@ -13,15 +15,35 @@ const STATUS_STYLE: Record<AdminStatus, string> = {
 export default function AdminsPage() {
   const [query, setQuery] = useState("");
   const [status, setStatus] = useState<"All" | AdminStatus>("All");
+  const [adminsList, setAdminsList] = useState<AdminItem[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    let isMounted = true;
+    async function fetchAdmins() {
+      try {
+        const res = await clubsService.getAdmins();
+        if (isMounted && res.success && res.data) {
+          setAdminsList(res.data);
+        }
+      } catch (e) {
+        console.error("Failed to load admins:", e);
+      } finally {
+        if (isMounted) setLoading(false);
+      }
+    }
+    fetchAdmins();
+    return () => { isMounted = false; };
+  }, []);
 
   const filtered = useMemo(
     () =>
-      admins.filter(
+      adminsList.filter(
         (a) =>
           (status === "All" || a.status === status) &&
           (a.name + a.email + a.club).toLowerCase().includes(query.toLowerCase())
       ),
-    [query, status]
+    [adminsList, query, status]
   );
 
   return (
@@ -32,12 +54,15 @@ export default function AdminsPage() {
             Club admins
           </h1>
           <p className="text-xs text-muted sm:text-sm">
-            {admins.length} admins across all clubs
+            {adminsList.length} admins across all clubs
           </p>
         </div>
-        <button className="inline-flex items-center gap-2 rounded-lg bg-moss px-4 py-2.5 text-sm font-semibold text-white hover:bg-mossDark">
-          <Plus size={16} /> Invite admin
-        </button>
+        <Link
+          href="/super-admin/clubs/new"
+          className="inline-flex items-center gap-2 rounded-lg bg-moss px-4 py-2.5 text-sm font-semibold text-white hover:bg-mossDark"
+        >
+          <Plus size={16} /> Add club & admin
+        </Link>
       </header>
 
       <div className="flex flex-wrap items-center gap-2">

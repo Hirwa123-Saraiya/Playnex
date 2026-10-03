@@ -120,13 +120,6 @@ export default function LoginPage() {
               )}
             </button>
           </form>
-
-          <div className="text-center text-xs text-slate-400 pt-3 border-t border-slate-800/80">
-            Don&apos;t have an account?{' '}
-            <Link href="/register" className="text-amber-400 hover:underline font-medium">
-              Create an account
-            </Link>
-          </div>
         </div>
       </div>
     </div>

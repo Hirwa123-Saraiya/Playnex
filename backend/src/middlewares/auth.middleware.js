@@ -1,6 +1,7 @@
 import jwt from 'jsonwebtoken';
 import { config } from '../config/appConfig.js';
 import { db } from '../data/db.js';
+import { dbService } from '../data/dbService.js';
 import { errorResponse } from '../utils/apiResponse.js';
 
 /**
@@ -8,7 +9,7 @@ import { errorResponse } from '../utils/apiResponse.js';
  * Validates accessToken from HTTP-only cookies (or Bearer header fallback)
  * and attaches user context (tenant, dynamic role, permissions) to req.user.
  */
-export function authenticate(req, res, next) {
+export async function authenticate(req, res, next) {
   try {
     let token = req.cookies?.accessToken;
 
@@ -25,13 +26,13 @@ export function authenticate(req, res, next) {
 
     const decoded = jwt.verify(token, config.jwtSecret);
 
-    const user = db.users.find((u) => u.user_id === decoded.userId && u.is_active);
+    const user = (await dbService.findUserById(decoded.userId)) || db.users.find((u) => u.user_id === decoded.userId && u.is_active);
     if (!user) {
       return errorResponse(res, 'User session invalid or deactivated.', 401);
     }
 
     // Resolve tenant details
-    const tenant = user.tenant_id ? db.tenants.find((t) => t.tenant_id === user.tenant_id) : null;
+    const tenantName = user.tenant_name || (user.tenant_id ? (db.tenants.find((t) => t.tenant_id === user.tenant_id)?.club_name || 'Sports Club') : 'Platform Wide');
 
     // Resolve dynamic role & permissions
     let roleName = user.system_role;
@@ -61,7 +62,7 @@ export function authenticate(req, res, next) {
       systemRole: user.system_role,
       roleName,
       tenantId: user.tenant_id,
-      tenantName: tenant ? tenant.club_name : 'Platform Wide',
+      tenantName,
       roleId: user.role_id,
       tier: user.tier,
       permissions,

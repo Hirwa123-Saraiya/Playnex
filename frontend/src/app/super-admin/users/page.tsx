@@ -1,8 +1,9 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo, useState, useEffect } from "react";
 import { Search, Mail, UserPlus, CheckCircle2, XCircle } from "lucide-react";
-import { users, type UserPlan } from "@/lib/mockData";
+import { type UserPlan } from "@/lib/mockData";
+import { clubsService, type UserItem } from "@/services/clubs.service";
 
 const PLAN_STYLE: Record<UserPlan, string> = {
   Trial:   "bg-amber-100 text-amber-800",
@@ -13,15 +14,35 @@ const PLAN_STYLE: Record<UserPlan, string> = {
 export default function UsersPage() {
   const [query, setQuery] = useState("");
   const [plan, setPlan] = useState<"All" | UserPlan>("All");
+  const [usersList, setUsersList] = useState<UserItem[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    let isMounted = true;
+    async function fetchUsers() {
+      try {
+        const res = await clubsService.getUsers();
+        if (isMounted && res.success && res.data) {
+          setUsersList(res.data);
+        }
+      } catch (e) {
+        console.error("Failed to load users:", e);
+      } finally {
+        if (isMounted) setLoading(false);
+      }
+    }
+    fetchUsers();
+    return () => { isMounted = false; };
+  }, []);
 
   const filtered = useMemo(
     () =>
-      users.filter(
+      usersList.filter(
         (u) =>
           (plan === "All" || u.plan === plan) &&
           (u.name + u.email + u.club).toLowerCase().includes(query.toLowerCase())
       ),
-    [query, plan]
+    [usersList, query, plan]
   );
 
   return (
@@ -30,7 +51,7 @@ export default function UsersPage() {
         <div className="min-w-0">
           <h1 className="text-xl font-bold sm:text-2xl md:text-3xl">Users</h1>
           <p className="text-xs text-muted sm:text-sm">
-            {users.length} end users across all clubs
+            {usersList.length} end users across all clubs
           </p>
         </div>
         <button className="inline-flex items-center gap-2 rounded-lg bg-moss px-4 py-2.5 text-sm font-semibold text-white hover:bg-mossDark">

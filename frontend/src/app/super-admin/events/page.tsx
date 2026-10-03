@@ -101,8 +101,10 @@ export default function EventsPage() {
           );
         })}
         {filtered.length === 0 && (
-          <div className="col-span-full rounded-xl border border-dashed border-line bg-card p-8 text-center text-sm text-muted">
-            No events in this category.
+          <div className="col-span-full rounded-xl border border-dashed border-line bg-card p-12 text-center text-sm text-muted">
+            <Trophy className="mx-auto mb-2 text-moss/50" size={32} />
+            <div className="font-semibold text-ink">No events scheduled yet</div>
+            <div className="mt-1 text-xs text-muted">Tournaments, league matches, and coaching camps will appear here dynamically.</div>
           </div>
         )}
       </div>

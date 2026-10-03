@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import type { LucideIcon } from "lucide-react";
@@ -7,6 +8,7 @@ import {
   LayoutGrid, Building2, Users, UserCog, Wallet, Settings,
   Zap, ShieldCheck, PanelLeftClose, Trophy, BarChart3,
 } from "lucide-react";
+import { clubsService } from "@/services/clubs.service";
 
 type NavItem = {
   label: string;
@@ -16,19 +18,36 @@ type NavItem = {
   badgeTone?: "lime" | "danger";
 };
 
-const links: NavItem[] = [
-  { label: "Dashboard",   href: "/super-admin/dashboard", icon: LayoutGrid },
-  { label: "Clubs",       href: "/super-admin/clubs",     icon: Building2, badge: 196, badgeTone: "lime" },
-  { label: "Club admins", href: "/super-admin/admins",    icon: UserCog },
-  { label: "Users",       href: "/super-admin/users",     icon: Users },
-  { label: "Revenue",     href: "/super-admin/revenue",   icon: Wallet },
-  { label: "Events",      href: "/super-admin/events",    icon: Trophy },
-  { label: "Reports",     href: "/super-admin/reports",   icon: BarChart3 },
-  { label: "Settings",    href: "/super-admin/settings",  icon: Settings },
-];
-
 export default function Sidebar() {
   const pathname = usePathname();
+  const [clubCount, setClubCount] = useState<number | null>(null);
+
+  useEffect(() => {
+    let isMounted = true;
+    async function loadStats() {
+      try {
+        const res = await clubsService.getStats();
+        if (isMounted && res.success && res.data) {
+          setClubCount(res.data.total_clubs);
+        }
+      } catch (e) {
+        // Ignored
+      }
+    }
+    loadStats();
+    return () => { isMounted = false; };
+  }, [pathname]);
+
+  const links: NavItem[] = [
+    { label: "Dashboard",   href: "/super-admin/dashboard", icon: LayoutGrid },
+    { label: "Clubs",       href: "/super-admin/clubs",     icon: Building2, badge: clubCount !== null ? clubCount : undefined, badgeTone: "lime" },
+    { label: "Club admins", href: "/super-admin/admins",    icon: UserCog },
+    { label: "Users",       href: "/super-admin/users",     icon: Users },
+    { label: "Revenue",     href: "/super-admin/revenue",   icon: Wallet },
+    { label: "Events",      href: "/super-admin/events",    icon: Trophy },
+    { label: "Reports",     href: "/super-admin/reports",   icon: BarChart3 },
+    { label: "Settings",    href: "/super-admin/settings",  icon: Settings },
+  ];
 
   return (
     <aside
