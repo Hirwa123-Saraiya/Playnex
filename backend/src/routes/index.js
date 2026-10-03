@@ -14,6 +14,7 @@ import approvalsRoutes from './approvals.routes.js';
 import communicationsRoutes from './communications.routes.js';
 import clubSettingsRoutes from './clubSettings.routes.js';
 import financeRoutes from './finance.routes.js';
+import proShopRoutes from './pro_shop.routes.js';
 
 // User Portal Modular Sections
 import userClubsRoutes from './userClubs.routes.js';
@@ -55,6 +56,8 @@ router.use('/club/approvals', approvalsRoutes);
 router.use('/club/communications', communicationsRoutes);
 router.use('/club/settings', clubSettingsRoutes);
 router.use('/club/finance', financeRoutes);
+router.use('/club/pro-shop', proShopRoutes);
+router.use('/pro-shop', proShopRoutes);
 
 // User / Customer Portal Modular Sections
 router.use('/user/clubs', userClubsRoutes);

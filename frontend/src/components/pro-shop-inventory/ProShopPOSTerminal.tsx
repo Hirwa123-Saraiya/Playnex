@@ -20,6 +20,7 @@ import {
 import { useProShopStore } from '../../store/ProShopInventoryStore';
 import { mockProShopMembers } from '../../mock/ProShopInventoryMockData';
 import { PaymentMethod, ProShopMember, ProShopProduct } from '../../types/ProShopInventoryTypes';
+import { proShopService } from '../../services/proShop.service';
 
 export const ProShopPOSTerminal: React.FC = () => {
   const { 
@@ -84,7 +85,20 @@ export const ProShopPOSTerminal: React.FC = () => {
     setMemberSearchQuery('');
   };
 
-  const handleCompleteSaleAction = () => {
+  const handleCompleteSaleAction = async () => {
+    try {
+      if (posCart.length > 0) {
+        await proShopService.checkoutPOS({
+          items: posCart.map((c) => ({ itemId: c.product.id, qty: c.quantity })),
+          customerName: posMember ? posMember.name : 'Walk-in Customer',
+          customerPhone: posMember ? posMember.mobile : undefined,
+          paymentMethod: posPaymentMethod,
+          operatorName: 'Pro Shop Cashier',
+        });
+      }
+    } catch (e) {
+      console.error('Failed to sync POS checkout to DB:', e);
+    }
     completePosSale();
     setShowReceiptModal(true);
   };
