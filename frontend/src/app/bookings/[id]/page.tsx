@@ -12,8 +12,8 @@ import { refundFor } from "@/lib/bookingRules";
 import type { Booking } from "@/types/booking.types";
 
 const STATUS_STYLE: Record<string, string> = {
-  Confirmed: "bg-lime text-ink",
-  Completed: "bg-sand text-muted",
+  Confirmed: "bg-blue text-white",
+  Completed: "bg-page text-muted",
   Cancelled: "bg-red-100 text-red-800",
   NoShow:    "bg-amber-100 text-amber-800",
 };
@@ -53,12 +53,12 @@ export default function BookingDetailPage() {
       <div className="mx-auto max-w-2xl space-y-4 p-6">
         <Link
           href="/bookings"
-          className="inline-flex items-center gap-1 text-sm text-muted hover:text-text"
+          className="inline-flex items-center gap-1 text-sm text-muted hover:text-navy"
         >
           <ArrowLeft size={14} /> Back to bookings
         </Link>
-        <div className="rounded-xl border border-dashed border-line bg-card p-10 text-center">
-          <p className="text-lg font-semibold">Booking not found</p>
+        <div className="rounded-xl border border-dashed border-line bg-white p-10 text-center">
+          <p className="text-lg font-semibold text-navy">Booking not found</p>
           <p className="mt-1 text-sm text-muted">
             It may have been cancelled or removed.
           </p>
@@ -74,14 +74,16 @@ export default function BookingDetailPage() {
     <div className="mx-auto max-w-2xl space-y-5 p-4 md:p-6">
       <Link
         href="/bookings"
-        className="inline-flex items-center gap-1 text-sm text-muted hover:text-text"
+        className="inline-flex items-center gap-1 text-sm text-muted hover:text-navy"
       >
         <ArrowLeft size={14} /> Back to bookings
       </Link>
 
       <header className="flex flex-wrap items-start justify-between gap-3">
         <div className="min-w-0">
-          <h1 className="text-2xl font-bold md:text-3xl">{booking.courtName}</h1>
+          <h1 className="text-2xl font-bold text-navy md:text-3xl">
+            {booking.courtName}
+          </h1>
           <p className="text-sm text-muted">{booking.sport}</p>
         </div>
         <span
@@ -91,7 +93,7 @@ export default function BookingDetailPage() {
         </span>
       </header>
 
-      <section className="rounded-xl border border-line bg-card p-5">
+      <section className="rounded-xl border border-line bg-white p-5 shadow-card">
         <dl className="space-y-3 text-sm">
           <Row icon={<CalendarDays size={14} />} label="Date" value={booking.date} />
           <Row
@@ -120,13 +122,13 @@ export default function BookingDetailPage() {
       </section>
 
       {canCancel && (
-        <section className="rounded-xl border border-line bg-card p-5">
-          <h2 className="text-sm font-bold">Cancellation policy</h2>
+        <section className="rounded-xl border border-line bg-white p-5 shadow-card">
+          <h2 className="text-sm font-bold text-navy">Cancellation policy</h2>
           <p className="mt-1 text-xs text-muted">{policy.reason}</p>
           <button
             type="button"
             onClick={() => setShowCancel(true)}
-            className="mt-4 inline-flex items-center gap-2 rounded-lg border border-red-300 bg-white px-4 py-2 text-sm font-semibold text-red-700 hover:bg-red-50"
+            className="mt-4 inline-flex items-center gap-2 rounded-lg border border-red-200 bg-white px-4 py-2 text-sm font-semibold text-red-700 hover:bg-red-50"
           >
             <XCircle size={15} /> Cancel booking
           </button>
@@ -162,7 +164,7 @@ function Row({
       <dt className="flex items-center gap-2 text-muted">
         {icon} <span>{label}</span>
       </dt>
-      <dd className="text-right font-medium">{value}</dd>
+      <dd className="text-right font-medium text-navy">{value}</dd>
     </div>
   );
 }

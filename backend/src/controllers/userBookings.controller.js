@@ -1,11 +1,41 @@
-import { dbService } from '../data/dbService.js';
+import { bookingService } from '../services/bookingService.js';
 import { successResponse, errorResponse } from '../utils/apiResponse.js';
+import { getTenantId } from '../utils/tenantHelper.js';
 
-export async function getUserBookings(req, res) {
+export async function listCourts(req, res) {
   try {
-    const userId = req.user?.userId || req.query.userId || 'usr_demo_customer';
-    const bookings = await dbService.getUserBookings(userId);
-    return successResponse(res, bookings, 'User bookings retrieved successfully');
+    const tenantId = getTenantId(req) || req.query.tenantId;
+    if (!tenantId) return errorResponse(res, 'Tenant context missing', 400);
+    const courts = await bookingService.getCourts({ tenantId });
+    return successResponse(res, courts, 'Courts retrieved successfully');
+  } catch (err) {
+    return errorResponse(res, err.message, 500);
+  }
+}
+
+export async function listSlots(req, res) {
+  try {
+    const tenantId = getTenantId(req) || req.query.tenantId;
+    if (!tenantId) return errorResponse(res, 'Tenant context missing', 400);
+    const { id } = req.params;
+    const { date } = req.query;
+    if (!date || !/^\d{4}-\d{2}-\d{2}$/.test(date)) {
+      return errorResponse(res, 'date query param required (YYYY-MM-DD)', 400);
+    }
+    const slots = await bookingService.getSlots(id, date, { tenantId });
+    return successResponse(res, slots, 'Slots retrieved successfully');
+  } catch (err) {
+    return errorResponse(res, err.message, 500);
+  }
+}
+
+export async function listMyBookings(req, res) {
+  try {
+    const tenantId = getTenantId(req);
+    const userId = req.user?.id || req.query.userId;
+    if (!userId) return errorResponse(res, 'User context missing', 400);
+    const bookings = await bookingService.getMyBookings(userId, { tenantId });
+    return successResponse(res, bookings, 'Bookings retrieved successfully');
   } catch (err) {
     return errorResponse(res, err.message, 500);
   }
@@ -13,42 +43,31 @@ export async function getUserBookings(req, res) {
 
 export async function createUserBooking(req, res) {
   try {
-    const userId = req.user?.userId || req.body.userId || 'usr_demo_customer';
-    const { clubId, facilityId, memberName, bookingDate, startTime, endTime, totalPrice, paymentStatus, courtName } = req.body;
+    const tenantId = getTenantId(req) || req.body.tenantId;
+    if (!tenantId) return errorResponse(res, 'Tenant context missing', 400);
 
-    if (!clubId || !facilityId || !bookingDate || !startTime || !endTime) {
-      return errorResponse(res, 'Club, facility, date, and times are required', 400);
-    }
+    const user = req.user
+      ? { id: req.user.id, tier: req.user.tier, name: req.user.name, tenantId }
+      : null;
 
-    const bookingId = `bk_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`;
-    const created = await dbService.createUserBooking({
-      bookingId,
-      tenantId: clubId,
-      facilityId,
-      userId,
-      memberName: memberName || req.user?.name || 'Customer',
-      bookingDate,
-      startTime,
-      endTime,
-      totalPrice: Number(totalPrice) || 500,
-      paymentStatus: paymentStatus || 'paid',
-      courtName: courtName || 'Court 1',
-    });
-
-    return successResponse(res, created, 'Booking confirmed successfully', 201);
+    const booking = await bookingService.createBooking(
+      { ...req.body, tenantId },
+      user
+    );
+    return successResponse(res, booking, 'Booking created successfully', 201);
   } catch (err) {
-    return errorResponse(res, err.message, 500);
+    return errorResponse(res, err.message, err.status || 500);
   }
 }
 
 export async function cancelUserBooking(req, res) {
   try {
-    const userId = req.user?.userId || req.query.userId || 'usr_demo_customer';
+    const tenantId = getTenantId(req);
     const { id } = req.params;
-    const cancelled = await dbService.cancelUserBooking(id, userId);
-    if (!cancelled) return errorResponse(res, 'Booking not found or already cancelled', 404);
-    return successResponse(res, cancelled, 'Booking cancelled successfully');
+    const userId = req.user?.id || req.body.userId || null;
+    const result = await bookingService.cancelBooking(id, userId, { tenantId });
+    return successResponse(res, result, 'Booking cancelled successfully');
   } catch (err) {
-    return errorResponse(res, err.message, 500);
+    return errorResponse(res, err.message, err.status || 500);
   }
 }
