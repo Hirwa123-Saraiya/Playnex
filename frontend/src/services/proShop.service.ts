@@ -1,4 +1,5 @@
 import { apiMethod } from './api';
+import type { ProShopProduct } from '../types/ProShopInventoryTypes';
 
 export interface ProShopOverviewData {
   totalItems: number;
@@ -58,6 +59,49 @@ export interface ProShopItem {
   is_active: boolean;
 }
 
+export function mapProShopItemToProduct(item: ProShopItem): ProShopProduct {
+  const availableStock = Number(item.stock_quantity) || 0;
+  const reorderLevel = Number(item.reorder_threshold) || 0;
+  const categoryLabel = item.category.toLowerCase();
+  const category = categoryLabel.includes('racket') ? 'Rackets'
+    : categoryLabel.includes('ball') || categoryLabel.includes('shuttle') ? 'Balls'
+    : categoryLabel.includes('shoe') ? 'Shoes'
+    : categoryLabel.includes('apparel') || categoryLabel.includes('shirt') ? 'Apparel'
+    : categoryLabel.includes('bag') ? 'Bags'
+    : 'Accessories';
+
+  return {
+    id: item.item_id,
+    name: item.name,
+    sku: item.sku,
+    category: category as ProShopProduct['category'],
+    brand: item.brand || 'General',
+    description: `${item.brand || 'General'} ${item.category}`,
+    sellingPrice: Number(item.unit_price) || 0,
+    costPrice: Number(item.cost_price) || 0,
+    taxPercentage: Number(item.tax_rate_percent) || 18,
+    availableStock,
+    reservedStock: 0,
+    soldToday: 0,
+    reorderLevel,
+    status: availableStock === 0 ? 'Out Of Stock' : availableStock <= reorderLevel ? 'Low Stock' : 'In Stock',
+    imageUrl: item.image_url || '',
+    vendorName: item.brand || 'General supplier',
+    lastRestockedDate: 'Not recorded',
+  };
+}
+
+function toApiItemPayload(item: Partial<ProShopItem>) {
+  return {
+    ...item,
+    unitPrice: item.unit_price,
+    costPrice: item.cost_price,
+    stockQuantity: item.stock_quantity,
+    reorderThreshold: item.reorder_threshold,
+    imageUrl: item.image_url,
+  };
+}
+
 export const proShopService = {
   async getOverview(tenantId?: string) {
     return apiMethod<ProShopOverviewData>({
@@ -79,7 +123,22 @@ export const proShopService = {
     return apiMethod<ProShopItem>({
       method: 'POST',
       url: '/pro-shop/items',
-      data: payload,
+      data: toApiItemPayload(payload),
+    });
+  },
+
+  async updateItem(id: string, payload: Partial<ProShopItem>) {
+    return apiMethod<ProShopItem>({
+      method: 'PUT',
+      url: `/pro-shop/items/${id}`,
+      data: toApiItemPayload(payload),
+    });
+  },
+
+  async deleteItem(id: string) {
+    return apiMethod<{ itemId: string }>({
+      method: 'DELETE',
+      url: `/pro-shop/items/${id}`,
     });
   },
 
@@ -103,6 +162,13 @@ export const proShopService = {
       method: 'POST',
       url: '/pro-shop/pos/checkout',
       data: payload,
+    });
+  },
+
+  async getSales() {
+    return apiMethod<ProShopOverviewData['recentSales']>({
+      method: 'GET',
+      url: '/pro-shop/sales',
     });
   },
 };

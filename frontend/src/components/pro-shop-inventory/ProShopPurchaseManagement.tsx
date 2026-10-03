@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { 
   Truck, 
   FileText, 
@@ -17,19 +17,36 @@ import { useProShopStore } from '../../store/ProShopInventoryStore';
 import { PurchaseOrderStatus, ProShopPurchaseOrder } from '../../types/ProShopInventoryTypes';
 
 export const ProShopPurchaseManagement: React.FC = () => {
-  const { vendors, purchaseOrders, addPurchaseOrder, updatePurchaseOrderStatus, products } = useProShopStore();
+  const { vendors, purchaseOrders, addPurchaseOrder, updatePurchaseOrderStatus, products, setToastMessage } = useProShopStore();
   const [showPOModal, setShowPOModal] = useState(false);
-  const [selectedVendorId, setSelectedVendorId] = useState(vendors[0].id);
-  const [selectedProductId, setSelectedProductId] = useState(products[0].id);
+  const [selectedVendorId, setSelectedVendorId] = useState(vendors[0]?.id ?? '');
+  const [selectedProductId, setSelectedProductId] = useState(products[0]?.id ?? '');
   const [poQuantity, setPoQuantity] = useState(50);
   const [deliveryDate, setDeliveryDate] = useState('2025-10-15');
   const [poNotes, setPoNotes] = useState('');
 
   const selectedProd = products.find(p => p.id === selectedProductId) || products[0];
   const selectedVend = vendors.find(v => v.id === selectedVendorId) || vendors[0];
+  const canCreatePurchaseOrder = Boolean(selectedProd && selectedVend);
+
+  useEffect(() => {
+    if (!products.some((product) => product.id === selectedProductId)) {
+      setSelectedProductId(products[0]?.id ?? '');
+    }
+  }, [products, selectedProductId]);
+
+  useEffect(() => {
+    if (!vendors.some((vendor) => vendor.id === selectedVendorId)) {
+      setSelectedVendorId(vendors[0]?.id ?? '');
+    }
+  }, [vendors, selectedVendorId]);
 
   const handleCreatePO = (e: React.FormEvent) => {
     e.preventDefault();
+    if (!selectedProd || !selectedVend) {
+      setToastMessage('Add a catalog product before creating a purchase order.');
+      return;
+    }
     const unitCost = selectedProd.costPrice;
     const totalCost = unitCost * poQuantity;
 
@@ -71,12 +88,21 @@ export const ProShopPurchaseManagement: React.FC = () => {
 
         <button
           onClick={() => setShowPOModal(true)}
-          className="flex items-center gap-1.5 px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold shadow-sm transition"
+          disabled={!canCreatePurchaseOrder}
+          title={canCreatePurchaseOrder ? 'Create a purchase order' : 'Add a product to the catalog first'}
+          className="flex items-center gap-1.5 px-4 py-2 bg-emerald-600 hover:bg-emerald-700 disabled:bg-slate-300 disabled:cursor-not-allowed text-white rounded-xl text-xs font-bold shadow-sm transition"
         >
           <Plus className="w-4 h-4" />
           Create Purchase Order
         </button>
       </div>
+
+      {!products.length && (
+        <div className="flex items-start gap-3 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-xs text-amber-900">
+          <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" />
+          <span>Your live catalog is empty. Add a product in <strong>Product Catalog</strong> before creating a purchase order.</span>
+        </div>
+      )}
 
       {/* 4-Step Visual Workflow matching Reference Image Card 8 */}
       <div className="p-4 bg-slate-50/80 rounded-2xl border border-slate-200">
@@ -273,7 +299,7 @@ export const ProShopPurchaseManagement: React.FC = () => {
               <div className="p-3 bg-slate-50 rounded-xl border border-slate-200 text-xs flex justify-between items-center">
                 <span className="text-slate-500">Calculated PO Landed Value:</span>
                 <span className="text-base font-black text-slate-900">
-                  ₹{(selectedProd.costPrice * poQuantity).toLocaleString('en-IN')}
+                  ₹{((selectedProd?.costPrice || 0) * poQuantity).toLocaleString('en-IN')}
                 </span>
               </div>
 
@@ -287,7 +313,8 @@ export const ProShopPurchaseManagement: React.FC = () => {
                 </button>
                 <button
                   type="submit"
-                  className="px-4 py-2 text-xs font-bold bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl shadow-sm"
+                  disabled={!canCreatePurchaseOrder}
+                  className="px-4 py-2 text-xs font-bold bg-emerald-600 hover:bg-emerald-700 disabled:bg-slate-300 disabled:cursor-not-allowed text-white rounded-xl shadow-sm"
                 >
                   Submit Purchase Order
                 </button>

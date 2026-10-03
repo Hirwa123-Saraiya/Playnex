@@ -1,6 +1,7 @@
 import jwt from 'jsonwebtoken';
 import bcrypt from 'bcryptjs';
 import { dbService } from '../data/dbService.js';
+import { buildDefaultStaff } from '../data/defaultWorkstations.js';
 import { config, cookieOptions } from '../config/appConfig.js';
 import { successResponse, errorResponse } from '../utils/apiResponse.js';
 
@@ -91,9 +92,10 @@ export async function register(req, res) {
 
     if (type === 'CLUB_OWNER') {
       tenantId = `tenant_${Date.now()}`;
+      const resolvedClubName = clubName || `${name}'s Sports Club`;
       await dbService.createTenant({
         tenantId,
-        clubName: clubName || `${name}'s Sports Club`,
+        clubName: resolvedClubName,
         subdomain: (clubName || name).toLowerCase().replace(/[^a-z0-9]/g, '-'),
         subscriptionPlan: 'Free Trial',
       });
@@ -106,6 +108,12 @@ export async function register(req, res) {
         passwordHash,
         systemRole: 'CLUB_OWNER',
         tier: null,
+      });
+
+      await dbService.provisionDefaultStaff({
+        tenantId,
+        passwordHash: bcrypt.hashSync('Playnex@2026', 10),
+        staff: buildDefaultStaff(resolvedClubName),
       });
     } else {
       // Member registration

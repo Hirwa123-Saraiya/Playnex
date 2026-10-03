@@ -1,5 +1,6 @@
 import bcrypt from 'bcryptjs';
 import { dbService } from '../data/dbService.js';
+import { buildDefaultStaff } from '../data/defaultWorkstations.js';
 import { successResponse, errorResponse } from '../utils/apiResponse.js';
 
 /**
@@ -242,6 +243,13 @@ export async function createClub(req, res) {
         description: d.description,
       });
     }
+
+    // 5. Persist the seven operational workstation accounts for this tenant.
+    await dbService.provisionDefaultStaff({
+      tenantId,
+      passwordHash: bcrypt.hashSync('Playnex@2026', 10),
+      staff: buildDefaultStaff(clubName),
+    });
 
     const createdClub = {
       id: tenantId,

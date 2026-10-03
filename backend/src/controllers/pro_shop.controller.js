@@ -146,7 +146,7 @@ export async function createProShopItem(req, res) {
     const tenantId = getTenantId(req);
     if (!tenantId) return errorResponse(res, 'Tenant context missing', 400);
 
-    const { name, category, brand, sku, unitPrice, costPrice, stockQuantity, reorderThreshold, barcode } = req.body;
+    const { name, category, brand, sku, unitPrice, costPrice, stockQuantity, reorderThreshold, barcode, imageUrl } = req.body;
     if (!name || !category) return errorResponse(res, 'Name and category are required', 400);
 
     const itemId = `item_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`;
@@ -155,8 +155,8 @@ export async function createProShopItem(req, res) {
     const { rows } = await pool.query(
       `INSERT INTO pro_shop_items (
          item_id, tenant_id, sku, name, category, brand, unit_price, cost_price, 
-         stock_quantity, reorder_threshold, barcode
-       ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
+         stock_quantity, reorder_threshold, barcode, image_url
+       ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
        RETURNING *`,
       [
         itemId,
@@ -169,7 +169,7 @@ export async function createProShopItem(req, res) {
         parseFloat(costPrice) || 0.0,
         parseInt(stockQuantity, 10) || 0,
         parseInt(reorderThreshold, 10) || 5,
-        barcode || null,
+        barcode || null, imageUrl || null,
       ]
     );
 
@@ -189,7 +189,7 @@ export async function updateProShopItem(req, res) {
     if (!tenantId) return errorResponse(res, 'Tenant context missing', 400);
 
     const { id } = req.params;
-    const { name, category, brand, sku, unitPrice, costPrice, stockQuantity, reorderThreshold, barcode } = req.body;
+    const { name, category, brand, sku, unitPrice, costPrice, stockQuantity, reorderThreshold, barcode, imageUrl } = req.body;
 
     const { rows } = await pool.query(
       `UPDATE pro_shop_items
@@ -202,8 +202,9 @@ export async function updateProShopItem(req, res) {
            stock_quantity = COALESCE($7, stock_quantity),
            reorder_threshold = COALESCE($8, reorder_threshold),
            barcode = COALESCE($9, barcode),
+           image_url = COALESCE($10, image_url),
            updated_at = NOW()
-       WHERE item_id = $10 AND tenant_id = $11
+       WHERE item_id = $11 AND tenant_id = $12
        RETURNING *`,
       [
         name,
@@ -215,6 +216,7 @@ export async function updateProShopItem(req, res) {
         stockQuantity !== undefined ? parseInt(stockQuantity, 10) : null,
         reorderThreshold !== undefined ? parseInt(reorderThreshold, 10) : null,
         barcode,
+        imageUrl,
         id,
         tenantId,
       ]

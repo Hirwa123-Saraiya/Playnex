@@ -55,45 +55,43 @@ export default function LoginPage() {
   const [submitting, setSubmitting] = useState(false);
 
   const resolveRedirectPath = (targetUser: any) => {
-    if (!targetUser) return '/club/dashboard';
+    if (!targetUser) return '/login';
     if (targetUser.systemRole === 'SUPER_ADMIN') return '/super-admin/dashboard';
     if (targetUser.systemRole === 'MEMBER') return '/user';
+    if (targetUser.systemRole === 'CLUB_OWNER') return '/club/dashboard';
 
-    const tm = (targetUser.targetModule || '').toLowerCase();
-    const rn = (targetUser.roleName || '').toLowerCase();
-    const email = (targetUser.email || '').toLowerCase();
+    // For STAFF — route by targetModule, then roleName, then email prefix
+    if (targetUser.systemRole === 'STAFF') {
+      const tm = (targetUser.targetModule || '').toLowerCase();
+      const rn = (targetUser.roleName || '').toLowerCase();
+      const em = (targetUser.email || '').toLowerCase();
 
-    // 1. Pro Shop & Inventory Workstation (Standalone)
-    if (tm.includes('pro shop') || tm.includes('inventory') || rn.includes('pro shop') || rn.includes('inventory') || email.includes('shop')) {
-      return '/pro-shop';
-    }
-    // 2. Bar & Kitchen / F&B Workstation (Standalone)
-    if (tm.includes('restaurant') || tm.includes('bar') || tm.includes('kitchen') || rn.includes('restaurant') || rn.includes('bar') || rn.includes('kitchen') || email.includes('bar')) {
-      return '/bar-kitchen';
-    }
-    // 3. Front Desk Command Center (Standalone)
-    if (tm.includes('front desk') || tm.includes('walk-in') || tm.includes('reception') || rn.includes('front desk') || rn.includes('reception') || email.includes('frontdesk')) {
+      // Extract email prefix (e.g. "shop.clubname@playnex.com" → "shop")
+      const emailPrefix = em.split('@')[0].split('.')[0];
+
+      if (tm.includes('pro shop') || tm.includes('inventory') || rn.includes('pro shop') || rn.includes('inventory') || emailPrefix === 'shop') {
+        return '/pro-shop';
+      }
+      if (tm.includes('restaurant') || tm.includes('bar') || tm.includes('kitchen') || rn.includes('bar') || rn.includes('kitchen') || emailPrefix === 'bar' || emailPrefix === 'kitchen') {
+        return '/bar-kitchen';
+      }
+      if (tm.includes('front desk') || tm.includes('reception') || rn.includes('front desk') || emailPrefix === 'frontdesk' || emailPrefix === 'reception') {
+        return '/front-desk';
+      }
+      if (tm.includes('finance') || tm.includes('account') || rn.includes('finance') || rn.includes('account') || emailPrefix === 'accountant' || emailPrefix === 'finance') {
+        return '/finance';
+      }
+      if (tm.includes('coach') || rn.includes('coach') || emailPrefix === 'coach') {
+        return '/coach';
+      }
+      if (tm.includes('hr') || rn.includes('hr') || emailPrefix === 'hr') {
+        return '/hr';
+      }
+      if (tm.includes('grounds') || tm.includes('facility') || rn.includes('grounds') || emailPrefix === 'grounds' || emailPrefix === 'facility') {
+        return '/facility-ops';
+      }
+      // Default STAFF landing — front desk
       return '/front-desk';
-    }
-    // 4. Finance & Accounting ERP (Standalone)
-    if (tm.includes('finance') || tm.includes('account') || tm.includes('tax') || rn.includes('finance') || rn.includes('account') || rn.includes('auditor') || email.includes('accountant')) {
-      return '/finance';
-    }
-    // 5. Sports Academy Coaching Workstation (Standalone)
-    if (tm.includes('coach') || rn.includes('coach') || email.includes('coach')) {
-      return '/coach';
-    }
-    // 6. HR & Personnel Workstation (Standalone)
-    if (tm.includes('hr') || rn.includes('hr') || tm.includes('human') || email.includes('hr.') || email.includes('hr@')) {
-      return '/hr';
-    }
-    // 7. Facility & Grounds Workstation (Standalone)
-    if (tm.includes('grounds') || tm.includes('facility') || rn.includes('grounds') || email.includes('grounds')) {
-      return '/facility-ops';
-    }
-
-    if (targetUser.systemRole === 'CLUB_OWNER') {
-      return '/club/dashboard';
     }
 
     return '/club/dashboard';

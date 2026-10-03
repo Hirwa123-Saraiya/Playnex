@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { 
   Package, 
   Search, 
@@ -16,9 +16,26 @@ import {
 } from 'lucide-react';
 import { useProShopStore } from '../../store/ProShopInventoryStore';
 import { ProShopCategory, ProShopProduct, ProductStockStatus } from '../../types/ProShopInventoryTypes';
+import { mapProShopItemToProduct, proShopService } from '../../services/proShop.service';
+
+const ProductImage: React.FC<{ src?: string; alt: string; className: string }> = ({ src, alt, className }) => {
+  const [failed, setFailed] = useState(false);
+
+  useEffect(() => setFailed(false), [src]);
+
+  if (!src || failed) {
+    return (
+      <span className={`${className} flex items-center justify-center bg-slate-100 text-slate-300`} aria-label={`${alt} image unavailable`}>
+        <ImageIcon className="w-1/3 h-1/3" />
+      </span>
+    );
+  }
+
+  return <img src={src} alt={alt} className={className} onError={() => setFailed(true)} />;
+};
 
 export const ProShopProductCatalog: React.FC = () => {
-  const { products, selectedCategory, setSelectedCategory, addProduct, updateProduct, deleteProduct } = useProShopStore();
+  const { products, selectedCategory, setSelectedCategory, setProducts, setToastMessage } = useProShopStore();
   const [search, setSearch] = useState('');
   const [selectedBrand, setSelectedBrand] = useState('All');
   const [selectedProduct, setSelectedProduct] = useState<ProShopProduct>(products[0]);
@@ -86,10 +103,24 @@ export const ProShopProductCatalog: React.FC = () => {
     setShowAddModal(true);
   };
 
-  const handleSaveAdd = (e: React.FormEvent) => {
+  const handleSaveAdd = async (e: React.FormEvent) => {
     e.preventDefault();
-    addProduct(formData);
-    setShowAddModal(false);
+    try {
+      const response = await proShopService.createItem({
+        name: formData.name, sku: formData.sku, category: formData.category, brand: formData.brand,
+        unit_price: formData.sellingPrice, cost_price: formData.costPrice,
+        stock_quantity: formData.availableStock, reorder_threshold: formData.reorderLevel,
+        image_url: formData.imageUrl,
+      });
+      if (!response.success || !response.data) throw new Error(response.message || 'Could not create product');
+      const created = mapProShopItemToProduct(response.data);
+      setProducts([created, ...products]);
+      setSelectedProduct(created);
+      setShowAddModal(false);
+      setToastMessage('Product saved to the inventory database.');
+    } catch (error) {
+      setToastMessage(error instanceof Error ? error.message : 'Could not save product.');
+    }
   };
 
   const handleOpenEdit = (p: ProShopProduct) => {
@@ -115,13 +146,37 @@ export const ProShopProductCatalog: React.FC = () => {
     setShowEditModal(true);
   };
 
-  const handleSaveEdit = (e: React.FormEvent) => {
+  const handleSaveEdit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (selectedProduct) {
-      updateProduct(selectedProduct.id, formData);
-      setSelectedProduct({ ...selectedProduct, ...formData });
+    try {
+      const response = await proShopService.updateItem(selectedProduct.id, {
+        name: formData.name, sku: formData.sku, category: formData.category, brand: formData.brand,
+        unit_price: formData.sellingPrice, cost_price: formData.costPrice,
+        stock_quantity: formData.availableStock, reorder_threshold: formData.reorderLevel,
+        image_url: formData.imageUrl,
+      });
+      if (!response.success || !response.data) throw new Error(response.message || 'Could not update product');
+      const updated = mapProShopItemToProduct(response.data);
+      setProducts(products.map((product) => product.id === updated.id ? updated : product));
+      setSelectedProduct(updated);
+      setShowEditModal(false);
+      setToastMessage('Product changes saved to the inventory database.');
+    } catch (error) {
+      setToastMessage(error instanceof Error ? error.message : 'Could not update product.');
     }
-    setShowEditModal(false);
+  };
+
+  const handleDelete = async () => {
+    try {
+      const response = await proShopService.deleteItem(selectedProduct.id);
+      if (!response.success) throw new Error(response.message || 'Could not remove product');
+      const remaining = products.filter((product) => product.id !== selectedProduct.id);
+      setProducts(remaining);
+      if (remaining[0]) setSelectedProduct(remaining[0]);
+      setToastMessage('Product removed from the inventory database.');
+    } catch (error) {
+      setToastMessage(error instanceof Error ? error.message : 'Could not remove product.');
+    }
   };
 
   return (
@@ -190,7 +245,7 @@ export const ProShopProductCatalog: React.FC = () => {
                   <Edit3 className="w-4 h-4" />
                 </button>
                 <button
-                  onClick={() => deleteProduct(selectedProduct.id)}
+                  onClick={handleDelete}
                   className="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-white rounded-lg transition"
                   title="Delete Product"
                 >
@@ -201,11 +256,7 @@ export const ProShopProductCatalog: React.FC = () => {
 
             <div className="mt-4 flex flex-col sm:flex-row items-center gap-4">
               <div className="w-28 h-28 rounded-2xl bg-white border border-slate-200 overflow-hidden shadow-xs flex-shrink-0 flex items-center justify-center p-2">
-                <img
-                  src={selectedProduct.imageUrl}
-                  alt={selectedProduct.name}
-                  className="w-full h-full object-cover rounded-xl"
-                />
+                <ProductImage src={selectedProduct.imageUrl} alt={selectedProduct.name} className="w-full h-full object-cover rounded-xl" />
               </div>
               <div>
                 <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-blue-100 text-blue-700">
@@ -309,7 +360,7 @@ export const ProShopProductCatalog: React.FC = () => {
                       }`}
                     >
                       <td className="py-2.5 px-3 flex items-center gap-2">
-                        <img src={p.imageUrl} alt="" className="w-7 h-7 rounded-lg object-cover" />
+                        <ProductImage src={p.imageUrl} alt={p.name} className="w-7 h-7 rounded-lg object-cover shrink-0" />
                         <div>
                           <div className="font-bold text-slate-900">{p.name}</div>
                           <div className="text-[10px] text-slate-400 font-mono">{p.sku}</div>

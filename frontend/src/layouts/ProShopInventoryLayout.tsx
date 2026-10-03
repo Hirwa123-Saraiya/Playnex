@@ -19,12 +19,13 @@ import { ProShopReportsAnalytics } from '../components/pro-shop-inventory/ProSho
 import { ProShopUserRoles } from '../components/pro-shop-inventory/ProShopUserRoles';
 import { ProShopInventoryTransactions } from '../components/pro-shop-inventory/ProShopInventoryTransactions';
 import { useProShopStore } from '../store/ProShopInventoryStore';
+import { mapProShopItemToProduct, proShopService } from '../services/proShop.service';
 import { CheckCircle2, Loader2 } from 'lucide-react';
 
 export const ProShopInventoryLayout: React.FC = () => {
   const router = useRouter();
   const { user, isLoading } = useAuth();
-  const { activeView, toastMessage } = useProShopStore();
+  const { activeView, toastMessage, setProducts, setToastMessage } = useProShopStore();
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
@@ -33,6 +34,20 @@ export const ProShopInventoryLayout: React.FC = () => {
       router.push('/login');
     }
   }, [user, isLoading, router]);
+
+  useEffect(() => {
+    if (!user?.tenantId) return;
+
+    void proShopService.getItems({ tenantId: user.tenantId })
+      .then((response) => {
+        if (response.success && Array.isArray(response.data)) {
+          setProducts(response.data.map(mapProShopItemToProduct));
+        }
+      })
+      .catch(() => {
+        setToastMessage('Could not load live inventory. Showing the local catalog.');
+      });
+  }, [user?.tenantId, setProducts, setToastMessage]);
 
   if (isLoading) {
     return (

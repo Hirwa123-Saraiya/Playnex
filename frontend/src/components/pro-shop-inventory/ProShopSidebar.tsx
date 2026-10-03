@@ -2,22 +2,13 @@ import React from 'react';
 import { 
   LayoutGrid, 
   Package, 
-  Layers, 
   SlidersHorizontal, 
   AlertTriangle, 
-  Store, 
-  Percent, 
   Calculator, 
-  Truck, 
-  RotateCcw, 
-  BarChart3, 
-  ShieldCheck, 
-  History,
   ChevronLeft,
   ChevronRight,
   ShoppingCart,
   Database,
-  CheckCircle2,
   X
 } from 'lucide-react';
 import { useProShopStore, ProShopActiveView } from '../../store/ProShopInventoryStore';
@@ -35,9 +26,7 @@ export const ProShopSidebar: React.FC<ProShopSidebarProps> = ({
   mobileOpen,
   onCloseMobile
 }) => {
-  const { activeView, setActiveView, alerts, onlineCart, posCart, returns, products } = useProShopStore();
-
-  const pendingReturns = returns.filter(r => r.status === 'Pending').length;
+  const { activeView, setActiveView, alerts, posCart, products } = useProShopStore();
   const totalStockCount = products.reduce((acc, curr) => acc + curr.availableStock, 0);
 
   const navItems: {
@@ -49,17 +38,9 @@ export const ProShopSidebar: React.FC<ProShopSidebarProps> = ({
   }[] = [
     { id: 'overview', label: 'Dashboard Overview', icon: LayoutGrid },
     { id: 'catalog', label: 'Product Catalog', icon: Package, badge: products.length, badgeColor: 'bg-slate-700 text-slate-200' },
-    { id: 'central-inventory', label: 'Central Inventory Flow', icon: Layers },
     { id: 'stock-tracking', label: 'Stock Tracking', icon: SlidersHorizontal },
     { id: 'low-stock-alerts', label: 'Low Stock Alerts', icon: AlertTriangle, badge: alerts.length > 0 ? alerts.length : null, badgeColor: 'bg-rose-500 text-white animate-pulse' },
-    { id: 'online-store', label: 'Online Store (Member)', icon: Store, badge: onlineCart.length > 0 ? `${onlineCart.length}` : null, badgeColor: 'bg-blue-600 text-white' },
-    { id: 'member-discounts', label: 'Member Discounts', icon: Percent, badge: '5-15%', badgeColor: 'bg-indigo-600 text-white' },
     { id: 'pos-counter', label: 'POS (Counter Sales)', icon: Calculator, badge: posCart.length > 0 ? `${posCart.length}` : null, badgeColor: 'bg-emerald-600 text-white' },
-    { id: 'purchases', label: 'Purchase Management', icon: Truck },
-    { id: 'returns-refunds', label: 'Returns & Refunds', icon: RotateCcw, badge: pendingReturns > 0 ? `${pendingReturns} New` : null, badgeColor: 'bg-amber-500 text-white' },
-    { id: 'reports-analytics', label: 'Reports & Analytics', icon: BarChart3 },
-    { id: 'user-roles', label: 'User Roles & Access', icon: ShieldCheck },
-    { id: 'inventory-transactions', label: 'Inventory History', icon: History },
   ];
 
   const handleNavClick = (viewId: ProShopActiveView) => {
@@ -125,7 +106,7 @@ export const ProShopSidebar: React.FC<ProShopSidebarProps> = ({
         </div>
 
         {/* Navigation Item List */}
-        <div className="flex-1 overflow-y-auto p-3 space-y-1 no-scrollbar">
+        <div className="flex-1 overflow-hidden p-3 space-y-1">
           {!collapsed && (
             <div className="px-3 pt-2 pb-1 text-[10px] font-black uppercase tracking-wider text-slate-500">
               Management Modules
@@ -175,8 +156,9 @@ export const ProShopSidebar: React.FC<ProShopSidebarProps> = ({
         </div>
 
         {/* Footer Real-Time Central Stock Status */}
-        {!collapsed && (
-          <div className="p-3 m-3 rounded-2xl bg-slate-900/90 border border-slate-800 text-xs">
+        <div className="p-3 border-t border-slate-800/80">
+          {!collapsed && (
+            <div className="mb-3 rounded-2xl bg-slate-900/90 border border-slate-800 p-3 text-xs">
             <div className="flex items-center justify-between pb-2 border-b border-slate-800 text-[11px]">
               <span className="text-slate-400 flex items-center gap-1 font-medium">
                 <Database className="w-3.5 h-3.5 text-blue-400" /> Central Stock
@@ -192,8 +174,9 @@ export const ProShopSidebar: React.FC<ProShopSidebarProps> = ({
             <div className="text-[10px] text-slate-500 mt-1">
               Synchronized with Counter POS & Web App
             </div>
-          </div>
-        )}
+            </div>
+          )}
+        </div>
       </aside>
     </>
   );

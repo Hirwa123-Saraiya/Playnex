@@ -241,24 +241,14 @@ export const staffService = {
         params: tenantId ? { tenantId } : undefined,
       });
 
-      if (res.success && Array.isArray(res.data) && res.data.length > 0) {
-        // Merge with local sub-accounts to guarantee pro shop, bar, reception exist
-        const apiStaff = res.data;
-        const stored = getStoredSubAccounts();
-        const merged = [...stored];
-
-        apiStaff.forEach((s) => {
-          if (!merged.some((m) => m.email.toLowerCase() === s.email.toLowerCase())) {
-            merged.push({
-              ...s,
-              subAccountType: (s.subAccountType || 'Administration') as any,
-              permissions: s.permissions || ['General Staff Access'],
-            });
-          }
-        });
-
-        saveStoredSubAccounts(merged);
-        return { success: true, data: merged, message: 'Retrieved staff sub-accounts' };
+      if (res.success && Array.isArray(res.data)) {
+        const staff = res.data.map((item) => ({
+          ...item,
+          subAccountType: (item.subAccountType || 'Administration') as ClubStaffItem['subAccountType'],
+          permissions: item.permissions || ['General Staff Access'],
+        }));
+        saveStoredSubAccounts(staff);
+        return { success: true, data: staff, message: 'Retrieved staff sub-accounts' };
       }
     } catch {
       // Fallback seamlessly to local verified sub-accounts
@@ -269,42 +259,43 @@ export const staffService = {
   },
 
   async createStaff(data: CreateStaffPayload) {
-    const newSubAccount: ClubStaffItem = {
-      id: `sub_${Date.now()}`,
-      name: data.name,
-      email: data.email,
-      phone: data.phone || null,
-      status: 'active',
-      systemRole: 'STAFF',
-      department: data.department || 'Pro Shop & Gear Inventory',
-      roleName: data.roleName || 'Pro Shop Staff',
-      subAccountType: data.subAccountType || 'Pro Shop',
-      permissions: data.permissions && data.permissions.length > 0
-        ? data.permissions
-        : ['Standard Station Access'],
-      createdAt: new Date().toISOString(),
-    };
-
-    // Save to local storage
-    const current = getStoredSubAccounts();
-    const updated = [newSubAccount, ...current];
-    saveStoredSubAccounts(updated);
-
-    // Also attempt backend creation
-    try {
-      await apiMethod<ClubStaffItem>({
-        method: 'POST',
-        url: '/club/staff',
-        data,
-      });
-    } catch {
-      // Offline / Local resilience
+    const res = await apiMethod<ClubStaffItem>({
+      method: 'POST',
+      url: '/club/staff',
+      data,
+    });
+    if (!res.success || !res.data) {
+      throw new Error(res.message || 'Could not save staff member');
     }
 
-    return { success: true, data: newSubAccount, message: 'Sub-account onboarded successfully' };
+    const newSubAccount: ClubStaffItem = {
+      ...res.data,
+      phone: res.data.phone ?? data.phone ?? null,
+      status: res.data.status || 'active',
+      systemRole: res.data.systemRole || 'STAFF',
+      department: res.data.department || data.department || 'Operations',
+      roleName: res.data.roleName || data.roleName || 'Staff Member',
+      targetModule: res.data.targetModule || data.targetModule,
+      subAccountType: data.subAccountType || 'Administration',
+      permissions: res.data.permissions || data.permissions || ['Standard Station Access'],
+      createdAt: res.data.createdAt || new Date().toISOString(),
+    };
+    const current = getStoredSubAccounts();
+    saveStoredSubAccounts([newSubAccount, ...current.filter((item) => item.id !== newSubAccount.id)]);
+
+    return { success: true, data: newSubAccount, message: res.message || 'Staff member onboarded successfully' };
   },
 
   async updateStaff(id: string, data: Partial<CreateStaffPayload> & { status?: string }) {
+    const res = await apiMethod<ClubStaffItem>({
+      method: 'PUT',
+      url: `/club/staff/${id}`,
+      data,
+    });
+    if (!res.success || !res.data) {
+      throw new Error(res.message || 'Could not update staff member');
+    }
+
     const current = getStoredSubAccounts();
     const idx = current.findIndex((s) => s.id === id);
     if (idx !== -1) {
@@ -318,34 +309,23 @@ export const staffService = {
       saveStoredSubAccounts(current);
     }
 
-    try {
-      await apiMethod<ClubStaffItem>({
-        method: 'PUT',
-        url: `/club/staff/${id}`,
-        data,
-      });
-    } catch {
-      // Local fallback
-    }
-
-    return { success: true, data: current[idx], message: 'Sub-account updated' };
+    return { success: true, data: current[idx] || res.data, message: res.message || 'Staff member updated' };
   },
 
   async deleteStaff(id: string) {
+    const res = await apiMethod<{ id: string }>({
+      method: 'DELETE',
+      url: `/club/staff/${id}`,
+    });
+    if (!res.success) {
+      throw new Error(res.message || 'Could not remove staff member');
+    }
+
     const current = getStoredSubAccounts();
     const filtered = current.filter((s) => s.id !== id);
     saveStoredSubAccounts(filtered);
 
-    try {
-      await apiMethod<{ id: string }>({
-        method: 'DELETE',
-        url: `/club/staff/${id}`,
-      });
-    } catch {
-      // Local fallback
-    }
-
-    return { success: true, data: { id }, message: 'Sub-account removed' };
+    return { success: true, data: { id }, message: res.message || 'Staff member removed' };
   },
 
   async getRoles() {

@@ -1050,6 +1050,60 @@ export const dbService = {
     return null;
   },
 
+  /**
+   * Create the standard workstation accounts for a newly registered club.
+   * Roles, users, and role assignments are inserted in one transaction so a
+   * tenant never has partially provisioned staff.
+   */
+  async provisionDefaultStaff({ tenantId, passwordHash, staff }) {
+    if (!(await checkPg())) return [];
+
+    const client = await pool.connect();
+    try {
+      await client.query('BEGIN');
+      const created = [];
+
+      for (const workstation of staff) {
+        const suffix = Math.random().toString(36).substring(2, 8);
+        const roleId = `role_${Date.now()}_${suffix}`;
+        const userId = `usr_${Date.now()}_${suffix}`;
+
+        await client.query(
+          `INSERT INTO roles (role_id, tenant_id, name, description, target_module, permissions)
+           VALUES ($1, $2, $3, $4, $5, $6)`,
+          [
+            roleId,
+            tenantId,
+            workstation.roleName,
+            `Default ${workstation.roleName} workstation role`,
+            workstation.targetModule,
+            JSON.stringify(workstation.permissions),
+          ]
+        );
+
+        const { rows } = await client.query(
+          `INSERT INTO users (user_id, tenant_id, name, email, password_hash, system_role, is_active, status)
+           VALUES ($1, $2, $3, $4, $5, 'STAFF', TRUE, 'active')
+           RETURNING user_id as id, name, email, system_role as "systemRole"`,
+          [userId, tenantId, workstation.name, workstation.email, passwordHash]
+        );
+        await client.query(
+          `INSERT INTO user_roles (user_id, role_id) VALUES ($1, $2)`,
+          [userId, roleId]
+        );
+        created.push(rows[0]);
+      }
+
+      await client.query('COMMIT');
+      return created;
+    } catch (err) {
+      await client.query('ROLLBACK');
+      throw err;
+    } finally {
+      client.release();
+    }
+  },
+
   async updateStaff(userId, tenantId, { name, phone, departmentId, status }) {
     if (await checkPg()) {
       const { rows } = await pool.query(

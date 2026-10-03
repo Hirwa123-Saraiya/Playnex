@@ -1,28 +1,32 @@
+ 'use client';
+
 import React from 'react';
 import { 
   Menu, 
   Search, 
   Bell, 
   Calculator, 
-  Store, 
   User, 
   Building2,
   AlertTriangle,
-  ShoppingCart
+  ShoppingCart,
+  LogOut
 } from 'lucide-react';
 import { useProShopStore, ProShopActiveView } from '../../store/ProShopInventoryStore';
+import { useAuth } from '../../context/AuthContext';
 
 interface ProShopHeaderProps {
   onOpenMobileMenu?: () => void;
 }
 
 export const ProShopHeader: React.FC<ProShopHeaderProps> = ({ onOpenMobileMenu }) => {
-  const { activeView, setActiveView, alerts, onlineCart, posCart, searchQuery, setSearchQuery } = useProShopStore();
+  const { user, logout } = useAuth();
+  const { activeView, setActiveView, alerts, posCart, searchQuery, setSearchQuery } = useProShopStore();
 
   const getBreadcrumbTitle = () => {
     switch (activeView) {
       case 'overview':
-        return 'Dashboard Overview (All 12 Modules)';
+        return 'Dashboard Overview';
       case 'catalog':
         return 'Product Catalog & SKUs';
       case 'central-inventory':
@@ -105,21 +109,6 @@ export const ProShopHeader: React.FC<ProShopHeaderProps> = ({ onOpenMobileMenu }
           )}
         </button>
 
-        {/* Member Store Button */}
-        <button
-          onClick={() => setActiveView('online-store')}
-          className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold shadow-xs transition"
-          title="View Member Online Storefront"
-        >
-          <Store className="w-3.5 h-3.5" />
-          <span className="hidden sm:inline">Member Store</span>
-          {onlineCart.length > 0 && (
-            <span className="px-1.5 py-0.2 bg-white text-blue-700 rounded-full text-[10px] font-black">
-              {onlineCart.length}
-            </span>
-          )}
-        </button>
-
         {/* Alert Bell Button */}
         <button
           onClick={() => setActiveView('low-stock-alerts')}
@@ -135,12 +124,13 @@ export const ProShopHeader: React.FC<ProShopHeaderProps> = ({ onOpenMobileMenu }
         {/* Staff / Club Operator Profile */}
         <div className="flex items-center gap-2 pl-2 border-l border-slate-200">
           <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-slate-900 to-blue-900 text-white font-black text-xs flex items-center justify-center shadow-xs">
-            PS
+            {(user?.name || 'PS').split(' ').map((part) => part[0]).join('').slice(0, 2).toUpperCase()}
           </div>
           <div className="hidden xl:block text-left">
-            <span className="text-xs font-bold text-slate-900 block leading-tight">Pro Shop Cashier</span>
-            <span className="text-[10px] text-slate-400 font-medium">Main Sports Complex</span>
+            <span className="text-xs font-bold text-slate-900 block leading-tight">{user?.name || 'Pro Shop Cashier'}</span>
+            <span className="text-[10px] text-slate-400 font-medium">{user?.tenantName || 'Main Sports Complex'}</span>
           </div>
+          <button onClick={() => void logout()} className="ml-1 rounded-lg p-2 text-slate-400 transition hover:bg-rose-50 hover:text-rose-600" title="Log out" aria-label="Log out"><LogOut className="h-4 w-4" /></button>
         </div>
       </div>
     </header>

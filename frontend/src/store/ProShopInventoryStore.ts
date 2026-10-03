@@ -45,6 +45,7 @@ interface ProShopStoreState {
 
   // Products
   products: ProShopProduct[];
+  setProducts: (products: ProShopProduct[]) => void;
   selectedCategory: ProShopCategory | 'All';
   setSelectedCategory: (cat: ProShopCategory | 'All') => void;
   searchQuery: string;
@@ -111,6 +112,7 @@ export const useProShopStore = create<ProShopStoreState>((set, get) => ({
   setActiveView: (view) => set({ activeView: view }),
 
   products: mockProShopProducts,
+  setProducts: (products) => set({ products }),
   selectedCategory: 'All',
   setSelectedCategory: (cat) => set({ selectedCategory: cat }),
   searchQuery: '',
