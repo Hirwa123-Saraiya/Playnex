@@ -1,6 +1,8 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo, useState, useEffect } from "react";
+import { useRouter } from "next/navigation";
+import { useAuth } from "@/context/AuthContext";
 import {
   AlertCircle,
   CalendarDays,
@@ -15,6 +17,7 @@ import {
   Radio,
   X,
   Check,
+  Loader2,
 } from "lucide-react";
 
 type Sport = {
@@ -53,6 +56,9 @@ const TIME_SLOTS = [
 ];
 
 export default function WalkInBookingPage() {
+  const router = useRouter();
+  const { user, isLoading: authLoading } = useAuth();
+
   const [selectedSport, setSelectedSport] = useState("badminton");
   const [selectedCourt, setSelectedCourt] = useState("badminton-1");
   const [selectedDate, setSelectedDate] = useState("");
@@ -65,6 +71,22 @@ export default function WalkInBookingPage() {
   const [isConfirmed, setIsConfirmed] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState("");
+
+  useEffect(() => {
+    if (!authLoading && !user) {
+      router.push('/login');
+    }
+  }, [user, authLoading, router]);
+
+  if (authLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-slate-950 text-white">
+        <Loader2 className="w-8 h-8 text-emerald-500 animate-spin" />
+      </div>
+    );
+  }
+
+  if (!user) return null;
 
   const currentSport = useMemo(() => {
     return SPORTS.find((sport) => sport.id === selectedSport) ?? SPORTS[0];

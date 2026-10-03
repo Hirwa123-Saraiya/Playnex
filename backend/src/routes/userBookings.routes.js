@@ -4,11 +4,13 @@ import {
   createUserBooking,
   cancelUserBooking,
 } from '../controllers/userBookings.controller.js';
-import { optionalAuthenticate } from '../middlewares/auth.middleware.js';
+import { authenticate } from '../middlewares/auth.middleware.js';
 
 const router = express.Router();
 
-router.use(optionalAuthenticate);
+// User bookings require authentication
+router.use(authenticate);
+
 router.get('/', getUserBookings);
 router.post('/', createUserBooking);
 router.patch('/:id/cancel', cancelUserBooking);

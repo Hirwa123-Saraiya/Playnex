@@ -17,6 +17,7 @@ import {
   BarChart3,
   Users,
   Shield,
+  Loader2,
 } from 'lucide-react';
 
 export default function SuperAdminLayout({
@@ -25,9 +26,15 @@ export default function SuperAdminLayout({
   children: React.ReactNode;
 }) {
   const router = useRouter();
-  const { user, logout } = useAuth();
+  const { user, isLoading, logout } = useAuth();
   const [profileOpen, setProfileOpen] = useState(false);
   const profileRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!isLoading && (!user || user.systemRole !== 'SUPER_ADMIN')) {
+      router.push('/login');
+    }
+  }, [user, isLoading, router]);
 
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
@@ -38,6 +45,16 @@ export default function SuperAdminLayout({
     document.addEventListener('mousedown', handleClickOutside);
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
+
+  if (isLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-[#0B1528] text-white">
+        <Loader2 className="w-8 h-8 text-blue-500 animate-spin" />
+      </div>
+    );
+  }
+
+  if (!user || user.systemRole !== 'SUPER_ADMIN') return null;
 
   const handleLogout = async () => {
     await logout();

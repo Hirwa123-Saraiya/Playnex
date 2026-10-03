@@ -56,8 +56,10 @@ router.use('/club/approvals', approvalsRoutes);
 router.use('/club/communications', communicationsRoutes);
 router.use('/club/settings', clubSettingsRoutes);
 router.use('/club/finance', financeRoutes);
+router.use('/finance', financeRoutes);
 router.use('/club/pro-shop', proShopRoutes);
 router.use('/pro-shop', proShopRoutes);
+router.use('/restaurant', restaurantRoutes);
 
 // User / Customer Portal Modular Sections
 router.use('/user/clubs', userClubsRoutes);

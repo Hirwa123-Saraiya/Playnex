@@ -1,6 +1,8 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo, useState, useEffect } from "react";
+import { useRouter } from "next/navigation";
+import { useAuth } from "@/context/AuthContext";
 import {
   AlertCircle,
   CalendarDays,
@@ -15,6 +17,7 @@ import {
   Users,
   Radio,
   X,
+  Loader2,
 } from "lucide-react";
 
 type BookingMode = "MEMBER" | "GUEST";
@@ -216,11 +219,30 @@ function isBookingActive(
 }
 
 export default function FrontDeskPage() {
+  const router = useRouter();
+  const { user, isLoading: authLoading } = useAuth();
+
   const [bookingMode, setBookingMode] =
     useState<BookingMode>("MEMBER");
 
   const [memberSearch, setMemberSearch] =
     useState("");
+
+  useEffect(() => {
+    if (!authLoading && !user) {
+      router.push('/login');
+    }
+  }, [user, authLoading, router]);
+
+  if (authLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-slate-950 text-white">
+        <Loader2 className="w-8 h-8 text-emerald-500 animate-spin" />
+      </div>
+    );
+  }
+
+  if (!user) return null;
 
   const [selectedMember, setSelectedMember] =
     useState<Member | null>(null);

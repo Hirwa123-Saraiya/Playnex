@@ -5,11 +5,13 @@ import {
   deleteFamilyMember,
   addClubReview,
 } from '../controllers/userProfile.controller.js';
-import { optionalAuthenticate } from '../middlewares/auth.middleware.js';
+import { authenticate } from '../middlewares/auth.middleware.js';
 
 const router = express.Router();
 
-router.use(optionalAuthenticate);
+// User profile & family management require authentication
+router.use(authenticate);
+
 router.get('/family', getFamilyMembers);
 router.post('/family', addFamilyMember);
 router.delete('/family/:id', deleteFamilyMember);

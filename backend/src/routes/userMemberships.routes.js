@@ -4,13 +4,15 @@ import {
   purchaseUserMembership,
   getMembershipPlans,
 } from '../controllers/userMemberships.controller.js';
-import { optionalAuthenticate } from '../middlewares/auth.middleware.js';
+import { authenticate, optionalAuthenticate } from '../middlewares/auth.middleware.js';
 
 const router = express.Router();
 
-router.use(optionalAuthenticate);
-router.get('/', getUserMemberships);
-router.get('/plans', getMembershipPlans);
-router.post('/purchase', purchaseUserMembership);
+// Publicly browsable membership plans
+router.get('/plans', optionalAuthenticate, getMembershipPlans);
+
+// User membership purchases & list require authentication
+router.get('/', authenticate, getUserMemberships);
+router.post('/purchase', authenticate, purchaseUserMembership);
 
 export default router;

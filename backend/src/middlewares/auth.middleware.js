@@ -26,29 +26,27 @@ export async function authenticate(req, res, next) {
 
     const decoded = jwt.verify(token, config.jwtSecret);
 
-    const user = (await dbService.findUserById(decoded.userId)) || db.users.find((u) => u.user_id === decoded.userId && u.is_active);
+    const user = (await dbService.findUserById(decoded.userId)) || (db.users && db.users.find((u) => u.user_id === decoded.userId && u.is_active));
     if (!user) {
       return errorResponse(res, 'User session invalid or deactivated.', 401);
     }
 
     // Resolve tenant details
-    const tenantName = user.tenant_name || (user.tenant_id ? (db.tenants.find((t) => t.tenant_id === user.tenant_id)?.club_name || 'Sports Club') : 'Platform Wide');
+    const tenantName = user.tenant_name || (user.tenant_id ? (db.tenants?.find((t) => t.tenant_id === user.tenant_id)?.club_name || 'Sports Club') : 'Platform Wide');
 
     // Resolve dynamic role & permissions
-    let roleName = user.system_role;
-    let permissions = [];
+    let roleName = user.role_name || user.system_role;
+    let permissions = Array.isArray(user.role_permissions) && user.role_permissions.length > 0 ? user.role_permissions : [];
 
     if (user.system_role === 'SUPER_ADMIN') {
-      permissions = db.permissions.map((p) => p.permission_id);
+      permissions = db.permissions ? db.permissions.map((p) => p.permission_id) : ['*:*'];
       roleName = 'Super Administrator';
     } else if (user.system_role === 'CLUB_OWNER') {
-      permissions = db.permissions.map((p) => p.permission_id);
+      permissions = db.permissions ? db.permissions.map((p) => p.permission_id) : ['club:*'];
       roleName = 'Club Owner';
-    } else if (user.system_role === 'STAFF' && user.role_id) {
-      const dynamicRole = db.roles.find((r) => r.role_id === user.role_id && r.is_active);
-      if (dynamicRole) {
-        roleName = dynamicRole.name;
-        permissions = dynamicRole.permissions || [];
+    } else if (user.system_role === 'STAFF') {
+      if (!permissions || permissions.length === 0) {
+        permissions = ['staff:general'];
       }
     } else if (user.system_role === 'MEMBER') {
       permissions = ['courts:view', 'courts:book', 'shop:view', 'bar:view'];
@@ -61,9 +59,10 @@ export async function authenticate(req, res, next) {
       name: user.name,
       systemRole: user.system_role,
       roleName,
+      targetModule: user.target_module || null,
       tenantId: user.tenant_id,
       tenantName,
-      roleId: user.role_id,
+      roleId: user.dynamic_role_id || user.role_id,
       tier: user.tier,
       permissions,
     };
@@ -75,6 +74,41 @@ export async function authenticate(req, res, next) {
     }
     return errorResponse(res, 'Invalid authentication token.', 401);
   }
+}
+
+/**
+ * Protect operational workstation based on allowed target modules or permissions
+ */
+export function protectStation(...allowedModules) {
+  return (req, res, next) => {
+    if (!req.user) {
+      return errorResponse(res, 'Authentication required. Please log in.', 401);
+    }
+    if (req.user.systemRole === 'SUPER_ADMIN' || req.user.systemRole === 'CLUB_OWNER') {
+      return next();
+    }
+    if (req.user.systemRole === 'STAFF') {
+      const userModule = (req.user.targetModule || '').toLowerCase();
+      const hasModuleMatch = allowedModules.some(
+        (m) => userModule.includes(m.toLowerCase()) || m.toLowerCase().includes(userModule)
+      );
+      if (hasModuleMatch) {
+        return next();
+      }
+      const hasPermMatch = allowedModules.some((m) =>
+        req.user.permissions?.some((p) => p.toLowerCase().includes(m.toLowerCase()))
+      );
+      if (hasPermMatch) {
+        return next();
+      }
+      return errorResponse(
+        res,
+        `Access denied. Your assigned role (${req.user.roleName}) is restricted to ${req.user.targetModule || 'General Operations'}.`,
+        403
+      );
+    }
+    return errorResponse(res, 'Access denied.', 403);
+  };
 }
 
 /**

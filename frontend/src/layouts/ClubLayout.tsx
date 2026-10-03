@@ -1,10 +1,13 @@
 'use client';
 
-import React from 'react';
+import React, { useEffect } from 'react';
+import { useRouter } from 'next/navigation';
+import { useAuth } from '../context/AuthContext';
 import { useClub } from '../context/ClubContext';
 import { ClubSidebar } from '../components/club/ClubSidebar';
 import { ClubHeader } from '../components/club/ClubHeader';
 import { ClubModal } from '../components/club/ClubModal';
+import { Loader2 } from 'lucide-react';
 
 // Views
 import { ClubDashboard } from '../views/ClubDashboard';
@@ -32,7 +35,27 @@ interface ClubLayoutProps {
 }
 
 export const ClubLayout: React.FC<ClubLayoutProps> = ({ children }) => {
+  const router = useRouter();
+  const { user, isLoading } = useAuth();
   const { activeNav, sidebarCollapsed } = useClub();
+
+  useEffect(() => {
+    if (!isLoading && !user) {
+      router.push('/login');
+    }
+  }, [user, isLoading, router]);
+
+  if (isLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-[#071A3D]">
+        <Loader2 className="w-8 h-8 text-blue-500 animate-spin" />
+      </div>
+    );
+  }
+
+  if (!user) {
+    return null;
+  }
 
   const renderCurrentView = () => {
     switch (activeNav) {

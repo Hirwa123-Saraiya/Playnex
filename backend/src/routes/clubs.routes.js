@@ -1,4 +1,5 @@
 import express from 'express';
+import { authenticate, requireSystemRole } from '../middlewares/auth.middleware.js';
 import {
   getClubs,
   createClub,
@@ -15,37 +16,28 @@ import {
 
 const router = express.Router();
 
-// GET /api/v1/clubs - List all clubs/tenants directly from database
+// Require authentication for all club management routes
+router.use(authenticate);
+
+// GET /api/v1/clubs - List all clubs/tenants
 router.get('/', getClubs);
 
-// GET /api/v1/clubs/stats - Platform stats for Super Admin directly from database
-router.get('/stats', getPlatformStats);
+// Super Admin platform statistics & global revenue
+router.get('/stats', requireSystemRole('SUPER_ADMIN'), getPlatformStats);
+router.get('/revenue', requireSystemRole('SUPER_ADMIN'), getRevenue);
 
-// GET /api/v1/clubs/admins - List all club admins
-router.get('/admins', getClubAdmins);
+// Super Admin Club Admins management
+router.get('/admins', requireSystemRole('SUPER_ADMIN'), getClubAdmins);
+router.put('/admins/:id', requireSystemRole('SUPER_ADMIN'), updateClubAdmin);
+router.post('/admins/:id/reset-password', requireSystemRole('SUPER_ADMIN'), resetAdminPassword);
 
-// PUT /api/v1/clubs/admins/:id - Update club admin details
-router.put('/admins/:id', updateClubAdmin);
+// Club users list (Super Admin or Club Owner)
+router.get('/users', requireSystemRole('SUPER_ADMIN', 'CLUB_OWNER'), getClubUsers);
 
-// POST /api/v1/clubs/admins/:id/reset-password - Reset club admin password
-router.post('/admins/:id/reset-password', resetAdminPassword);
-
-// GET /api/v1/clubs/users - List all club members/users
-router.get('/users', getClubUsers);
-
-// GET /api/v1/clubs/revenue - Platform revenue by club
-router.get('/revenue', getRevenue);
-
-// GET /api/v1/clubs/:id - Single club details
+// Single club details & CRUD
 router.get('/:id', getClubById);
-
-// PUT /api/v1/clubs/:id - Update club details
-router.put('/:id', updateClub);
-
-// DELETE /api/v1/clubs/:id - Delete club
-router.delete('/:id', deleteClub);
-
-// POST /api/v1/clubs - Super Admin adds new club and creates its main admin account
-router.post('/', createClub);
+router.put('/:id', requireSystemRole('SUPER_ADMIN', 'CLUB_OWNER'), updateClub);
+router.delete('/:id', requireSystemRole('SUPER_ADMIN'), deleteClub);
+router.post('/', requireSystemRole('SUPER_ADMIN'), createClub);
 
 export default router;

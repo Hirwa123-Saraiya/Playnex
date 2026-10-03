@@ -1,6 +1,8 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
+import { useAuth } from '../context/AuthContext';
 import { ProShopSidebar } from '../components/pro-shop-inventory/ProShopSidebar';
 import { ProShopHeader } from '../components/pro-shop-inventory/ProShopHeader';
 import { ProShopDashboardOverview } from '../components/pro-shop-inventory/ProShopDashboardOverview';
@@ -17,12 +19,30 @@ import { ProShopReportsAnalytics } from '../components/pro-shop-inventory/ProSho
 import { ProShopUserRoles } from '../components/pro-shop-inventory/ProShopUserRoles';
 import { ProShopInventoryTransactions } from '../components/pro-shop-inventory/ProShopInventoryTransactions';
 import { useProShopStore } from '../store/ProShopInventoryStore';
-import { CheckCircle2 } from 'lucide-react';
+import { CheckCircle2, Loader2 } from 'lucide-react';
 
 export const ProShopInventoryLayout: React.FC = () => {
+  const router = useRouter();
+  const { user, isLoading } = useAuth();
   const { activeView, toastMessage } = useProShopStore();
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+
+  useEffect(() => {
+    if (!isLoading && !user) {
+      router.push('/login');
+    }
+  }, [user, isLoading, router]);
+
+  if (isLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-slate-900 text-white">
+        <Loader2 className="w-8 h-8 text-blue-500 animate-spin" />
+      </div>
+    );
+  }
+
+  if (!user) return null;
 
   const renderContent = () => {
     switch (activeView) {

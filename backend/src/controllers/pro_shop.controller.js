@@ -180,6 +180,76 @@ export async function createProShopItem(req, res) {
 }
 
 /**
+ * PUT /api/v1/pro-shop/items/:id
+ * Update inventory item details
+ */
+export async function updateProShopItem(req, res) {
+  try {
+    const tenantId = getTenantId(req);
+    if (!tenantId) return errorResponse(res, 'Tenant context missing', 400);
+
+    const { id } = req.params;
+    const { name, category, brand, sku, unitPrice, costPrice, stockQuantity, reorderThreshold, barcode } = req.body;
+
+    const { rows } = await pool.query(
+      `UPDATE pro_shop_items
+       SET name = COALESCE($1, name),
+           category = COALESCE($2, category),
+           brand = COALESCE($3, brand),
+           sku = COALESCE($4, sku),
+           unit_price = COALESCE($5, unit_price),
+           cost_price = COALESCE($6, cost_price),
+           stock_quantity = COALESCE($7, stock_quantity),
+           reorder_threshold = COALESCE($8, reorder_threshold),
+           barcode = COALESCE($9, barcode),
+           updated_at = NOW()
+       WHERE item_id = $10 AND tenant_id = $11
+       RETURNING *`,
+      [
+        name,
+        category,
+        brand,
+        sku,
+        unitPrice !== undefined ? parseFloat(unitPrice) : null,
+        costPrice !== undefined ? parseFloat(costPrice) : null,
+        stockQuantity !== undefined ? parseInt(stockQuantity, 10) : null,
+        reorderThreshold !== undefined ? parseInt(reorderThreshold, 10) : null,
+        barcode,
+        id,
+        tenantId,
+      ]
+    );
+
+    if (rows.length === 0) return errorResponse(res, 'Item not found', 404);
+    return successResponse(res, rows[0], 'Item updated successfully');
+  } catch (err) {
+    return errorResponse(res, err.message, 500);
+  }
+}
+
+/**
+ * DELETE /api/v1/pro-shop/items/:id
+ * Remove inventory item
+ */
+export async function deleteProShopItem(req, res) {
+  try {
+    const tenantId = getTenantId(req);
+    if (!tenantId) return errorResponse(res, 'Tenant context missing', 400);
+
+    const { id } = req.params;
+    const { rows } = await pool.query(
+      `UPDATE pro_shop_items SET is_active = FALSE, updated_at = NOW() WHERE item_id = $1 AND tenant_id = $2 RETURNING item_id`,
+      [id, tenantId]
+    );
+
+    if (rows.length === 0) return errorResponse(res, 'Item not found', 404);
+    return successResponse(res, { itemId: id }, 'Item removed successfully');
+  } catch (err) {
+    return errorResponse(res, err.message, 500);
+  }
+}
+
+/**
  * PUT /api/v1/pro-shop/items/:id/stock
  * Adjust stock or restock item
  */
@@ -215,7 +285,7 @@ export async function updateProShopStock(req, res) {
 
 /**
  * POST /api/v1/pro-shop/pos/checkout
- * Process a counter sale transaction, reduce inventory stock, calculate 18% GST, and record platform tax invoice
+ * Process counter sale transaction, reduce inventory stock, calculate 18% GST, and record platform tax invoice
  */
 export async function createProShopSale(req, res) {
   try {
@@ -299,25 +369,43 @@ export async function createProShopSale(req, res) {
     // Also record into platform_invoices for Government & Super Admin tax compliance
     await pool.query(
       `INSERT INTO platform_invoices (
-         invoice_id, tenant_id, plan_id, plan_name, amount, gst_amount, total_amount,
-         billing_cycle, status, razorpay_payment_id, invoice_number, created_at
-       ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, 'PAID', $9, $10, NOW())
+         invoice_id, tenant_id, invoice_number, plan_name, base_amount, gst_rate, gst_amount, total_amount,
+         billing_cycle, payment_status, payment_method, invoice_date, created_at
+       ) VALUES ($1, $2, $3, $4, $5, 18.00, $6, $7, 'One-Time POS', 'PAID', $8, CURRENT_DATE, NOW())
        ON CONFLICT (invoice_id) DO NOTHING`,
       [
         `inv_shop_${saleId}`,
         tenantId,
-        'pro_shop_pos',
+        saleNumber,
         `Pro Shop Counter Sale (${saleNumber})`,
         subtotal,
         gstAmount,
         grandTotal,
-        'One-Time POS',
-        `pos_${Date.now()}`,
-        saleNumber,
+        paymentMethod || 'UPI',
       ]
     );
 
     return successResponse(res, rows[0], 'Counter sale processed and GST invoice generated', 201);
+  } catch (err) {
+    return errorResponse(res, err.message, 500);
+  }
+}
+
+/**
+ * GET /api/v1/pro-shop/sales
+ * List counter sales audit transactions
+ */
+export async function getProShopSales(req, res) {
+  try {
+    const tenantId = getTenantId(req);
+    if (!tenantId) return errorResponse(res, 'Tenant context missing', 400);
+
+    const { rows } = await pool.query(
+      `SELECT * FROM pro_shop_sales WHERE tenant_id = $1 ORDER BY created_at DESC`,
+      [tenantId]
+    );
+
+    return successResponse(res, rows, 'Sales history retrieved successfully');
   } catch (err) {
     return errorResponse(res, err.message, 500);
   }

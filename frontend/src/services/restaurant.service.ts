@@ -72,11 +72,27 @@ export const restaurantService = {
     });
   },
 
-  async createOrder(data: CreateOrderPayload) {
-    return apiMethod<RestaurantOrder>({
-      method: 'POST',
-      url: '/club/restaurant/orders',
-      data,
+  async getOverview(tenantId?: string) {
+    return apiMethod<any>({
+      method: 'GET',
+      url: '/restaurant/overview',
+      params: tenantId ? { tenantId } : undefined,
+    });
+  },
+
+  async getTables(tenantId?: string) {
+    return apiMethod<any[]>({
+      method: 'GET',
+      url: '/restaurant/tables',
+      params: tenantId ? { tenantId } : undefined,
+    });
+  },
+
+  async updateOrderStatus(id: string, status: string) {
+    return apiMethod<any>({
+      method: 'PUT',
+      url: `/restaurant/orders/${id}/status`,
+      data: { status },
     });
   },
 };

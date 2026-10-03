@@ -1,9 +1,12 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
+import { useAuth } from '../context/AuthContext';
 import { FinanceHeader } from '../components/finance/FinanceHeader';
 import { FinanceSidebar } from '../components/finance/FinanceSidebar';
 import { useFinanceStore } from '../store/FinanceStore';
+import { CheckCircle2, Loader2 } from 'lucide-react';
 
 // All 22 Domain Views
 import { FinanceDashboard } from '../views/finance/FinanceDashboard';
@@ -28,11 +31,28 @@ import { FinanceAIInsights } from '../views/finance/FinanceAIInsights';
 import { FinanceReports } from '../views/finance/FinanceReports';
 import { FinanceAuditLogs } from '../views/finance/FinanceAuditLogs';
 import { FinanceSettings } from '../views/finance/FinanceSettings';
-import { CheckCircle2 } from 'lucide-react';
 
 export const FinanceLayout: React.FC = () => {
+  const router = useRouter();
+  const { user, isLoading } = useAuth();
   const { activeNav, toastMessage } = useFinanceStore();
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+
+  useEffect(() => {
+    if (!isLoading && !user) {
+      router.push('/login');
+    }
+  }, [user, isLoading, router]);
+
+  if (isLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-slate-900 text-white">
+        <Loader2 className="w-8 h-8 text-blue-500 animate-spin" />
+      </div>
+    );
+  }
+
+  if (!user) return null;
 
   const renderActiveView = () => {
     switch (activeNav) {
