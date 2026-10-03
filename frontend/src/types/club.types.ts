@@ -19,6 +19,10 @@ export interface Club {
   logoUrl?: string;
   tenantId: TenantId;
   branches: Branch[];
+  subscriptionPlan?: string;
+  adminName?: string;
+  adminEmail?: string;
+  phone?: string;
 }
 
 export interface UserProfile {

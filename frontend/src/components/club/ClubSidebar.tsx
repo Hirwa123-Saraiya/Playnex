@@ -50,6 +50,7 @@ const navItems: SidebarItem[] = [
   { name: 'Reports & Analytics', icon: BarChart3, id: 'Reports & Analytics' },
   { name: 'Communications', icon: MessageSquare, id: 'Communications' },
   { name: 'Approvals', icon: CheckSquare, id: 'Approvals' },
+  { name: 'Platform Subscription', icon: ShieldCheck, id: 'Platform Subscription' },
   { name: 'Settings', icon: Settings, id: 'Settings' },
 ];
 

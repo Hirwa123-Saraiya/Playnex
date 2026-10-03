@@ -2,6 +2,7 @@ import express from 'express';
 import authRoutes from './auth.routes.js';
 import rolesRoutes from './roles.routes.js';
 import clubsRoutes from './clubs.routes.js';
+import plansRoutes from './plans.routes.js';
 import facilitiesRoutes from './facilities.routes.js';
 import bookingsRoutes from './bookings.routes.js';
 import membersRoutes from './members.routes.js';
@@ -40,6 +41,7 @@ router.get('/health', (req, res) => {
 router.use('/auth', authRoutes);
 router.use('/rbac', rolesRoutes);
 router.use('/clubs', clubsRoutes);
+router.use('/plans', plansRoutes);
 
 // Club Modular Sections
 router.use('/club/facilities', facilitiesRoutes);

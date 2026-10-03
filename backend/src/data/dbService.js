@@ -335,6 +335,8 @@ export const dbService = {
           u.user_id as id,
           u.name,
           u.email,
+          u.tenant_id as "tenantId",
+          t.subdomain,
           COALESCE(t.club_name, 'Unassigned') as club,
           CASE 
             WHEN u.system_role = 'CLUB_OWNER' THEN 'Owner'
@@ -1801,6 +1803,208 @@ export const dbService = {
         [eventId]
       );
       return rows[0] || null;
+    }
+    return null;
+  },
+
+  /**
+   * ==========================================
+   * PLATFORM PLANS & RAZORPAY SUBSCRIPTIONS
+   * ==========================================
+   */
+  async getPlatformPlans() {
+    if (await checkPg()) {
+      const { rows } = await pool.query(
+        `SELECT 
+           plan_id as "id",
+           plan_id as "planId",
+           name,
+           tagline,
+           monthly_price::numeric as "monthlyPrice",
+           annual_price::numeric as "annualPrice",
+           currency,
+           features,
+           is_popular as "isPopular",
+           is_active as "isActive",
+           max_courts as "maxCourts",
+           max_members as "maxMembers",
+           sort_order as "sortOrder",
+           created_at as "createdAt"
+         FROM platform_plans
+         ORDER BY sort_order ASC, created_at ASC`
+      );
+      return rows;
+    }
+    return [];
+  },
+
+  async createPlatformPlan({ name, tagline, monthlyPrice, annualPrice, features, isPopular, maxCourts, maxMembers }) {
+    const planId = 'plan_' + (name ? name.toLowerCase().replace(/[^a-z0-9]/g, '_') : 'custom') + '_' + Date.now().toString().slice(-4);
+    const parsedFeatures = Array.isArray(features) ? features : [];
+    if (await checkPg()) {
+      const { rows } = await pool.query(
+        `INSERT INTO platform_plans (
+           plan_id, name, tagline, monthly_price, annual_price, features, is_popular, is_active, max_courts, max_members
+         ) VALUES ($1, $2, $3, $4, $5, $6, $7, TRUE, $8, $9)
+         RETURNING 
+           plan_id as "id",
+           plan_id as "planId",
+           name,
+           tagline,
+           monthly_price::numeric as "monthlyPrice",
+           annual_price::numeric as "annualPrice",
+           features,
+           is_popular as "isPopular",
+           is_active as "isActive",
+           max_courts as "maxCourts",
+           max_members as "maxMembers"`,
+        [
+          planId,
+          name,
+          tagline || '',
+          parseFloat(monthlyPrice) || 0,
+          parseFloat(annualPrice) || 0,
+          JSON.stringify(parsedFeatures),
+          Boolean(isPopular),
+          parseInt(maxCourts, 10) || 5,
+          parseInt(maxMembers, 10) || 500,
+        ]
+      );
+      return rows[0];
+    }
+    return null;
+  },
+
+  async updatePlatformPlan(planId, updates) {
+    const { name, tagline, monthlyPrice, annualPrice, features, isPopular, isActive, maxCourts, maxMembers } = updates;
+    if (await checkPg()) {
+      const { rows } = await pool.query(
+        `UPDATE platform_plans
+         SET name = COALESCE($2, name),
+             tagline = COALESCE($3, tagline),
+             monthly_price = COALESCE($4, monthly_price),
+             annual_price = COALESCE($5, annual_price),
+             features = COALESCE($6, features),
+             is_popular = COALESCE($7, is_popular),
+             is_active = COALESCE($8, is_active),
+             max_courts = COALESCE($9, max_courts),
+             max_members = COALESCE($10, max_members),
+             updated_at = CURRENT_TIMESTAMP
+         WHERE plan_id = $1
+         RETURNING 
+           plan_id as "id",
+           plan_id as "planId",
+           name,
+           tagline,
+           monthly_price::numeric as "monthlyPrice",
+           annual_price::numeric as "annualPrice",
+           features,
+           is_popular as "isPopular",
+           is_active as "isActive",
+           max_courts as "maxCourts",
+           max_members as "maxMembers"`,
+        [
+          planId,
+          name || null,
+          tagline !== undefined ? tagline : null,
+          monthlyPrice ? parseFloat(monthlyPrice) : null,
+          annualPrice ? parseFloat(annualPrice) : null,
+          features ? JSON.stringify(features) : null,
+          isPopular !== undefined ? Boolean(isPopular) : null,
+          isActive !== undefined ? Boolean(isActive) : null,
+          maxCourts ? parseInt(maxCourts, 10) : null,
+          maxMembers ? parseInt(maxMembers, 10) : null,
+        ]
+      );
+      return rows[0] || null;
+    }
+    return null;
+  },
+
+  async deletePlatformPlan(planId) {
+    if (await checkPg()) {
+      const { rowCount } = await pool.query(
+        `DELETE FROM platform_plans WHERE plan_id = $1`,
+        [planId]
+      );
+      return rowCount > 0;
+    }
+    return false;
+  },
+
+  async processPlanPayment({ tenantId, planId, billingCycle, razorpayPaymentId, razorpayOrderId }) {
+    if (await checkPg()) {
+      // 1. Get plan details
+      const planRes = await pool.query(
+        `SELECT * FROM platform_plans WHERE plan_id = $1`,
+        [planId]
+      );
+      if (planRes.rows.length === 0) {
+        throw new Error('Selected platform plan not found');
+      }
+      const plan = planRes.rows[0];
+
+      // 2. Get tenant details
+      const tenantRes = await pool.query(
+        `SELECT * FROM tenants WHERE tenant_id = $1`,
+        [tenantId]
+      );
+      if (tenantRes.rows.length === 0) {
+        throw new Error('Club tenant record not found');
+      }
+      const tenant = tenantRes.rows[0];
+
+      const isAnnual = (billingCycle || '').toLowerCase() === 'annual' || (billingCycle || '').toLowerCase() === 'annually';
+      const baseAmount = isAnnual ? parseFloat(plan.annual_price) : parseFloat(plan.monthly_price);
+      const gstRate = 18.00;
+      const gstAmount = Math.round(baseAmount * 0.18 * 100) / 100;
+      const totalAmount = Math.round((baseAmount + gstAmount) * 100) / 100;
+
+      // 3. Update tenant subscription
+      await pool.query(
+        `UPDATE tenants
+         SET subscription_plan = $2,
+             status = 'Active'
+         WHERE tenant_id = $1`,
+        [tenantId, plan.name]
+      );
+
+      // 4. Record new paid invoice in platform_invoices
+      const invoiceId = 'inv_' + Date.now();
+      const invoiceNumber = 'INV-PNX-' + Math.floor(100000 + Math.random() * 900000);
+      const months = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
+      const currentMonth = months[new Date().getMonth()] + ' ' + new Date().getFullYear();
+
+      const { rows: invRows } = await pool.query(
+        `INSERT INTO platform_invoices (
+           invoice_id, tenant_id, invoice_number, billing_month, plan_name, subdomain,
+           base_amount, gst_rate, gst_amount, total_amount, billing_cycle, payment_status,
+           payment_method, invoice_date, due_date, paid_at
+         ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, 'Paid', $12, CURRENT_DATE, CURRENT_DATE + INTERVAL '30 days', CURRENT_TIMESTAMP)
+         RETURNING *`,
+        [
+          invoiceId,
+          tenantId,
+          invoiceNumber,
+          currentMonth,
+          plan.name,
+          tenant.subdomain || tenant.club_name.toLowerCase().replace(/\s+/g, '-'),
+          baseAmount,
+          gstRate,
+          gstAmount,
+          totalAmount,
+          isAnnual ? 'Annual' : 'Monthly',
+          `Razorpay (${razorpayPaymentId || 'rzp_paid_' + Date.now().toString().slice(-6)})`,
+        ]
+      );
+
+      return {
+        invoice: invRows[0],
+        plan: plan.name,
+        tenantId,
+        billingCycle: isAnnual ? 'Annual' : 'Monthly',
+        amount: totalAmount,
+      };
     }
     return null;
   },

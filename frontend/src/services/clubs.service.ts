@@ -43,6 +43,8 @@ export interface AdminItem {
   name: string;
   email: string;
   club: string;
+  tenantId?: string;
+  subdomain?: string;
   role: 'Owner' | 'Manager' | 'Staff';
   status: 'Active' | 'Invited' | 'Disabled';
   lastLogin: string;

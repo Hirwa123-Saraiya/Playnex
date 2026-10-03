@@ -25,6 +25,7 @@ import { ClubSettings } from '../views/ClubSettings';
 import { ClubProShop } from '../views/ClubProShop';
 import { ClubEnquiries } from '../views/ClubEnquiries';
 import { ClubWalkIn } from '../views/ClubWalkIn';
+import { ClubSubscription } from '../views/ClubSubscription';
 
 interface ClubLayoutProps {
   children?: React.ReactNode;
@@ -65,6 +66,9 @@ export const ClubLayout: React.FC<ClubLayoutProps> = ({ children }) => {
         return <ClubCommunications />;
       case 'Approvals':
         return <ClubApprovals />;
+      case 'Platform Subscription':
+      case 'Subscription':
+        return <ClubSubscription />;
       case 'Settings':
         return <ClubSettings />;
       default:

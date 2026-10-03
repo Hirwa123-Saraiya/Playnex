@@ -10,6 +10,7 @@ import {
 import {
   Wallet, LayoutGrid, Clock,
   TrendingUp, TrendingDown, Sparkles, ArrowRight, Building2, UserCog,
+  X, CheckCircle2, AlertCircle, Loader2, ExternalLink, ShieldCheck, Mail, MapPin,
 } from "lucide-react";
 import { inr, type ClubStatus } from "@/lib/mockData";
 import { clubsService, type ClubItem, type PlatformStats } from "@/services/clubs.service";
@@ -28,6 +29,17 @@ export default function SuperAdminDashboard() {
   const [clubs, setClubs] = useState<ClubItem[]>([]);
   const [stats, setStats] = useState<PlatformStats | null>(null);
   const [dataLoading, setDataLoading] = useState(true);
+
+  // Dedicated single-club management state
+  const [managingClub, setManagingClub] = useState<ClubItem | null>(null);
+  const [manageName, setManageName] = useState("");
+  const [manageSport, setManageSport] = useState("");
+  const [manageLocation, setManageLocation] = useState("");
+  const [managePlan, setManagePlan] = useState("");
+  const [manageStatus, setManageStatus] = useState<ClubStatus>("Active");
+  const [isSavingClub, setIsSavingClub] = useState(false);
+  const [manageToast, setManageToast] = useState<string | null>(null);
+  const [manageError, setManageError] = useState<string | null>(null);
 
   useEffect(() => {
     if (!isLoading) {
@@ -64,6 +76,48 @@ export default function SuperAdminDashboard() {
     loadData();
     return () => { isMounted = false; };
   }, []);
+
+  const handleOpenManage = (c: ClubItem) => {
+    setManagingClub(c);
+    setManageName(c.name);
+    setManageSport(c.sport || "Multi-Sport");
+    setManageLocation(c.location || "");
+    setManagePlan(c.subscriptionPlan || "Standard");
+    setManageStatus(c.status);
+    setManageError(null);
+  };
+
+  const handleSaveManage = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!managingClub) return;
+    setIsSavingClub(true);
+    setManageError(null);
+    try {
+      const res = await clubsService.updateClub(managingClub.id, {
+        clubName: manageName.trim(),
+        sport: manageSport,
+        location: manageLocation.trim(),
+        status: manageStatus,
+        subscriptionPlan: managePlan,
+      });
+      if (res.success) {
+        setManageToast(`Successfully updated ${manageName}!`);
+        setTimeout(() => setManageToast(null), 3500);
+        setManagingClub(null);
+        // Refresh clubs list
+        const refreshed = await clubsService.getClubs();
+        if (refreshed.success && refreshed.data) {
+          setClubs(refreshed.data);
+        }
+      } else {
+        setManageError(res.message || "Failed to update club");
+      }
+    } catch (err: any) {
+      setManageError(err.message || "Failed to update club");
+    } finally {
+      setIsSavingClub(false);
+    }
+  };
 
   const dynamicKpis = useMemo(() => {
     const totalClubs = stats?.total_clubs ?? clubs.length;
@@ -367,12 +421,13 @@ export default function SuperAdminDashboard() {
                       </span>
                     </td>
                     <td className="px-4 py-3 text-right md:px-0 md:pr-3">
-                      <Link
-                        href="/super-admin/clubs"
-                        className="inline-flex items-center gap-1 rounded-lg border border-line bg-white px-2.5 py-1 text-xs font-semibold text-navy hover:border-blue hover:text-blue transition-colors"
+                      <button
+                        type="button"
+                        onClick={() => handleOpenManage(c)}
+                        className="inline-flex items-center gap-1 rounded-lg border border-line bg-white px-2.5 py-1 text-xs font-semibold text-navy hover:border-blue hover:text-blue hover:bg-blueSoft/30 transition-all cursor-pointer shadow-2xs"
                       >
                         Manage
-                      </Link>
+                      </button>
                     </td>
                   </tr>
                 );
@@ -388,6 +443,179 @@ export default function SuperAdminDashboard() {
           </table>
         </div>
       </section>
+
+      {/* Toast Alert */}
+      {manageToast && (
+        <div className="fixed top-5 right-5 z-50 flex items-center gap-2 rounded-xl bg-navy text-white px-4 py-3 shadow-2xl border border-blue/40 text-xs font-semibold animate-in fade-in slide-in-from-top-3">
+          <CheckCircle2 size={16} className="text-emerald-400" />
+          <span>{manageToast}</span>
+        </div>
+      )}
+
+      {/* Dedicated Single-Club Management Modal */}
+      {managingClub && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-navy/60 backdrop-blur-sm animate-in fade-in duration-200">
+          <div className="w-full max-w-lg rounded-2xl border border-line bg-white shadow-2xl overflow-hidden animate-in zoom-in-95 duration-200">
+            {/* Modal Header */}
+            <div className="flex items-center justify-between border-b border-line px-6 py-4 bg-[#F8FAFC]">
+              <div>
+                <h3 className="text-base font-bold text-navy flex items-center gap-2">
+                  <Building2 size={18} className="text-blue" />
+                  Manage Club: {managingClub.name}
+                </h3>
+                <p className="text-xs text-muted">
+                  Tenant ID: <span className="font-mono text-slate-700">{managingClub.id}</span>
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setManagingClub(null)}
+                className="grid h-8 w-8 place-items-center rounded-lg text-muted hover:bg-slate-200 hover:text-navy transition-colors"
+              >
+                <X size={16} />
+              </button>
+            </div>
+
+            {/* Modal Form */}
+            <form onSubmit={handleSaveManage} className="p-6 space-y-4 text-xs">
+              {manageError && (
+                <div className="flex items-center gap-2 rounded-xl bg-rose-50 border border-rose-200 p-3 text-rose-700">
+                  <AlertCircle size={15} className="shrink-0" />
+                  <span>{manageError}</span>
+                </div>
+              )}
+
+              {/* Subdomain & Direct Portal Link */}
+              <div className="flex items-center justify-between p-3 rounded-xl bg-blueSoft/50 border border-blue/20">
+                <div>
+                  <div className="font-bold text-navy flex items-center gap-1.5">
+                    <ShieldCheck size={14} className="text-blue" />
+                    <span>Club Subdomain</span>
+                  </div>
+                  <div className="font-mono text-[11px] text-muted mt-0.5">
+                    {managingClub.subdomain ? `${managingClub.subdomain}.playnex.club` : "playnex.club"}
+                  </div>
+                </div>
+                <a
+                  href={`/club?tenantId=${managingClub.id}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center gap-1.5 rounded-lg bg-blue px-3 py-1.5 text-xs font-bold text-white hover:bg-blueHover transition-colors shadow-2xs"
+                >
+                  <span>Open Portal</span>
+                  <ExternalLink size={12} />
+                </a>
+              </div>
+
+              {/* Club Admin Details */}
+              <div className="p-3 rounded-xl bg-slate-50 border border-line text-muted">
+                <div className="font-semibold text-navy text-[11px] uppercase tracking-wider mb-1">
+                  Designated Administrator
+                </div>
+                <div className="flex items-center justify-between text-navy font-medium">
+                  <span>{managingClub.admin}</span>
+                  <span className="flex items-center gap-1 text-muted text-xs">
+                    <Mail size={12} /> {managingClub.adminEmail}
+                  </span>
+                </div>
+              </div>
+
+              {/* Club Name */}
+              <div>
+                <label className="block font-semibold text-navy mb-1">Club Name</label>
+                <input
+                  required
+                  type="text"
+                  value={manageName}
+                  onChange={(e) => setManageName(e.target.value)}
+                  className="w-full h-9 rounded-xl border border-line bg-white px-3 text-xs outline-none focus:border-blue transition-colors"
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                {/* Sport */}
+                <div>
+                  <label className="block font-semibold text-navy mb-1">Primary Sport</label>
+                  <select
+                    value={manageSport}
+                    onChange={(e) => setManageSport(e.target.value)}
+                    className="w-full h-9 rounded-xl border border-line bg-white px-3 text-xs outline-none focus:border-blue transition-colors cursor-pointer"
+                  >
+                    <option>Multi-Sport</option>
+                    <option>Padel</option>
+                    <option>Tennis</option>
+                    <option>Badminton</option>
+                    <option>Cricket</option>
+                    <option>Football</option>
+                    <option>Swimming</option>
+                  </select>
+                </div>
+
+                {/* Location */}
+                <div>
+                  <label className="block font-semibold text-navy mb-1">City / Location</label>
+                  <input
+                    type="text"
+                    value={manageLocation}
+                    onChange={(e) => setManageLocation(e.target.value)}
+                    placeholder="e.g. Mumbai, MH"
+                    className="w-full h-9 rounded-xl border border-line bg-white px-3 text-xs outline-none focus:border-blue transition-colors"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                {/* Subscription Plan */}
+                <div>
+                  <label className="block font-semibold text-navy mb-1">SaaS Plan Tier</label>
+                  <select
+                    value={managePlan}
+                    onChange={(e) => setManagePlan(e.target.value)}
+                    className="w-full h-9 rounded-xl border border-line bg-white px-3 text-xs outline-none focus:border-blue transition-colors cursor-pointer"
+                  >
+                    <option value="Standard">Starter Club (₹4,999/mo)</option>
+                    <option value="Growth">Growth Pro (₹9,999/mo)</option>
+                    <option value="Enterprise">Enterprise Elite (₹19,999/mo)</option>
+                  </select>
+                </div>
+
+                {/* Status */}
+                <div>
+                  <label className="block font-semibold text-navy mb-1">Club Status</label>
+                  <select
+                    value={manageStatus}
+                    onChange={(e) => setManageStatus(e.target.value as ClubStatus)}
+                    className="w-full h-9 rounded-xl border border-line bg-white px-3 text-xs outline-none focus:border-blue transition-colors cursor-pointer"
+                  >
+                    <option value="Active">Active</option>
+                    <option value="Pending">Pending</option>
+                    <option value="Suspended">Suspended</option>
+                  </select>
+                </div>
+              </div>
+
+              {/* Actions Footer */}
+              <div className="pt-3 border-t border-line flex items-center justify-end gap-2">
+                <button
+                  type="button"
+                  onClick={() => setManagingClub(null)}
+                  className="rounded-xl border border-line px-4 py-2 font-semibold text-muted hover:bg-slate-100 hover:text-navy transition-colors cursor-pointer"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={isSavingClub}
+                  className="inline-flex items-center gap-1.5 rounded-xl bg-blue px-4 py-2 font-bold text-white hover:bg-blueHover transition-colors disabled:opacity-50 cursor-pointer shadow-sm"
+                >
+                  {isSavingClub && <Loader2 size={13} className="animate-spin" />}
+                  <span>Save Club Changes</span>
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

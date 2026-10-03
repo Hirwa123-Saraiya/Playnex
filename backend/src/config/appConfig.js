@@ -17,6 +17,8 @@ export const config = {
   jwtRefreshSecret: process.env.JWT_REFRESH_SECRET || 'hackathon-playnex-refresh-secret-2026',
   accessExpiresIn: process.env.JWT_ACCESS_EXPIRES_IN || '15m',
   refreshExpiresIn: process.env.JWT_REFRESH_EXPIRES_IN || '7d',
+  razorpayKeyId: process.env.RAZORPAY_KEY_ID || 'rzp_test_TjZWl4KibRZy5o',
+  razorpayKeySecret: process.env.RAZORPAY_KEY_SECRET || 'jBRYEzoRlPvjRk0Z8cIu0AUI',
 };
 
 export const cookieOptions = {

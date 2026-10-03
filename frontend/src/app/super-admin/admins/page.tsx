@@ -222,8 +222,9 @@ export default function AdminsPage() {
               </tr>
             </thead>
             <tbody>
-              {filtered.map((a) => {
+              {filtered.map((a, idx) => {
                 const isMenuOpen = activeMenuId === a.id;
+                const openUpward = filtered.length <= 4 || idx >= filtered.length - 2;
                 return (
                   <tr
                     key={a.id}
@@ -275,9 +276,13 @@ export default function AdminsPage() {
                           <MoreHorizontal size={16} />
                         </button>
 
-                        {/* Dropdown Menu */}
+                        {/* Dropdown Menu - rendered outside cleanly */}
                         {isMenuOpen && (
-                          <div className="absolute right-4 mt-1.5 w-52 rounded-2xl border border-line bg-white p-1.5 shadow-2xl z-50 animate-in fade-in zoom-in-95 duration-100 text-left">
+                          <div
+                            className={`absolute right-4 w-56 rounded-2xl border border-line bg-white p-1.5 shadow-2xl z-50 animate-in fade-in zoom-in-95 duration-100 text-left ${
+                              openUpward ? "bottom-full mb-2" : "top-full mt-2"
+                            }`}
+                          >
                             <div className="px-3 py-1.5 border-b border-line text-[10px] font-bold uppercase tracking-wider text-muted">
                               Admin Controls
                             </div>
@@ -320,14 +325,20 @@ export default function AdminsPage() {
 
                             <div className="border-t border-line my-1" />
 
-                            <Link
-                              href="/super-admin/clubs"
+                            {/* Opens Club Portal outside in a new tab */}
+                            <a
+                              href={a.subdomain ? `http://${a.subdomain}.localhost:3000` : `/club?tenantId=${a.tenantId || ''}`}
+                              target="_blank"
+                              rel="noopener noreferrer"
                               onClick={() => setActiveMenuId(null)}
-                              className="flex w-full items-center gap-2 rounded-xl px-3 py-2 text-xs font-semibold text-navy hover:bg-[#F4F8FD] transition-colors"
+                              className="flex w-full items-center justify-between rounded-xl px-3 py-2 text-xs font-semibold text-navy hover:bg-[#F4F8FD] transition-colors"
                             >
-                              <Building2 size={13} className="text-muted" />
-                              <span>View Club Portal</span>
-                            </Link>
+                              <div className="flex items-center gap-2">
+                                <Building2 size={13} className="text-blue" />
+                                <span>View Club Portal</span>
+                              </div>
+                              <ExternalLink size={12} className="text-muted" />
+                            </a>
 
                             <a
                               href={`mailto:${a.email}`}
