@@ -1,7 +1,7 @@
 import express from 'express';
 import cors from 'cors';
 import morgan from 'morgan';
-import { config } from './config/env.js';
+import { config } from './config/appConfig.js';
 import apiRoutes from './routes/index.js';
 import { errorHandler } from './middlewares/errorHandler.js';
 
