@@ -1,7 +1,7 @@
 'use client';
 
-import { ClubLayout } from '../layouts/ClubLayout';
+import { UserLayout } from '../layouts/UserLayout';
 
 export default function Home() {
-  return <ClubLayout />;
+  return <UserLayout />;
 }
