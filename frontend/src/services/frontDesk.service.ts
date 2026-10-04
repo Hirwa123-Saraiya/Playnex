@@ -19,11 +19,14 @@ export interface FrontDeskBooking {
   courtName?: string;
   sport?: string;
   customer: string;
+  memberName?: string;
+  guestName?: string;
   type: 'MEMBER' | 'GUEST';
   date: string;
   startTime: string;
   endTime: string;
   status: 'confirmed' | 'checked_in' | 'completed' | 'cancelled';
+  amount?: number;
 }
 
 export interface FrontDeskStaff {

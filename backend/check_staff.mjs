@@ -3,55 +3,67 @@ import pg from 'pg';
 const { Pool } = pg;
 
 const pool = new Pool({
-  connectionString: process.env.DATABASE_URL || 'postgresql://postgres:postgres@localhost:5432/playnex_db'
+  connectionString: 'postgresql://postgres:postgres@localhost:5434/playnex_db'
 });
 
-const KAVYA_TENANT = 'tenant_1791065725498';
 const DEFAULT_PASSWORD = 'staff@123';
-
-const staffList = [
-  { userId: 'usr_shop_kavya',       name: 'Vikram Mehta (Shop Lead)',      email: 'shop.kavya@playnex.com',       prefix: 'shop' },
-  { userId: 'usr_bar_kavya',        name: 'Chef Manish Joshi (Bar Lead)',  email: 'bar.kavya@playnex.com',        prefix: 'bar' },
-  { userId: 'usr_frontdesk_kavya',  name: 'Sneha Vyas (Front Desk)',       email: 'frontdesk.kavya@playnex.com',  prefix: 'frontdesk' },
-  { userId: 'usr_accountant_kavya', name: 'Nirav Shah (Accountant)',       email: 'accountant.kavya@playnex.com', prefix: 'accountant' },
-  { userId: 'usr_coach_kavya',      name: 'Coach Anand Iyer',              email: 'coach.kavya@playnex.com',      prefix: 'coach' },
-  { userId: 'usr_hr_kavya',         name: 'Pooja Nair (HR Lead)',           email: 'hr.kavya@playnex.com',         prefix: 'hr' },
-  { userId: 'usr_grounds_kavya',    name: 'Ramesh Patel (Grounds)',         email: 'grounds.kavya@playnex.com',    prefix: 'grounds' },
-];
-
 const passwordHash = hashSync(DEFAULT_PASSWORD, 10);
 
 try {
-  for (const s of staffList) {
-    const { rows: existing } = await pool.query(
-      `SELECT user_id FROM users WHERE email = $1`, [s.email]
-    );
-    if (existing.length > 0) {
-      // Update password in case it was wrong
-      await pool.query(
-        `UPDATE users SET password_hash = $1, is_active = TRUE WHERE email = $2`,
-        [passwordHash, s.email]
-      );
-      console.log(`UPDATED: ${s.email}`);
-      continue;
+  // Get all tenants first
+  const { rows: tenants } = await pool.query(`SELECT tenant_id, club_name FROM tenants ORDER BY created_at`);
+  console.log('All tenants:');
+  tenants.forEach(t => console.log(`  ${t.tenant_id} → ${t.club_name}`));
+
+  // For each tenant, create staff if they don't have them
+  for (const tenant of tenants) {
+    const staffList = [
+      { role: 'shop',       name: 'Shop Manager',       suffix: 'Pro Shop & Inventory' },
+      { role: 'bar',        name: 'Bar & Kitchen Lead',  suffix: 'Bar & Kitchen' },
+      { role: 'frontdesk',  name: 'Front Desk Officer',  suffix: 'Front Desk' },
+      { role: 'accountant', name: 'Finance & Accounts',  suffix: 'Finance & Accounts' },
+      { role: 'coach',      name: 'Head Coach',          suffix: 'Coaching' },
+      { role: 'hr',         name: 'HR Manager',          suffix: 'HR & Personnel' },
+      { role: 'grounds',    name: 'Grounds Manager',     suffix: 'Facility & Grounds' },
+    ];
+
+    const slug = tenant.club_name.toLowerCase().replace(/[^a-z0-9]/g, '');
+    
+    for (const s of staffList) {
+      const email = `${s.role}.${slug}@playnex.com`;
+      const userId = `usr_${s.role}_${slug}`;
+      
+      const { rows: existing } = await pool.query(`SELECT user_id FROM users WHERE email = $1`, [email]);
+      if (existing.length > 0) {
+        await pool.query(`UPDATE users SET password_hash = $1, is_active = TRUE WHERE email = $2`, [passwordHash, email]);
+        console.log(`  UPDATED: ${email}`);
+      } else {
+        await pool.query(
+          `INSERT INTO users (user_id, tenant_id, name, email, password_hash, system_role, is_active, status)
+           VALUES ($1, $2, $3, $4, $5, 'STAFF', TRUE, 'active')
+           ON CONFLICT (user_id) DO NOTHING`,
+          [userId, tenant.tenant_id, `${s.name} (${tenant.club_name})`, email, passwordHash]
+        );
+        console.log(`  CREATED: ${email}`);
+      }
     }
-    await pool.query(
-      `INSERT INTO users (user_id, tenant_id, name, email, password_hash, system_role, is_active, status)
-       VALUES ($1, $2, $3, $4, $5, 'STAFF', TRUE, 'active')`,
-      [s.userId, KAVYA_TENANT, s.name, s.email, passwordHash]
-    );
-    console.log(`CREATED: ${s.email}`);
+    console.log(`  → ${tenant.club_name}: done\n`);
   }
 
-  console.log('\n✅ Kavya staff ready!');
-  console.log('\nLogin at: http://localhost:3000/login');
-  console.log('Password for all staff: staff@123\n');
-  console.log('Staff accounts:');
-  for (const s of staffList) {
-    console.log(`  ${s.prefix.padEnd(12)} → ${s.email}`);
-  }
+  console.log('\n✅ All staff provisioned!');
+  console.log('Default password: staff@123');
+  console.log('\nExample logins for Kavya club:');
+  console.log('  shop.kavya@playnex.com / staff@123 → Pro Shop');
+  console.log('  bar.kavya@playnex.com / staff@123 → Bar & Kitchen');
+  console.log('  frontdesk.kavya@playnex.com / staff@123 → Front Desk');
+  console.log('  accountant.kavya@playnex.com / staff@123 → Finance');
+  console.log('  coach.kavya@playnex.com / staff@123 → Coach');
+  console.log('  hr.kavya@playnex.com / staff@123 → HR');
+  console.log('  grounds.kavya@playnex.com / staff@123 → Facility Ops');
+
 } catch(e) {
   console.error('Error:', e.message);
+  console.error(e.stack);
 } finally {
   await pool.end();
 }
