@@ -46,4 +46,4 @@ export async function requireActiveMembership(req, res, next) {
   } catch (err) {
     return errorResponse(res, err.message, 500);
   }
-}s
+}

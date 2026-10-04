@@ -5,7 +5,7 @@ import { buildDefaultStaff } from '../data/defaultWorkstations.js';
 import { config, cookieOptions } from '../config/appConfig.js';
 import { successResponse, errorResponse } from '../utils/apiResponse.js';
 //trail
-import { computeTrialWindow, buildTrialProfile, TRIAL_DURATION_DAYS } from '../services/trialService.js';
+import { computeTrialWindow, buildTrialProfile } from '../services/trialService.js';
 
 // Helper to generate access and refresh tokens
 function generateTokens(user) {
@@ -87,6 +87,8 @@ async function buildUserProfile(user) {
     roleName: user.role_name || (user.system_role === 'SUPER_ADMIN' ? 'Super Administrator' : user.system_role === 'CLUB_OWNER' ? 'Club Owner' : user.system_role),
     targetModule: user.target_module || null,
     tier: user.tier,
+    age: user.age ?? null,
+    membershipPlan: user.system_role === 'MEMBER' ? `${user.tier || 'Silver'} Trial` : null,
     permissions: effectivePermissions,
 
     /* Trial fields */
@@ -103,7 +105,7 @@ async function buildUserProfile(user) {
  */
 export async function register(req, res) {
   try {
-    const { email, password, name, type, clubName, tier } = req.body;
+    const { email, password, name, type, clubName, tier, age, phone } = req.body;
 
     if (!email || !password || !name) {
       return errorResponse(res, 'Email, password, and name are required', 400);
@@ -145,6 +147,11 @@ export async function register(req, res) {
       });
     } else {
       // Member registration
+      const memberAge = Number(age);
+      if (!Number.isInteger(memberAge) || memberAge < 5 || memberAge > 99) {
+        return errorResponse(res, 'A valid age between 5 and 99 is required for member registration', 400);
+      }
+      const memberTier = memberAge < 18 ? 'Junior' : memberAge < 40 ? 'Silver' : 'Gold';
       // await dbService.createUser({
       //   userId,
       //   tenantId: null,
@@ -164,7 +171,9 @@ export async function register(req, res) {
         email,
         passwordHash,
         systemRole: 'MEMBER',
-        tier: tier || 'Silver',
+        tier: memberTier,
+        age: memberAge,
+        phone: phone?.trim() || null,
         trialStartedAt: startedAt,
         trialEndsAt: endsAt,
         trialUsed: true,

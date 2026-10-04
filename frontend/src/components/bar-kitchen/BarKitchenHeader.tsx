@@ -3,14 +3,10 @@ import {
   UtensilsCrossed,
   Building2,
   ChevronDown,
-  Shield,
-  Bell,
-  Search,
   Volume2,
   Sparkles,
   Layers,
-  Clock,
-  User,
+  LogOut,
   Coffee,
   Wine,
   Waves,
@@ -18,22 +14,21 @@ import {
   PartyPopper,
 } from 'lucide-react';
 import { useBarKitchenStore } from '../../store/BarKitchenStore';
-import { BarKitchenFacilityType, BarKitchenRole } from '../../types/BarKitchenTypes';
+import { BarKitchenFacilityType } from '../../types/BarKitchenTypes';
+import { useAuth } from '../../context/AuthContext';
 
 export const BarKitchenHeader: React.FC = () => {
+  const { user, logout } = useAuth();
   const {
     facilities,
     currentFacility,
     setFacility,
-    currentRole,
-    setRole,
     toastMessage,
     activeNav,
     setActiveNav,
   } = useBarKitchenStore();
 
   const [facilityDropdownOpen, setFacilityDropdownOpen] = useState(false);
-  const [roleDropdownOpen, setRoleDropdownOpen] = useState(false);
 
   const getFacilityIcon = (type: BarKitchenFacilityType) => {
     switch (type) {
@@ -53,17 +48,6 @@ export const BarKitchenHeader: React.FC = () => {
         return Building2;
     }
   };
-
-  const roles: BarKitchenRole[] = [
-    'Restaurant Manager',
-    'Bar Manager',
-    'Head Chef',
-    'Kitchen Staff',
-    'Steward',
-    'Cashier',
-    'Inventory Manager',
-    'Banquet Manager',
-  ];
 
   const FacilityIcon = getFacilityIcon(currentFacility.type);
 
@@ -161,15 +145,15 @@ export const BarKitchenHeader: React.FC = () => {
               <span>POS Terminal</span>
             </button>
             <button
-              onClick={() => setActiveNav('Kitchen Operations')}
+              onClick={() => setActiveNav('Menu Management')}
               className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 ${
-                activeNav === 'Kitchen Operations'
+                activeNav === 'Menu Management'
                   ? 'bg-orange-600 text-white shadow-xs'
                   : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
               }`}
             >
-              <Clock className="w-3.5 h-3.5" />
-              <span>Live KDS / KOT</span>
+              <UtensilsCrossed className="w-3.5 h-3.5" />
+              <span>Manage Menu</span>
             </button>
             <button
               onClick={() => setActiveNav('Table Management')}
@@ -185,47 +169,10 @@ export const BarKitchenHeader: React.FC = () => {
           </div>
         )}
 
-        {/* Right: RBAC Role Switcher & User Profile */}
+        {/* Right: authenticated staff profile */}
         <div className="flex items-center gap-2.5">
-          {/* RBAC Role Selector Dropdown */}
-          <div className="relative">
-            <button
-              type="button"
-              onClick={() => setRoleDropdownOpen(!roleDropdownOpen)}
-              className="flex items-center gap-1.5 px-3 py-1.5 bg-indigo-50 hover:bg-indigo-100 border border-indigo-200 rounded-xl text-xs font-bold text-indigo-900 transition-colors shadow-2xs"
-            >
-              <Shield className="w-3.5 h-3.5 text-indigo-600" />
-              <span className="hidden md:inline">Role:</span>
-              <span className="font-extrabold text-indigo-700">{currentRole}</span>
-              <ChevronDown className="w-3.5 h-3.5 text-indigo-500" />
-            </button>
-
-            {roleDropdownOpen && (
-              <div className="absolute right-0 mt-2 w-56 bg-white rounded-2xl shadow-2xl border border-slate-200 p-2 z-50 animate-in fade-in zoom-in-95">
-                <div className="px-3 py-1.5 border-b border-slate-100 text-[10px] font-bold text-slate-400 uppercase tracking-wider">
-                  Switch Active Role (RBAC)
-                </div>
-                <div className="space-y-1 mt-1">
-                  {roles.map((r) => (
-                    <button
-                      key={r}
-                      type="button"
-                      onClick={() => {
-                        setRole(r);
-                        setRoleDropdownOpen(false);
-                      }}
-                      className={`w-full text-left px-3 py-2 rounded-xl text-xs font-bold transition-colors ${
-                        currentRole === r
-                          ? 'bg-indigo-600 text-white font-black'
-                          : 'hover:bg-slate-50 text-slate-700'
-                      }`}
-                    >
-                      {r}
-                    </button>
-                  ))}
-                </div>
-              </div>
-            )}
+          <div className="hidden md:block rounded-xl border border-indigo-100 bg-indigo-50 px-3 py-1.5 text-xs font-bold text-indigo-700">
+            {user?.roleName || 'Bar & Kitchen Staff'}
           </div>
 
           {/* Quick Sound Alert Indicator */}
@@ -239,8 +186,13 @@ export const BarKitchenHeader: React.FC = () => {
           {/* Staff avatar */}
           <div className="flex items-center gap-2 pl-2 border-l border-slate-200">
             <div className="w-8 h-8 rounded-xl bg-gradient-to-tr from-slate-900 to-slate-700 text-white font-extrabold text-xs flex items-center justify-center shadow-xs">
-              PS
+              {(user?.name || 'BK').split(' ').map((part) => part[0]).join('').slice(0, 2).toUpperCase()}
             </div>
+            <div className="hidden xl:block text-left">
+              <span className="block text-xs font-bold text-slate-900">{user?.name || 'Bar & Kitchen Staff'}</span>
+              <span className="block text-[10px] text-slate-400">{user?.tenantName || 'Sports Club'}</span>
+            </div>
+            <button onClick={() => void logout()} className="rounded-lg p-2 text-slate-400 transition hover:bg-rose-50 hover:text-rose-600" title="Log out" aria-label="Log out"><LogOut className="h-4 w-4" /></button>
           </div>
         </div>
       </div>

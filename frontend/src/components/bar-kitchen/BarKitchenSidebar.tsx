@@ -3,22 +3,9 @@ import {
   LayoutDashboard,
   UtensilsCrossed,
   Table,
-  Calendar,
   ShoppingBag,
-  Flame,
-  Wine,
-  CreditCard,
-  Package,
-  BookOpen,
-  Users,
-  PartyPopper,
-  Percent,
-  ShieldCheck,
-  BarChart3,
-  Settings,
   ChevronLeft,
   ChevronRight,
-  Sparkles,
 } from 'lucide-react';
 import { useBarKitchenStore } from '../../store/BarKitchenStore';
 
@@ -31,34 +18,19 @@ export const BarKitchenSidebar: React.FC<BarKitchenSidebarProps> = ({
   collapsed = false,
   onToggleCollapse,
 }) => {
-  const { activeNav, setActiveNav, kots, tables, inventory } = useBarKitchenStore();
-
-  const activeKOTCount = kots.filter((k) => k.status !== 'Served').length;
+  const { activeNav, setActiveNav, tables } = useBarKitchenStore();
   const occupiedTablesCount = tables.filter((t) => t.status === 'Occupied').length;
-  const lowStockCount = inventory.filter((i) => i.status === 'Critical' || i.status === 'Low Stock').length;
 
   const menuItems = [
     { label: 'Dashboard', icon: LayoutDashboard, badge: null },
     { label: 'Menu Management', icon: UtensilsCrossed, badge: null },
     { label: 'Table Management', icon: Table, badge: occupiedTablesCount > 0 ? `${occupiedTablesCount}` : null, badgeColor: 'bg-red-500' },
-    { label: 'Reservations', icon: Calendar, badge: '4', badgeColor: 'bg-amber-500' },
     { label: 'Order Management', icon: ShoppingBag, badge: 'POS', badgeColor: 'bg-blue-600' },
-    { label: 'Kitchen Operations', icon: Flame, badge: activeKOTCount > 0 ? `${activeKOTCount}` : null, badgeColor: 'bg-orange-500' },
-    { label: 'Bar Operations', icon: Wine, badge: 'Live', badgeColor: 'bg-purple-600' },
-    { label: 'Billing & Payments', icon: CreditCard, badge: null },
-    { label: 'Inventory', icon: Package, badge: lowStockCount > 0 ? `${lowStockCount}` : null, badgeColor: 'bg-rose-500' },
-    { label: 'Recipes', icon: BookOpen, badge: null },
-    { label: 'Stewards', icon: Users, badge: null },
-    { label: 'Banquet & Catering', icon: PartyPopper, badge: null },
-    { label: 'Member Discounts', icon: Percent, badge: null },
-    { label: 'Audit Logs', icon: ShieldCheck, badge: null },
-    { label: 'Reports & Analytics', icon: BarChart3, badge: null },
-    { label: 'Settings', icon: Settings, badge: null },
   ];
 
   return (
     <aside
-      className={`bg-slate-950 text-slate-300 flex flex-col justify-between transition-all duration-300 ease-in-out z-30 shrink-0 border-r border-slate-800 ${
+      className={`h-screen overflow-hidden bg-slate-950 text-slate-300 flex flex-col justify-between transition-all duration-300 ease-in-out z-30 shrink-0 border-r border-slate-800 ${
         collapsed ? 'w-20' : 'w-64'
       }`}
     >
@@ -92,7 +64,7 @@ export const BarKitchenSidebar: React.FC<BarKitchenSidebarProps> = ({
         </div>
 
         {/* Navigation list */}
-        <nav className="p-3 space-y-1 max-h-[calc(100vh-140px)] overflow-y-auto no-scrollbar">
+        <nav className="p-3 space-y-1 overflow-hidden">
           {menuItems.map(({ label, icon: Icon, badge, badgeColor }) => {
             const isActive = activeNav === label;
             return (

@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState, useEffect } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/context/AuthContext";
 import {
@@ -78,16 +78,6 @@ export default function FrontDeskPage() {
       router.push('/login');
     }
   }, [user, authLoading, router]);
-
-  if (authLoading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-slate-950 text-white">
-        <Loader2 className="w-8 h-8 text-emerald-500 animate-spin" />
-      </div>
-    );
-  }
-
-  if (!user) return null;
 
   const [selectedMember, setSelectedMember] = useState<FrontDeskMember | null>(null);
   const [guestName, setGuestName] = useState("");
@@ -245,6 +235,11 @@ export default function FrontDeskPage() {
     setGuestPhone("");
     setGuestEmail("");
   }
+
+  if (authLoading) {
+    return <div className="min-h-screen flex items-center justify-center bg-slate-950 text-white"><Loader2 className="w-8 h-8 text-emerald-500 animate-spin" /></div>;
+  }
+  if (!user) return null;
 
   return (
     <main className="min-h-screen bg-page text-text">

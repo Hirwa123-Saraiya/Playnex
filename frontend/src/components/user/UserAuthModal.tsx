@@ -117,7 +117,7 @@ export const UserAuthModal: React.FC<UserAuthModalProps> = ({
         type: 'MEMBER',
         phone: signUpPhone.trim() || undefined,
         age: ageNum,
-      } as any);
+      });
 
       if (res.success && res.data?.user) {
         if (typeof window !== 'undefined') {
@@ -413,7 +413,7 @@ export const UserAuthModal: React.FC<UserAuthModalProps> = ({
                   </div>
                   {derivedTier && (
                     <p className="mt-1 text-[10px] font-semibold text-blue">
-                      Suggested tier: <span className="font-bold">{derivedTier}</span>
+                      Plan: <span className="font-bold">{derivedTier} Trial</span> — 7 days, full access
                     </p>
                   )}
                 </div>

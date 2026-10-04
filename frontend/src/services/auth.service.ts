@@ -8,6 +8,10 @@ export interface RegisterPayload {
   type?: 'CLUB_OWNER' | 'MEMBER';
   clubName?: string;
   tier?: 'Gold' | 'Silver' | 'Junior';
+  age?: number;
+  phone?: string;
+  age?: number;
+  phone?: string;
 }
 
 export interface AuthSessionResponse {

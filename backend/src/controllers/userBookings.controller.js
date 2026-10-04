@@ -32,7 +32,7 @@ export async function listSlots(req, res) {
 export async function listMyBookings(req, res) {
   try {
     const tenantId = getTenantId(req);
-    const userId = req.user?.id || req.query.userId;
+    const userId = req.user?.userId || req.query.userId;
     if (!userId) return errorResponse(res, 'User context missing', 400);
     const bookings = await bookingService.getMyBookings(userId, { tenantId });
     return successResponse(res, bookings, 'Bookings retrieved successfully');
@@ -47,7 +47,7 @@ export async function createUserBooking(req, res) {
     if (!tenantId) return errorResponse(res, 'Tenant context missing', 400);
 
     const user = req.user
-      ? { id: req.user.id, tier: req.user.tier, name: req.user.name, tenantId }
+      ? { id: req.user.userId, tier: req.user.tier, name: req.user.name, tenantId }
       : null;
 
     const booking = await bookingService.createBooking(
@@ -64,7 +64,7 @@ export async function cancelUserBooking(req, res) {
   try {
     const tenantId = getTenantId(req);
     const { id } = req.params;
-    const userId = req.user?.id || req.body.userId || null;
+    const userId = req.user?.userId || req.body.userId || null;
     const result = await bookingService.cancelBooking(id, userId, { tenantId });
     return successResponse(res, result, 'Booking cancelled successfully');
   } catch (err) {

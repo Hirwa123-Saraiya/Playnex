@@ -15,6 +15,11 @@ async function checkPg() {
         ALTER TABLE tenants ADD COLUMN IF NOT EXISTS location VARCHAR(255) DEFAULT 'India';
         ALTER TABLE tenants ADD COLUMN IF NOT EXISTS address TEXT;
         ALTER TABLE tenants ADD COLUMN IF NOT EXISTS phone VARCHAR(50);
+
+        ALTER TABLE users ADD COLUMN IF NOT EXISTS trial_started_at TIMESTAMP WITH TIME ZONE;
+        ALTER TABLE users ADD COLUMN IF NOT EXISTS trial_ends_at TIMESTAMP WITH TIME ZONE;
+        ALTER TABLE users ADD COLUMN IF NOT EXISTS trial_used BOOLEAN NOT NULL DEFAULT FALSE;
+        ALTER TABLE users ADD COLUMN IF NOT EXISTS age INTEGER;
       `);
     }
   } catch {
@@ -602,12 +607,12 @@ export const dbService = {
   /**
    * Create dynamic User
    */
-  async createUser({ userId, tenantId, name, email, passwordHash, systemRole, tier }) {
+  async createUser({ userId, tenantId, name, email, passwordHash, systemRole, tier, age, phone, trialStartedAt, trialEndsAt, trialUsed = false }) {
     if (await checkPg()) {
       await pool.query(
-        `INSERT INTO users (user_id, tenant_id, name, email, password_hash, system_role, tier, is_active)
-         VALUES ($1, $2, $3, $4, $5, $6, $7, TRUE)`,
-        [userId, tenantId || null, name, email.toLowerCase(), passwordHash, systemRole, tier || null]
+        `INSERT INTO users (user_id, tenant_id, name, email, phone, password_hash, system_role, tier, age, is_active, trial_started_at, trial_ends_at, trial_used)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, TRUE, $10, $11, $12)`,
+        [userId, tenantId || null, name, email.toLowerCase(), phone || null, passwordHash, systemRole, tier || null, age || null, trialStartedAt || null, trialEndsAt || null, trialUsed]
       );
     }
     memoryDb.users.push({
@@ -619,7 +624,12 @@ export const dbService = {
       system_role: systemRole,
       role_id: null,
       tier: tier || null,
+      age: age || null,
+      phone: phone || null,
       is_active: true,
+      trial_started_at: trialStartedAt || null,
+      trial_ends_at: trialEndsAt || null,
+      trial_used: trialUsed,
       created_at: new Date().toISOString(),
     });
   },

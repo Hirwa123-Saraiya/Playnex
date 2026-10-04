@@ -10,21 +10,17 @@ import {
   validateCreateBooking,
   validateIdParam,
 } from '../validators/bookingValidator.js';
-
-//trail
+import { authenticate } from '../middlewares/auth.middleware.js';
 import { requireActiveMembership } from '../middlewares/requireActiveMembership.js';
 
 const router = express.Router();
 
-router.get('/user/courts', listCourts);
-router.get('/user/courts/:id/slots', validateIdParam, listSlots);
+router.get('/courts', authenticate, listCourts);
+router.get('/courts/:id/slots', authenticate, validateIdParam, listSlots);
 
-router.get('/user/bookings', listMyBookings);
-router.post('/user/bookings', validateCreateBooking, createUserBooking);
-router.patch('/user/bookings/:id/cancel', validateIdParam, cancelUserBooking);
-
-//trail
-router.post('/user/bookings', validateCreateBooking, requireActiveMembership, createUserBooking);
+router.get('/bookings', authenticate, listMyBookings);
+router.post('/bookings', authenticate, validateCreateBooking, requireActiveMembership, createUserBooking);
+router.patch('/bookings/:id/cancel', authenticate, validateIdParam, cancelUserBooking);
 
 export default router;
 

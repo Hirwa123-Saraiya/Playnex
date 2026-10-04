@@ -34,7 +34,7 @@ export async function checkInBooking(req, res) {
     if (!tenantId) return errorResponse(res, 'Tenant context missing', 400);
 
     const { id } = req.params;
-    const staffUserId = req.user?.id || null;
+    const staffUserId = req.user?.userId || null;
     const result = await frontDeskService.checkIn(id, staffUserId, { tenantId });
     return successResponse(res, result, 'Checked in successfully');
   } catch (err) {
@@ -48,7 +48,7 @@ export async function createWalkInBooking(req, res) {
     if (!tenantId) return errorResponse(res, 'Tenant context missing', 400);
 
     const staffUser = req.user
-      ? { id: req.user.id, name: req.user.name, tenantId }
+      ? { id: req.user.userId, name: req.user.name, tenantId }
       : null;
 
     const booking = await frontDeskService.createWalkIn(

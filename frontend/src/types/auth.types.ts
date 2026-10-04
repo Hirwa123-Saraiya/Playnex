@@ -11,6 +11,8 @@ export interface AuthUser {
   roleName: string;
   targetModule?: string | null;
   tier: 'Gold' | 'Silver' | 'Junior' | null;
+  age?: number | null;
+  membershipPlan?: string | null;
   permissions: string[];
 
    /* ---- 7-day trial ---- */

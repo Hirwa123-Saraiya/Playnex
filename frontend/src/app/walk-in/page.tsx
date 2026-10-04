@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useEffect } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/context/AuthContext";
 import {
@@ -57,15 +57,6 @@ export default function WalkInBookingPage() {
     }
   }, [user, authLoading, router]);
 
-  if (authLoading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-slate-950 text-white">
-        <Loader2 className="w-8 h-8 text-emerald-500 animate-spin" />
-      </div>
-    );
-  }
-
-  if (!user) return null;
   const [bookingRef, setBookingRef] = useState("");
 
   useEffect(() => {
@@ -133,6 +124,11 @@ export default function WalkInBookingPage() {
       setIsLoading(false);
     }
   }
+
+  if (authLoading) {
+    return <div className="min-h-screen flex items-center justify-center bg-slate-950 text-white"><Loader2 className="w-8 h-8 text-emerald-500 animate-spin" /></div>;
+  }
+  if (!user) return null;
 
   /* ---------- Success screen ---------- */
   if (isConfirmed) {

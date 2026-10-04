@@ -25,7 +25,7 @@ import userEventsRoutes from './userEvents.routes.js';
 import userProfileRoutes from './userProfile.routes.js';
 
 //front desk
-import frontDeskRoutes from './frontDesk.routes.js';x
+import frontDeskRoutes from './frontDesk.routes.js';
 
 const router = express.Router();
 
@@ -67,7 +67,7 @@ router.use('/restaurant', restaurantRoutes);
 // User / Customer Portal Modular Sections
 router.use('/user/clubs', userClubsRoutes);
 router.use('/user/facilities', userFacilitiesRoutes);
-router.use('/user/bookings', userBookingsRoutes);
+router.use('/user', userBookingsRoutes);
 router.use('/user/memberships', userMembershipsRoutes);
 router.use('/user/events', userEventsRoutes);
 router.use('/user/profile', userProfileRoutes);
