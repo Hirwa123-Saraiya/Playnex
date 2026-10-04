@@ -1,4 +1,5 @@
 import { apiMethod } from './api';
+import type { BarKitchenMenuItem, BarKitchenTable, MenuCategoryType } from '../types/BarKitchenTypes';
 
 export interface MenuItem {
   id: string;
@@ -6,6 +7,24 @@ export interface MenuItem {
   category: string;
   price: number | string;
   isAvailable: boolean;
+}
+
+export function mapRestaurantMenuItem(item: MenuItem): BarKitchenMenuItem {
+  const validCategories = ['Food', 'Beverage', 'Snacks', 'Combos', 'Seasonal', 'Dessert', 'Alcohol'];
+  const category = validCategories.includes(item.category) ? item.category : 'Food';
+  return { id: item.id, name: item.name, category: category as MenuCategoryType, subCategory: item.category || 'General', price: Number(item.price) || 0, costPrice: 0, marginPercent: 0, image: '', isAvailable: item.isAvailable, isVeg: true, preparationTimeMins: 12, station: category === 'Beverage' || category === 'Alcohol' ? 'Beverage Station' : 'Main Course Station', description: `${item.category || 'Menu'} item` };
+}
+
+export function mapRestaurantTable(item: any): BarKitchenTable {
+  return {
+    id: item.id,
+    tableNumber: item.tableNumber,
+    area: 'Indoor',
+    seats: Number(item.capacity) || 4,
+    status: item.status === 'OCCUPIED' ? 'Occupied' : 'Available',
+    facilityId: 'restaurant',
+    occupiedSince: item.activeKot?.seated_at,
+  };
 }
 
 export interface RestaurantOrder {
@@ -33,11 +52,11 @@ export interface CreateOrderPayload {
 }
 
 export const restaurantService = {
-  async getMenu(tenantId?: string) {
+  async getMenu(tenantId?: string, includeInactive = false) {
     return apiMethod<MenuItem[]>({
       method: 'GET',
       url: '/club/restaurant/menu',
-      params: tenantId ? { tenantId } : undefined,
+      params: { ...(tenantId ? { tenantId } : {}), ...(includeInactive ? { includeInactive: 'true' } : {}) },
     });
   },
 
@@ -70,6 +89,10 @@ export const restaurantService = {
       url: '/club/restaurant/orders',
       params: tenantId ? { tenantId } : undefined,
     });
+  },
+
+  async createOrder(data: CreateOrderPayload) {
+    return apiMethod<RestaurantOrder>({ method: 'POST', url: '/restaurant/orders', data });
   },
 
   async getOverview(tenantId?: string) {

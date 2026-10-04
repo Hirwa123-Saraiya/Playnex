@@ -69,12 +69,12 @@ export const BarKitchenHeader: React.FC = () => {
               <div className="hidden sm:block">
                 <div className="flex items-center gap-1.5">
                   <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">
-                    {currentFacility.type} • Royal Club
+                    {currentFacility.type} · {user?.tenantName || 'Sports Club'}
                   </span>
                   <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
                 </div>
                 <h2 className="text-xs font-extrabold text-slate-900 group-hover:text-blue-600 transition-colors">
-                  {currentFacility.name}
+                  {user?.tenantName || 'Restaurant & Bar'}
                 </h2>
               </div>
               <ChevronDown className="w-4 h-4 text-slate-400 group-hover:text-slate-600 transition-transform" />

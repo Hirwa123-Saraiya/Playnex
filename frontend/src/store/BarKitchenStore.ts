@@ -54,6 +54,7 @@ interface BarKitchenStoreState {
 
   // Tables
   tables: BarKitchenTable[];
+  setTables: (tables: BarKitchenTable[]) => void;
   selectedTable: BarKitchenTable | null;
   selectedTableArea: string;
   setSelectedTableArea: (area: string) => void;
@@ -63,6 +64,7 @@ interface BarKitchenStoreState {
 
   // Menu
   menuItems: BarKitchenMenuItem[];
+  setMenuItems: (items: BarKitchenMenuItem[]) => void;
   selectedCategory: MenuCategoryType | 'All Items';
   setSelectedCategory: (cat: MenuCategoryType | 'All Items') => void;
   searchQuery: string;
@@ -133,8 +135,8 @@ interface BarKitchenStoreState {
 export const useBarKitchenStore = create<BarKitchenStoreState>((set, get) => ({
   tenantId: 'TENANT-PLAYNEX-GLOBAL',
   clubId: 'CLUB-ROYAL-SPORTS',
-  facilities: mockFacilities,
-  currentFacility: mockFacilities[0],
+  facilities: [],
+  currentFacility: { id: 'restaurant', name: 'Restaurant & Bar', type: 'Restaurant', clubId: '', branchId: '', capacity: 0, tablesCount: 24, isOpen: true, openingHours: '' },
   setFacility: (facility) => {
     set({ currentFacility: facility });
     get().addAuditLog('Login', `Switched facility context to ${facility.name}`, 'Info');
@@ -146,8 +148,9 @@ export const useBarKitchenStore = create<BarKitchenStoreState>((set, get) => ({
   setActiveNav: (nav) => set({ activeNav: nav }),
 
   // Tables
-  tables: mockTables,
-  selectedTable: mockTables[1], // Table T2 as default selected
+  tables: [],
+  setTables: (tables) => set({ tables }),
+  selectedTable: null,
   selectedTableArea: 'All',
   setSelectedTableArea: (area) => set({ selectedTableArea: area }),
   setSelectedTable: (table) => {
@@ -194,7 +197,8 @@ export const useBarKitchenStore = create<BarKitchenStoreState>((set, get) => ({
   },
 
   // Menu
-  menuItems: mockMenuItems,
+  menuItems: [],
+  setMenuItems: (menuItems) => set({ menuItems }),
   selectedCategory: 'All Items',
   setSelectedCategory: (cat) => set({ selectedCategory: cat }),
   searchQuery: '',
@@ -216,11 +220,7 @@ export const useBarKitchenStore = create<BarKitchenStoreState>((set, get) => ({
   },
 
   // POS / Cart
-  cartItems: [
-    { menuItem: mockMenuItems[0], quantity: 2, notes: 'Medium rare' }, // Club House Burger
-    { menuItem: mockMenuItems[4], quantity: 1 }, // Artisan Cappuccino
-    { menuItem: mockMenuItems[3], quantity: 1, notes: 'Extra seasoning' }, // Peri Peri Fries
-  ],
+  cartItems: [],
   orderType: 'Dine In',
   setOrderType: (type) => set({ orderType: type }),
   targetTableNumber: 'T2',

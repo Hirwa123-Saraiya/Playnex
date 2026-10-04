@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   Plus,
   Search,
@@ -14,19 +14,20 @@ import {
 import { useBarKitchenStore } from '../../store/BarKitchenStore';
 import { BarKitchenCategories } from '../../components/bar-kitchen/BarKitchenCategories';
 import { BarKitchenMenuItem, MenuCategoryType } from '../../types/BarKitchenTypes';
+import { mapRestaurantMenuItem, restaurantService } from '../../services/restaurant.service';
 
 export const BarKitchenMenuManagement: React.FC = () => {
   const {
     menuItems,
     selectedCategory,
     setSelectedCategory,
-    toggleMenuItemAvailability,
-    deleteMenuItem,
-    addMenuItem,
+    setMenuItems,
+    setToastMessage,
   } = useBarKitchenStore();
 
   const [search, setSearch] = useState('');
   const [showAddModal, setShowAddModal] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
 
   // New item form state
   const [newItem, setNewItem] = useState<Partial<BarKitchenMenuItem>>({
@@ -51,34 +52,35 @@ export const BarKitchenMenuManagement: React.FC = () => {
     return matchesCategory && matchesSearch;
   });
 
-  const handleCreateItem = (e: React.FormEvent) => {
+  const loadMenu = async () => {
+    try {
+      const response = await restaurantService.getMenu(undefined, true);
+      if (!response.success) throw new Error(response.message || 'Could not load menu');
+      setMenuItems((response.data || []).map(mapRestaurantMenuItem));
+    } catch (error) {
+      setToastMessage(error instanceof Error ? error.message : 'Could not load menu.');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  useEffect(() => { void loadMenu(); }, []);
+
+  const handleCreateItem = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!newItem.name || !newItem.price) return;
 
     const price = Number(newItem.price);
-    const costPrice = Number(newItem.costPrice || 50);
-    const margin = Math.round(((price - costPrice) / price) * 100);
-
-    const created: BarKitchenMenuItem = {
-      id: `MI-${Date.now().toString().slice(-4)}`,
-      name: newItem.name,
-      category: (newItem.category as MenuCategoryType) || 'Food',
-      subCategory: newItem.subCategory || 'General',
-      price,
-      costPrice,
-      marginPercent: margin,
-      image:
-        newItem.image ||
-        'https://images.unsplash.com/photo-1546069901-ba9599a7e63c?w=400&auto=format&fit=crop&q=80',
-      isAvailable: true,
-      isVeg: !!newItem.isVeg,
-      preparationTimeMins: Number(newItem.preparationTimeMins) || 10,
-      station: (newItem.station as any) || 'Grill Station',
-      description: newItem.description || 'Prepared fresh by club chefs.',
-    };
-
-    addMenuItem(created);
-    setShowAddModal(false);
+    try {
+      const response = await restaurantService.createMenuItem({ name: newItem.name, category: newItem.category, price, isAvailable: true });
+      if (!response.success) throw new Error(response.message || 'Could not add menu item');
+      await loadMenu();
+      setShowAddModal(false);
+      setToastMessage('Menu item saved to the database.');
+    } catch (error) {
+      setToastMessage(error instanceof Error ? error.message : 'Could not add menu item.');
+      return;
+    }
     setNewItem({
       name: '',
       category: 'Food',
@@ -90,6 +92,27 @@ export const BarKitchenMenuManagement: React.FC = () => {
       station: 'Main Course Station',
       description: '',
     });
+  };
+
+  const handleAvailabilityChange = async (item: BarKitchenMenuItem) => {
+    try {
+      const response = await restaurantService.updateMenuItem(item.id, { isAvailable: !item.isAvailable });
+      if (!response.success) throw new Error(response.message || 'Could not update menu item');
+      await loadMenu();
+    } catch (error) {
+      setToastMessage(error instanceof Error ? error.message : 'Could not update menu item.');
+    }
+  };
+
+  const handleDelete = async (id: string) => {
+    try {
+      const response = await restaurantService.deleteMenuItem(id);
+      if (!response.success) throw new Error(response.message || 'Could not delete menu item');
+      await loadMenu();
+      setToastMessage('Menu item removed.');
+    } catch (error) {
+      setToastMessage(error instanceof Error ? error.message : 'Could not delete menu item.');
+    }
   };
 
   return (
@@ -153,15 +176,18 @@ export const BarKitchenMenuManagement: React.FC = () => {
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100 bg-white">
+              {isLoading && <tr><td colSpan={9} className="px-4 py-10 text-center text-slate-500">Loading menu…</td></tr>}
               {filteredItems.map((item) => (
                 <tr key={item.id} className="hover:bg-slate-50/70 transition-colors">
                   {/* Image */}
                   <td className="py-2.5 px-4">
-                    <img
-                      src={item.image}
-                      alt={item.name}
-                      className="w-12 h-12 rounded-xl object-cover bg-slate-100 border border-slate-200"
-                    />
+                    {item.image ? (
+                      <img src={item.image} alt={item.name} className="w-12 h-12 rounded-xl object-cover bg-slate-100 border border-slate-200" />
+                    ) : (
+                      <div className="flex h-12 w-12 items-center justify-center rounded-xl border border-slate-200 bg-slate-50 text-blue-600">
+                        <ChefHat className="h-5 w-5" />
+                      </div>
+                    )}
                   </td>
 
                   {/* Name with veg/non-veg dot */}
@@ -213,7 +239,7 @@ export const BarKitchenMenuManagement: React.FC = () => {
                   <td className="py-2.5 px-4">
                     <button
                       type="button"
-                      onClick={() => toggleMenuItemAvailability(item.id)}
+                      onClick={() => void handleAvailabilityChange(item)}
                       className={`px-3 py-1 rounded-full text-xs font-bold transition-all ${
                         item.isAvailable
                           ? 'bg-emerald-100 text-emerald-800 hover:bg-emerald-200'
@@ -229,7 +255,7 @@ export const BarKitchenMenuManagement: React.FC = () => {
                     <div className="flex items-center justify-end gap-1.5">
                       <button
                         type="button"
-                        onClick={() => deleteMenuItem(item.id)}
+                        onClick={() => void handleDelete(item.id)}
                         className="p-1.5 rounded-lg text-slate-400 hover:text-rose-600 hover:bg-rose-50 transition-colors"
                         title="Delete Item"
                       >

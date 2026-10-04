@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   Search,
   Plus,
@@ -19,10 +19,13 @@ import { useBarKitchenStore } from '../../store/BarKitchenStore';
 import { BarKitchenCategories } from '../../components/bar-kitchen/BarKitchenCategories';
 import { BarKitchenMenuCard } from '../../components/bar-kitchen/BarKitchenMenuCard';
 import { OrderType } from '../../types/BarKitchenTypes';
+import { mapRestaurantMenuItem, mapRestaurantTable, restaurantService } from '../../services/restaurant.service';
 
 export const BarKitchenOrderManagement: React.FC = () => {
   const {
     menuItems,
+    setMenuItems,
+    setTables,
     selectedCategory,
     setSelectedCategory,
     cartItems,
@@ -30,7 +33,6 @@ export const BarKitchenOrderManagement: React.FC = () => {
     updateCartItemQty,
     removeFromCart,
     clearCart,
-    sendCartToKitchen,
     orderType,
     setOrderType,
     targetTableNumber,
@@ -41,11 +43,25 @@ export const BarKitchenOrderManagement: React.FC = () => {
     setMemberName,
     tables,
     setActiveNav,
+    setToastMessage,
   } = useBarKitchenStore();
 
   const [search, setSearch] = useState('');
   const [specialNote, setSpecialNote] = useState('');
   const [showTableSelect, setShowTableSelect] = useState(false);
+  const [isLoadingMenu, setIsLoadingMenu] = useState(true);
+  const [isSubmittingOrder, setIsSubmittingOrder] = useState(false);
+
+  useEffect(() => {
+    void Promise.all([restaurantService.getMenu(), restaurantService.getTables()])
+      .then(([menuResponse, tablesResponse]) => {
+        if (menuResponse.success && Array.isArray(menuResponse.data)) setMenuItems(menuResponse.data.map(mapRestaurantMenuItem));
+        else setToastMessage(menuResponse.message || 'Could not load the live menu.');
+        if (tablesResponse.success && Array.isArray(tablesResponse.data)) setTables(tablesResponse.data.map(mapRestaurantTable));
+      })
+      .catch(() => setToastMessage('Could not load the restaurant data.'))
+      .finally(() => setIsLoadingMenu(false));
+  }, [setMenuItems, setTables, setToastMessage]);
 
   // Discount calculation based on member tier (Gold 20%, Silver 15%, Platinum 25%, Corporate 20%, Guest 0%)
   const discountRate =
@@ -79,10 +95,23 @@ export const BarKitchenOrderManagement: React.FC = () => {
     return matchesCategory && matchesSearch;
   });
 
-  const handleSendToKitchen = () => {
-    const kot = sendCartToKitchen();
-    if (kot) {
-      // Prompt user or switch view option
+  const handleSendToKitchen = async () => {
+    if (!cartItems.length) return;
+    setIsSubmittingOrder(true);
+    try {
+      const response = await restaurantService.createOrder({
+        memberName: memberName || 'Walk-in Customer',
+        tableNumber: targetTableNumber,
+        items: cartItems.map(({ menuItem, quantity }) => ({ name: menuItem.name, quantity, price: menuItem.price })),
+        totalAmount: total,
+      });
+      if (!response.success) throw new Error(response.message || 'Could not create order');
+      clearCart();
+      setToastMessage('Order saved to the database and sent to kitchen.');
+    } catch (error) {
+      setToastMessage(error instanceof Error ? error.message : 'Could not create order.');
+    } finally {
+      setIsSubmittingOrder(false);
     }
   };
 
@@ -143,13 +172,14 @@ export const BarKitchenOrderManagement: React.FC = () => {
 
           {/* Items Grid matching reference image cards */}
           <div className="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-4 gap-3.5">
-            {filteredMenuItems.map((item) => (
+            {isLoadingMenu ? <p className="col-span-full py-10 text-center text-sm text-slate-500">Loading live menu…</p> : filteredMenuItems.map((item) => (
               <BarKitchenMenuCard
                 key={item.id}
                 item={item}
                 onAdd={(it) => addToCart(it, 1)}
               />
             ))}
+            {!isLoadingMenu && filteredMenuItems.length === 0 && <p className="col-span-full py-10 text-center text-sm text-slate-500">No menu items in the database yet.</p>}
           </div>
         </div>
 
@@ -327,12 +357,12 @@ export const BarKitchenOrderManagement: React.FC = () => {
 
             <button
               type="button"
-              disabled={cartItems.length === 0}
-              onClick={handleSendToKitchen}
+              disabled={cartItems.length === 0 || isSubmittingOrder}
+              onClick={() => void handleSendToKitchen()}
               className="py-3 bg-blue-600 hover:bg-blue-700 active:scale-98 disabled:opacity-50 text-white font-black text-xs rounded-2xl shadow-md shadow-blue-500/25 transition-all flex items-center justify-center gap-1.5"
             >
               <Send className="w-3.5 h-3.5" />
-              <span>Send to Kitchen</span>
+              <span>{isSubmittingOrder ? 'Saving order…' : 'Send to Kitchen'}</span>
             </button>
           </div>
         </div>

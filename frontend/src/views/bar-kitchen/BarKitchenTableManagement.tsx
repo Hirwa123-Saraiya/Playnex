@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   Layers,
   Users,
@@ -16,10 +16,12 @@ import {
 import { useBarKitchenStore } from '../../store/BarKitchenStore';
 import { BarKitchenTableCard } from '../../components/bar-kitchen/BarKitchenTableCard';
 import { TableArea, TableStatus } from '../../types/BarKitchenTypes';
+import { mapRestaurantTable, restaurantService } from '../../services/restaurant.service';
 
 export const BarKitchenTableManagement: React.FC = () => {
   const {
     tables,
+    setTables,
     selectedTable,
     setSelectedTable,
     updateTableStatus,
@@ -31,6 +33,13 @@ export const BarKitchenTableManagement: React.FC = () => {
   const [selectedArea, setSelectedArea] = useState<TableArea | 'All Areas'>('Indoor');
   const [transferTargetId, setTransferTargetId] = useState<string>('');
   const [showTransferModal, setShowTransferModal] = useState(false);
+
+  useEffect(() => {
+    void restaurantService.getTables()
+      .then((response) => {
+        if (response.success && Array.isArray(response.data)) setTables(response.data.map(mapRestaurantTable));
+      });
+  }, [setTables]);
 
   const areas: (TableArea | 'All Areas')[] = [
     'All Areas',

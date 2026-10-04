@@ -44,9 +44,7 @@ export const ProShopInventoryLayout: React.FC = () => {
           setProducts(response.data.map(mapProShopItemToProduct));
         }
       })
-      .catch(() => {
-        setToastMessage('Could not load live inventory. Showing the local catalog.');
-      });
+      .catch(() => setToastMessage('Could not load live inventory. Please retry.'));
   }, [user?.tenantId, setProducts, setToastMessage]);
 
   if (isLoading) {

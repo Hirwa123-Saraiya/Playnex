@@ -1,5 +1,5 @@
 import React from 'react';
-import { Plus, Clock, ChefHat, Sparkles } from 'lucide-react';
+import { Plus, Clock, ChefHat, Sparkles, UtensilsCrossed } from 'lucide-react';
 import { BarKitchenMenuItem } from '../../types/BarKitchenTypes';
 
 interface BarKitchenMenuCardProps {
@@ -21,12 +21,18 @@ export const BarKitchenMenuCard: React.FC<BarKitchenMenuCardProps> = ({
       <div>
         {/* Top media & badges */}
         <div className="relative w-full h-32 rounded-xl overflow-hidden bg-slate-100 mb-2.5">
-          <img
-            src={item.image}
-            alt={item.name}
-            className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
-            loading="lazy"
-          />
+          {item.image ? (
+            <img
+              src={item.image}
+              alt={item.name}
+              className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+              loading="lazy"
+            />
+          ) : (
+            <div className="flex h-full items-center justify-center bg-gradient-to-br from-blue-50 to-slate-100 text-blue-600">
+              <UtensilsCrossed className="h-8 w-8" aria-hidden="true" />
+            </div>
+          )}
           {/* Veg / Non-Veg Indicator */}
           <div className="absolute top-2 left-2 bg-white/95 backdrop-blur-xs p-1 rounded-md shadow-xs flex items-center justify-center">
             <span

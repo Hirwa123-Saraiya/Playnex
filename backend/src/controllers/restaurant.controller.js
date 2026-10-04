@@ -3,6 +3,16 @@ import { dbService } from '../data/dbService.js';
 import { successResponse, errorResponse } from '../utils/apiResponse.js';
 import { getTenantId } from '../utils/tenantHelper.js';
 
+function serializeMenuItem(item) {
+  return {
+    id: item.item_id,
+    name: item.name,
+    category: item.category,
+    price: Number(item.price),
+    isAvailable: item.is_available,
+  };
+}
+
 /**
  * GET /api/v1/restaurant/overview or /api/v1/club/restaurant/overview
  * Executive F&B overview stats for restaurant & bar
@@ -78,9 +88,12 @@ export async function getRestaurantMenu(req, res) {
     const tenantId = getTenantId(req);
     if (!tenantId) return errorResponse(res, 'Tenant context missing', 400);
 
-    const { category } = req.query;
-    let query = 'SELECT * FROM restaurant_items WHERE tenant_id = $1 AND is_available = TRUE';
+    const { category, includeInactive } = req.query;
+    let query = 'SELECT * FROM restaurant_items WHERE tenant_id = $1';
     const params = [tenantId];
+
+    // POS only needs sellable items, while menu management must also see disabled items.
+    if (includeInactive !== 'true') query += ' AND is_available = TRUE';
 
     if (category && category !== 'All') {
       params.push(category);
@@ -90,7 +103,7 @@ export async function getRestaurantMenu(req, res) {
     query += ' ORDER BY category ASC, name ASC';
 
     const { rows } = await pool.query(query, params);
-    return successResponse(res, rows, 'Restaurant menu retrieved successfully');
+    return successResponse(res, rows.map(serializeMenuItem), 'Restaurant menu retrieved successfully');
   } catch (err) {
     return errorResponse(res, err.message, 500);
   }
@@ -114,7 +127,7 @@ export async function createMenuItem(req, res) {
       [itemId, tenantId, name.trim(), category || 'Food', Number(price) || 0, isAvailable !== undefined ? isAvailable : true]
     );
 
-    return successResponse(res, rows[0], 'Menu item added successfully', 201);
+    return successResponse(res, serializeMenuItem(rows[0]), 'Menu item added successfully', 201);
   } catch (err) {
     return errorResponse(res, err.message, 500);
   }
@@ -141,7 +154,7 @@ export async function updateMenuItem(req, res) {
     );
 
     if (rows.length === 0) return errorResponse(res, 'Menu item not found', 404);
-    return successResponse(res, rows[0], 'Menu item updated successfully');
+    return successResponse(res, serializeMenuItem(rows[0]), 'Menu item updated successfully');
   } catch (err) {
     return errorResponse(res, err.message, 500);
   }
